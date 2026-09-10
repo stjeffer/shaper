@@ -8,7 +8,17 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from mcp.shared.memory import create_connected_server_and_client_session
 
+from shaper.application.assessment import EstateAssessmentService
+from shaper.application.demo import DemoAnalysisService
 from shaper.application.jobs import CompileJobService, InMemoryJobStore
+from shaper.application.orchestration import (
+    AgentReadinessAgent,
+    AssessmentAgent,
+    GovernanceAgent,
+    KnowledgeAgent,
+    KnowledgeTransformationOrchestrator,
+    TransformationAgent,
+)
 from shaper.domain import CollectionRole, Principal, SourceDocument
 from shaper.infrastructure.uploads import FileUploadStore
 from shaper.interfaces.hosted import create_hosted_app
@@ -51,6 +61,20 @@ def compile_principal() -> Principal:
     )
 
 
+def platform_orchestrator(
+    assessments: EstateAssessmentService,
+) -> KnowledgeTransformationOrchestrator:
+    """Create the deterministic platform orchestrator."""
+    return KnowledgeTransformationOrchestrator(
+        assessments=assessments,
+        assessment_agent=AssessmentAgent(),
+        knowledge_agent=KnowledgeAgent(),
+        transformation_agent=TransformationAgent(),
+        governance_agent=GovernanceAgent(),
+        agent_readiness_agent=AgentReadinessAgent(),
+    )
+
+
 def test_given_compile_request_when_authorized_then_job_is_accepted() -> None:
     # Arrange
     app = create_app(
@@ -81,6 +105,298 @@ def test_given_compile_request_when_authorized_then_job_is_accepted() -> None:
     # Assert
     assert response.status_code == 202
     assert response.json()["state"] == "queued"
+
+
+def test_given_profiles_when_authorized_then_estate_assessment_is_returned() -> None:
+    # Arrange
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+                assessments=EstateAssessmentService(),
+            )
+        )
+    )
+
+    # Act
+    response = client.post(
+        "/v1/assessments",
+        headers={"Authorization": "Bearer " + "valid"},
+        json={
+            "collection_id": "collection-1",
+            "assessed_at": "2026-09-10T08:00:00Z",
+            "profiles": [
+                {
+                    "document_id": "policy-1",
+                    "title": "Travel policy",
+                    "text": "# Travel\n\nEmployees must submit expenses.",
+                    "modified_at": "2026-08-01T08:00:00Z",
+                    "owner": None,
+                    "metadata": {},
+                    "topic": "Travel",
+                    "authority": "unknown",
+                    "faq_count": 0,
+                    "procedure_step_count": 0,
+                    "assertions": [],
+                }
+            ],
+        },
+    )
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json()["document_count"] == 1
+    assert response.json()["coverage"]["unavailable_metric_count"] > 0
+    assert "not accuracy" in response.json()["limitations"][0]
+
+
+def test_given_public_demo_when_requested_then_real_platform_analysis_is_returned() -> None:
+    # Arrange
+    assessments = EstateAssessmentService()
+    orchestrator = platform_orchestrator(assessments)
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+                assessments=assessments,
+                orchestrator=orchestrator,
+                demo_analysis=DemoAnalysisService(orchestrator),
+            )
+        )
+    )
+
+    # Act
+    response = client.get("/v1/demo/analysis")
+    repeated_response = client.get("/v1/demo/analysis")
+
+    # Assert
+    assert response.status_code == 200
+    assert repeated_response.json() == response.json()
+    body = response.json()
+    assert body["sample_kind"] == "server_owned_fixed_sample"
+    assert [source["title"] for source in body["sources"]] == [
+        "Travel Policy v4",
+        "EMEA Travel Rules",
+        "New Starter FAQ",
+    ]
+    assert body["sources"][0]["authority"] == "authoritative"
+    analysis = body["analysis"]
+    assert analysis["collection_id"] == "faqifier"
+    assert analysis["knowledge"]["topics"]
+    assert analysis["transformation"]["proposals"]
+    assert analysis["transformation"]["proposal_only"]
+    assert not analysis["governance"]["recurring_monitoring_configured"]
+
+
+def test_given_profiles_when_platform_analyzed_then_agent_results_share_assessment() -> None:
+    # Arrange
+    assessments = EstateAssessmentService()
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+                assessments=assessments,
+                orchestrator=platform_orchestrator(assessments),
+            )
+        )
+    )
+    payload = {
+        "collection_id": "collection-1",
+        "assessed_at": "2026-09-10T08:00:00Z",
+        "profiles": [
+            {
+                "document_id": "policy-1",
+                "title": "Travel policy",
+                "text": "# Travel\n\nEmployees must submit expenses.",
+                "modified_at": "2026-08-01T08:00:00Z",
+                "owner": None,
+                "metadata": {},
+                "topic": "Travel",
+                "authority": "unknown",
+                "faq_count": 0,
+                "procedure_step_count": 0,
+                "assertions": [],
+            }
+        ],
+    }
+
+    # Act
+    assessment = client.post(
+        "/v1/assessments",
+        headers={"Authorization": "Bearer valid"},
+        json=payload,
+    )
+    analysis = client.post(
+        "/v1/platform/analyses",
+        headers={"Authorization": "Bearer valid"},
+        json=payload,
+    )
+    unauthenticated = client.post("/v1/platform/analyses", json=payload)
+
+    # Assert
+    assert assessment.status_code == 200
+    assert analysis.status_code == 200
+    assert unauthenticated.status_code != 200
+    body = analysis.json()
+    assert body["assessment_id"] == assessment.json()["assessment_id"]
+    assert {
+        body[name]["role"]
+        for name in (
+            "assessment",
+            "knowledge",
+            "transformation",
+            "governance",
+            "agent_readiness",
+        )
+    } == {
+        "assessment",
+        "knowledge",
+        "transformation",
+        "governance",
+        "agent_readiness",
+    }
+
+
+def test_given_naive_assessment_time_when_requested_then_validation_error_is_returned() -> None:
+    # Arrange
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+                assessments=EstateAssessmentService(),
+            )
+        )
+    )
+
+    # Act
+    response = client.post(
+        "/v1/assessments",
+        headers={"Authorization": "Bearer " + "valid"},
+        json={
+            "collection_id": "collection-1",
+            "assessed_at": "2026-09-10T08:00:00",
+            "profiles": [
+                {
+                    "document_id": "policy-1",
+                    "title": "Travel policy",
+                    "text": "Employees must submit expenses.",
+                    "modified_at": "2026-08-01T08:00:00Z",
+                }
+            ],
+        },
+    )
+
+    # Assert
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Assessment time must include a timezone"
+
+
+def test_given_paired_evaluation_when_authorized_then_improvement_report_is_returned() -> None:
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+            )
+        )
+    )
+
+    response = client.post(
+        "/v1/evaluations/improvement",
+        headers={"Authorization": "Bearer " + "valid"},
+        json={
+            "collection_id": "collection-1",
+            "outcomes": [
+                {
+                    "case_id": f"case-{index}",
+                    "baseline_passed": index < 18,
+                    "shaped_passed": index < 24,
+                }
+                for index in range(30)
+            ],
+            "dataset_reviewed": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["absolute_improvement_percentage_points"] == 20
+    assert response.json()["claim_status"] == "eligible_for_reviewed_claim"
+
+
+def test_given_assessment_without_compile_role_when_requested_then_forbidden() -> None:
+    # Arrange
+    caller = Principal(
+        principal_id="person-1",
+        tenant_id="tenant-1",
+        collection_roles={"collection-1": frozenset({CollectionRole.QUERY})},
+    )
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(caller),
+                assessments=EstateAssessmentService(),
+            )
+        )
+    )
+
+    # Act
+    response = client.post(
+        "/v1/assessments",
+        headers={"Authorization": "Bearer " + "valid"},
+        json={
+            "collection_id": "collection-1",
+            "assessed_at": "2026-09-10T08:00:00Z",
+            "profiles": [
+                {
+                    "document_id": "policy-1",
+                    "title": "Policy",
+                    "text": "Current policy.",
+                    "modified_at": "2026-08-01T08:00:00Z",
+                }
+            ],
+        },
+    )
+
+    # Assert
+    assert response.status_code == 403
+
+
+def test_given_unconfigured_assessment_when_requested_then_service_is_unavailable() -> None:
+    # Arrange
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(compile_principal()),
+            )
+        )
+    )
+
+    # Act
+    response = client.post(
+        "/v1/assessments",
+        headers={"Authorization": "Bearer " + "valid"},
+        json={
+            "collection_id": "collection-1",
+            "assessed_at": "2026-09-10T08:00:00Z",
+            "profiles": [
+                {
+                    "document_id": "policy-1",
+                    "title": "Policy",
+                    "text": "Current policy.",
+                    "modified_at": "2026-08-01T08:00:00Z",
+                }
+            ],
+        },
+    )
+
+    # Assert
+    assert response.status_code == 503
 
 
 def test_given_invalid_bearer_token_when_requested_then_http_returns_unauthorized() -> None:

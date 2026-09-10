@@ -3,21 +3,43 @@
 from __future__ import annotations
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 import uvicorn
 
+from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
+from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
 from shaper.application.compiler import CompilationService
+from shaper.application.decisions import TransformationDecisionService
+from shaper.application.demo import DemoAnalysisService
+from shaper.application.estates import (
+    EstateDiscoveryService,
+    EstateInventoryService,
+    EstateRecommendationService,
+    EstateService,
+    EstateSourceService,
+)
 from shaper.application.jobs import (
     CompileJobDispatcher,
     CompileJobService,
     CompileJobWorker,
 )
 from shaper.application.model import AzureOpenAIModelGateway
+from shaper.application.orchestration import (
+    AgentReadinessAgent,
+    AssessmentAgent,
+    GovernanceAgent,
+    KnowledgeAgent,
+    KnowledgeTransformationOrchestrator,
+    TransformationAgent,
+)
 from shaper.application.review import ReviewService
+from shaper.application.token_estimation import TokenEstimator
 from shaper.application.validation import DeterministicValidator
 from shaper.config import ModelProvider, Settings
+from shaper.infrastructure.archive import ZipArchiveExpander
 from shaper.infrastructure.compilation import (
     FilesystemCompilationPublisher,
     SQLiteCandidateStore,
@@ -26,11 +48,12 @@ from shaper.infrastructure.compilation import (
 )
 from shaper.infrastructure.parsers import SupportedDocumentParser
 from shaper.infrastructure.projection import ReloadingQueryService
-from shaper.infrastructure.sqlite import SQLiteStore
+from shaper.infrastructure.sqlite import SQLiteEstateRepository, SQLiteStore
 from shaper.infrastructure.uploads import ClamdScanner, FileUploadStore
 from shaper.interfaces.auth import (
     McpOIDCTokenVerifier,
     OIDCAuthenticator,
+    RequestPrincipalResolver,
     current_mcp_principal,
 )
 from shaper.interfaces.hosted import create_hosted_app
@@ -64,6 +87,7 @@ def serve(
     )
     store.connect()
     store.migrate()
+    estate_repository = SQLiteEstateRepository(store)
     jobs = CompileJobService(store)
     authenticator = OIDCAuthenticator(
         issuer=settings.oidc_issuer,
@@ -94,20 +118,67 @@ def serve(
         deployment=settings.azure_openai_deployment,
         use_managed_identity=settings.azure_openai_use_managed_identity,
     )
+    parser = SupportedDocumentParser()
+    validator = DeterministicValidator()
+    review_store = SQLiteReviewStore(store)
+    reviews = ReviewService(review_store)
     compilation = CompilationService(
         jobs=store,
         uploads=uploads,
-        parser=SupportedDocumentParser(),
+        parser=parser,
         model=model,
-        validator=DeterministicValidator(),
+        validator=validator,
         checkpoints=SQLiteCheckpointStore(store),
         candidates=SQLiteCandidateStore(store),
-        reviews=ReviewService(SQLiteReviewStore(store)),
+        reviews=reviews,
         publisher=FilesystemCompilationPublisher(settings.release_root),
     )
     dispatcher = CompileJobDispatcher(
         store,
         CompileJobWorker(store, compilation.compile),
+    )
+    assessments = EstateAssessmentService()
+    orchestrator = KnowledgeTransformationOrchestrator(
+        assessments=assessments,
+        assessment_agent=AssessmentAgent(),
+        knowledge_agent=KnowledgeAgent(),
+        transformation_agent=TransformationAgent(),
+        governance_agent=GovernanceAgent(),
+        agent_readiness_agent=AgentReadinessAgent(),
+    )
+    estate_service = EstateService(estate_repository, clock=lambda: datetime.now(UTC))
+    source_service = EstateSourceService(
+        estate_repository,
+        clock=lambda: datetime.now(UTC),
+    )
+    inventory_service = EstateInventoryService(
+        estate_repository,
+        parser=parser,
+        clock=lambda: datetime.now(UTC),
+    )
+    discovery_service = EstateDiscoveryService(
+        estate_repository,
+        documents=DocumentAssessmentService(),
+        orchestrator=orchestrator,
+        clock=lambda: datetime.now(UTC),
+    )
+    recommendation_service = EstateRecommendationService(
+        estate_repository,
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment=settings.azure_openai_deployment),
+        clock=lambda: datetime.now(UTC),
+    )
+    decision_service = TransformationDecisionService(
+        estate_repository,
+        clock=lambda: datetime.now(UTC),
+    )
+    transformation_service = EstateTransformationService(
+        estate_repository,
+        model=model,
+        validator=validator,
+        reviews=reviews,
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: datetime.now(UTC),
     )
     http_services = HttpServices(
         jobs=jobs,
@@ -115,6 +186,23 @@ def serve(
         query=query,
         uploads=uploads,
         compilation=compilation,
+        assessments=assessments,
+        orchestrator=orchestrator,
+        demo_analysis=DemoAnalysisService(orchestrator),
+        principal_resolver=RequestPrincipalResolver(
+            authenticator=authenticator,
+            grants=estate_repository,
+            trust_ingress_identity=settings.trust_ingress_identity,
+        ),
+        estates=estate_service,
+        estate_sources=source_service,
+        estate_inventory=inventory_service,
+        discovery=discovery_service,
+        recommendations=recommendation_service,
+        decisions=decision_service,
+        transformations=transformation_service,
+        estate_repository=estate_repository,
+        archive_expander=ZipArchiveExpander(scanner),
         readiness=lambda: {
             "state_store": store.is_ready(),
             "malware_scanner": scanner.is_ready(),

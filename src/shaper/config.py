@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
     public_url: str | None = None
+    trust_ingress_identity: bool = False
     clamd_host: str = "127.0.0.1"
     clamd_port: int = Field(default=3310, ge=1, le=65535)
     log_source_text: bool = Field(default=False, description="Unsafe outside isolated tests.")

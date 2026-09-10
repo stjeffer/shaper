@@ -330,3 +330,37 @@ provider-neutral ports, transactional SQLite state, and dependency rules.
 * Execution status: Blocked. The next responsible action is to wire and validate
   RV-001 locally, then authenticate Azure CLI and supply the governed deployment
   values before executing `scripts/deploy.sh`.
+
+## Live Azure Deployment Completed
+
+* Related findings and tasks: RV-001 through RV-003, P07-T02, and P07-T04.
+* Azure result: Revision `ca-shaper-dev--0000009` is the only active revision,
+  reports healthy at one replica, and passes both live and dependency readiness
+  probes.
+* Hosted concept: The public `/concept/` route returns the Copilot Studio
+  knowledge-compiler prototype without exposing authenticated API data.
+* Authentication result: The Entra API application issues v2 access tokens with
+  the application ID audience. A role-bearing client-credentials token completed
+  authenticated MCP initialization.
+* Compilation result: A synthetic annual-leave document passed ClamAV scanning,
+  Azure OpenAI answer shaping, independent review retrieval, human approval, and
+  immutable Azure Files publication.
+* Retrieval result: After deploying a replacement revision, a punctuated natural
+  language query loaded the durable published release, returned one grounded
+  result, and produced an explanation with the matching release identity.
+* State-topology divergence: Container Apps does not expose the Azure Files SMB
+  mount option SQLite requires. The bounded dev profile therefore keeps
+  short-lived job, checkpoint, candidate, and review coordination in local
+  container storage while retaining uploads and immutable releases on Azure
+  Files. In-flight work does not survive replacement; production and horizontal
+  scaling still require a managed transactional state adapter.
+* Azure OpenAI corrections: Provider schemas now close every object, require all
+  strict-mode properties, constrain status and tool names, and validate decoded
+  provider payloads through the JSON boundary so strict tuples accept JSON
+  arrays.
+* Query correction: FTS5 input is tokenized and quoted before `MATCH`, preventing
+  punctuation such as question marks from being interpreted as query syntax.
+* Validation: 81 tests pass. Ruff and strict mypy pass across 61 source files.
+  Bicep compiles, the hosted concept responds, restart persistence passes, and no
+  temporary smoke-client credentials remain.
+* Execution status: Complete for the bounded Azure development profile.

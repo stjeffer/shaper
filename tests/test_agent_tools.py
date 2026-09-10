@@ -6,8 +6,9 @@ import hashlib
 from collections.abc import Sequence
 
 import pytest
+from pydantic import ValidationError
 
-from shaper.application.agent_tools import ReadOnlyToolRegistry, ToolRequest
+from shaper.application.agent_tools import ReadOnlyToolRegistry, ToolArguments, ToolRequest
 from shaper.domain import CollectionRole, Principal, SourceSpan
 
 
@@ -67,20 +68,10 @@ def test_given_registry_when_inspected_then_only_read_only_tools_are_exposed() -
     }
 
 
-def test_given_unknown_tool_when_invoked_then_adapter_is_not_called() -> None:
-    # Arrange
-    registry = ReadOnlyToolRegistry(
-        Context([make_span()]),
-        source_id="source-1",
-        collection_id="collection-1",
-    )
-
+def test_given_unknown_tool_when_parsed_then_request_is_rejected() -> None:
     # Act & Assert
-    with pytest.raises(ValueError, match="disallowed"):
-        registry.invoke(
-            ToolRequest(name="publish_release"),
-            principal(CollectionRole.COMPILE),
-        )
+    with pytest.raises(ValidationError, match="Input should be"):
+        ToolRequest.model_validate({"name": "publish_release"})
 
 
 def test_given_query_only_principal_when_tool_invoked_then_authorization_fails() -> None:
@@ -94,6 +85,6 @@ def test_given_query_only_principal_when_tool_invoked_then_authorization_fails()
     # Act & Assert
     with pytest.raises(PermissionError, match="compile"):
         registry.invoke(
-            ToolRequest(name="get_span", arguments={"span_id": "span-1"}),
+            ToolRequest(name="get_span", arguments=ToolArguments(span_id="span-1")),
             principal(CollectionRole.QUERY),
         )

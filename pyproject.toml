@@ -1,7 +1,7 @@
 [project]
 name = "shaper"
 version = "0.1.0"
-description = "Compile source documents into versioned, answer-ready evidence units"
+description = "Transform unmanaged enterprise content into trusted, agent-ready knowledge"
 readme = "README.md"
 authors = [
     { name = "Steve Jeffery" }

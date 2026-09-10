@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 from collections.abc import Callable, Mapping
 from typing import Protocol
 from urllib.parse import urlparse
@@ -12,6 +14,7 @@ from jwt import PyJWKClient
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken
 
+from shaper.application.estates import EstateRepository
 from shaper.domain import CollectionRole, Principal
 
 
@@ -54,6 +57,77 @@ class ClaimsPrincipalMapper:
             collection_roles={
                 collection_id: frozenset(roles) for collection_id, roles in collection_roles.items()
             },
+        )
+
+
+class RequestPrincipalResolver:
+    """Resolve exactly one bearer or trusted-ingress identity mode."""
+
+    def __init__(
+        self,
+        *,
+        authenticator: Authenticator,
+        grants: EstateRepository,
+        trust_ingress_identity: bool = False,
+    ) -> None:
+        self._authenticator = authenticator
+        self._grants = grants
+        self._trust_ingress_identity = trust_ingress_identity
+
+    def resolve(
+        self,
+        *,
+        authorization: str | None,
+        ingress_principal: str | None,
+    ) -> Principal:
+        """Fail closed for mixed, malformed, missing, or untrusted identities."""
+        has_bearer = authorization is not None
+        has_ingress = ingress_principal is not None
+        if has_bearer and has_ingress:
+            raise PermissionError("Bearer and ingress identities cannot be combined")
+        if has_bearer:
+            prefix = "Bearer "
+            if authorization is None or not authorization.startswith(prefix):
+                raise PermissionError("Authorization header must use Bearer")
+            return self._authenticator.authenticate(authorization.removeprefix(prefix))
+        if has_ingress:
+            if not self._trust_ingress_identity:
+                raise PermissionError("Ingress identity is not trusted by this deployment")
+            return self._ingress_principal(ingress_principal or "")
+        raise PermissionError("Authentication is required")
+
+    def _ingress_principal(self, encoded: str) -> Principal:
+        try:
+            padding = "=" * (-len(encoded) % 4)
+            raw = base64.b64decode(encoded + padding, validate=True)
+            payload = json.loads(raw)
+        except (ValueError, json.JSONDecodeError) as error:
+            raise PermissionError("Ingress principal header is malformed") from error
+        if not isinstance(payload, dict) or not isinstance(payload.get("claims"), list):
+            raise PermissionError("Ingress principal header has no claims array")
+        claims: dict[str, str] = {}
+        for item in payload["claims"]:
+            if not isinstance(item, dict):
+                raise PermissionError("Ingress principal claim is malformed")
+            name = item.get("typ")
+            value = item.get("val")
+            if isinstance(name, str) and isinstance(value, str):
+                claims[name] = value
+        principal_id = (
+            claims.get("oid")
+            or claims.get("http://schemas.microsoft.com/identity/claims/objectidentifier")
+            or claims.get("sub")
+        )
+        tenant_id = claims.get("tid") or claims.get(
+            "http://schemas.microsoft.com/identity/claims/tenantid"
+        )
+        if not principal_id or not tenant_id:
+            raise PermissionError("Ingress principal lacks tenant or object identity")
+        grants = self._grants.grants_for(tenant_id, principal_id)
+        return Principal(
+            principal_id=principal_id,
+            tenant_id=tenant_id,
+            collection_roles={grant.collection_id: grant.roles for grant in grants},
         )
 
 

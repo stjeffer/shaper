@@ -37,6 +37,8 @@ def test_given_bounded_sqlite_deployment_when_inspected_then_single_owner_is_enf
     script = (REPOSITORY_ROOT / "scripts/deploy.sh").read_text(encoding="utf-8")
 
     assert "activeRevisionsMode: 'Single'" in template
+    assert "name: 'SHAPER_DATABASE_PATH'" in template
+    assert "value: '/tmp/shaper.db'" in template
     assert "name: 'SHAPER_SQLITE_JOURNAL_MODE'" in template
     assert "value: 'DELETE'" in template
     assert "containerapp revision deactivate" in script
@@ -50,3 +52,32 @@ def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -
     assert 'ENTRYPOINT ["shaper"]' in dockerfile
     assert 'CMD ["--host", "0.0.0.0", "--port", "8000"]' in dockerfile
     assert 'CMD ["serve"' not in dockerfile
+
+
+def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent() -> None:
+    architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
+    readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "Shaper is not an agent" in architecture
+    assert "Shaper is not an agent" in readme
+    assert "SharePoint remains an important source, dashboard, review, and delivery surface" in (
+        architecture
+    )
+    for role in (
+        "Assessment Agent",
+        "Knowledge Agent",
+        "Transformation Agent",
+        "Governance Agent",
+        "Agent Readiness Agent",
+    ):
+        assert role in architecture
+
+
+def test_given_c4_diagrams_when_inspected_then_renderer_conventions_are_present() -> None:
+    architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
+
+    assert architecture.count("flowchart TB") == 3
+    assert architecture.count("subGraphTitleMargin:") == 3
+    assert "direction LR" not in architecture
+    assert "C4Context" not in architecture
+    assert "C4Container" not in architecture

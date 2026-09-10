@@ -5,11 +5,15 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from shaper.application.regression import (
     BenchmarkSummary,
     CaseResult,
     EvaluationCase,
+    PairedCaseOutcome,
     check_regression,
+    compare_paired_answer_pass_rates,
     load_dataset,
     run_benchmark,
     write_csv,
@@ -110,3 +114,43 @@ def test_given_jsonl_cases_when_exported_then_csv_has_same_pair_count(tmp_path: 
     write_csv(cases, target)
 
     assert len(target.read_text(encoding="utf-8").splitlines()) == 31
+
+
+def test_given_paired_results_when_compared_then_improvement_and_uncertainty_are_reported() -> None:
+    outcomes = tuple(
+        PairedCaseOutcome(
+            case_id=f"case-{index}",
+            baseline_passed=index < 18,
+            shaped_passed=index < 24,
+        )
+        for index in range(30)
+    )
+
+    report = compare_paired_answer_pass_rates(outcomes, dataset_reviewed=True)
+
+    assert report.baseline_pass_rate == 0.6
+    assert report.shaped_pass_rate == 0.8
+    assert report.absolute_improvement_percentage_points == 20
+    assert report.confidence_interval_percentage_points[0] > 0
+    assert report.claim_status == "eligible_for_reviewed_claim"
+    assert "model confidence" in report.limitations[0]
+
+
+def test_given_draft_dataset_when_improved_then_production_claim_is_blocked() -> None:
+    outcomes = tuple(
+        PairedCaseOutcome(case_id=f"case-{index}", baseline_passed=False, shaped_passed=True)
+        for index in range(30)
+    )
+
+    report = compare_paired_answer_pass_rates(outcomes, dataset_reviewed=False)
+
+    assert report.claim_status == "observed_only"
+    assert report.relative_improvement_percent is None
+    assert any("do not use" in limitation for limitation in report.limitations)
+
+
+def test_given_duplicate_pair_identity_when_compared_then_request_is_rejected() -> None:
+    outcome = PairedCaseOutcome(case_id="same", baseline_passed=False, shaped_passed=True)
+
+    with pytest.raises(ValueError, match="Paired outcome case IDs must be unique"):
+        compare_paired_answer_pass_rates((outcome, outcome), dataset_reviewed=True)

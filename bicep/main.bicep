@@ -266,6 +266,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
               value: collectionId
             }
             {
+              name: 'SHAPER_DATABASE_PATH'
+              value: '/tmp/shaper.db'
+            }
+            {
               name: 'SHAPER_OIDC_AUDIENCE'
               value: oidcAudience
             }

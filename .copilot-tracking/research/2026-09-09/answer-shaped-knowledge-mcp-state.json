@@ -3,8 +3,8 @@
   "task_slug": "answer-shaped-knowledge-mcp",
   "parent_task": null,
   "mode": "manual",
-  "active_phase": "Implement",
-  "status": "blocked",
+  "active_phase": "Follow-up",
+  "status": "completed",
   "session_status": "stopped",
   "artifact_paths": {
     "research": ".copilot-tracking/research/2026-09-09/answer-shaped-knowledge-mcp-research.md",
@@ -154,42 +154,46 @@
       "decision": "Package the pitch prototype into the Azure Container App at /concept/ alongside the authenticated API and MCP service.",
       "status": "confirmed",
       "evidence": "Dockerfile copies the static assets, the HTTP composition mounts them, and hosted interface tests verify index and JavaScript delivery."
-    }
-  ],
-  "blockers": [
-    {
-      "id": "AZURE-CREATION-CONSENT",
-      "summary": "Creating the billable dev environment and tenant-visible Entra application requires explicit confirmation.",
-      "resolution": "Confirm creation of the complete dev environment after reviewing the proposed regions and resource scope."
     },
     {
-      "id": "AZURE-CONFIG",
-      "summary": "The nine required deployment environment variables are unset.",
-      "resolution": "Supply the governed Azure OpenAI, collection, OIDC, scanner, and short-lived smoke-token values."
+      "decision": "Use local container storage for transient SQLite coordination in the bounded dev profile while retaining uploads and immutable releases on Azure Files.",
+      "status": "confirmed",
+      "evidence": "Azure live deployment proved SQLite locking fails on the Container Apps Azure Files SMB mount; revision 0000009 is healthy with /tmp/shaper.db and one replica."
+    },
+    {
+      "decision": "Configure the Entra API for v2 access tokens and validate the application ID audience emitted in the access token.",
+      "status": "confirmed",
+      "evidence": "Authenticated live MCP initialization returned mcp-ok shaper."
+    },
+    {
+      "decision": "The bounded Azure development deployment and live compiler acceptance are complete.",
+      "status": "confirmed",
+      "evidence": "One healthy revision, readiness probes, hosted concept, upload, scan, Azure OpenAI shaping, review, approval, immutable publication, restart query, and explanation all passed."
     }
   ],
+  "blockers": [],
   "next_action": {
-    "phase": "Implement",
-    "action": "Confirm creation of the complete dev environment in the authenticated personal subscription, then register providers, create Azure OpenAI and Entra resources, deploy the Container App, and run live validation."
+    "phase": "Research",
+    "action": "Start a separate research task for the multi-source Shaper developer tool and portable versioned HTML knowledge packages."
   },
   "prioritized_follow_ups": [
     {
       "rank": 1,
-      "task": "Deploy to a governed Azure subscription and run the live smoke and integration matrix.",
-      "rationale": "Bicep and automation are locally validated, but Azure, SharePoint, Entra, Azure OpenAI, and container execution require external resources and credentials.",
-      "evidence": "P07-T02, P07-T04, docs/deployment.md, and the changes validation record"
+      "task": "Research a multi-source Shaper developer tool and portable HTML knowledge packages.",
+      "rationale": "The caller requested connectors for wikis, files, SharePoint, and ServiceNow with reusable HTML output for downstream agents.",
+      "evidence": "Direct caller request on 2026-09-10 and the completed bounded Azure compiler"
     },
     {
       "rank": 2,
       "task": "Run the evaluation-design interview, sample review, and live baseline approval.",
-      "rationale": "Production expected behavior, user populations, thresholds, and automatic-publication gates cannot be invented from synthetic fixtures.",
-      "evidence": "tests/evaluation/metadata.json, live-approved.json, NFR-06, and P07-T01"
+      "rationale": "A measured accuracy-improvement claim needs paired baseline and shaped evaluations with reviewed labels and uncertainty.",
+      "evidence": "Caller request for accuracy improvement, confidence, and explanation; tests/evaluation/metadata.json"
     },
     {
       "rank": 3,
-      "task": "Replace SQLite and local vector indexing before horizontal scaling.",
-      "rationale": "The hosted profile is intentionally one replica; measured corpus and concurrency determine the managed database and vector backend.",
-      "evidence": "NFR-10, P05-T03, P07-T04, and docs/deployment.md"
+      "task": "Replace transient SQLite coordination before production or horizontal scaling.",
+      "rationale": "The healthy dev profile intentionally loses in-flight job and review state on replica replacement.",
+      "evidence": "Live Azure Files locking failure, bicep/main.bicep, and docs/deployment.md"
     }
   ]
 }

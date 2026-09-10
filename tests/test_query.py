@@ -52,6 +52,19 @@ def test_given_authorized_query_when_searched_then_grounded_unit_is_returned(
     assert results[0].unit.source_id == source_document.source_id
 
 
+def test_given_question_punctuation_when_searched_then_fts_syntax_is_safe(
+    source_document: SourceDocument,
+) -> None:
+    # Act
+    results = service(source_document).query(
+        "How much leave do employees receive?",
+        principal=principal(CollectionRole.QUERY),
+    )
+
+    # Assert
+    assert results[0].unit.source_id == source_document.source_id
+
+
 def test_given_missing_query_role_when_searched_then_access_fails_before_ranking(
     source_document: SourceDocument,
 ) -> None:

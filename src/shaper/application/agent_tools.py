@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,13 +24,25 @@ class EvidenceContext(Protocol):
         """Return candidate conflict unit IDs."""
 
 
+class ToolArguments(BaseModel):
+    """Strict-schema-compatible arguments for the fixed read-only tool set."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    span_id: str | None = None
+    radius: int | None = None
+    name: str | None = None
+    text: str | None = None
+    limit: int | None = None
+
+
 class ToolRequest(BaseModel):
     """Validated model-requested tool invocation."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    name: str = Field(min_length=1, max_length=64)
-    arguments: dict[str, object] = Field(default_factory=dict)
+    name: Literal["find_conflicts", "get_neighbors", "get_span", "get_taxonomy"]
+    arguments: ToolArguments = Field(default_factory=ToolArguments)
 
 
 class ReadOnlyToolRegistry:
@@ -70,7 +82,7 @@ class ReadOnlyToolRegistry:
         handler = self._handlers.get(request.name)
         if handler is None:
             raise ValueError(f"Unknown or disallowed agent tool: {request.name!r}")
-        return handler(request.arguments)
+        return handler(request.arguments.model_dump(exclude_none=True))
 
     def _get_span(self, arguments: Mapping[str, object]) -> dict[str, object]:
         span_id = _required_string(arguments, "span_id")

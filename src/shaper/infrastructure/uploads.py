@@ -25,6 +25,7 @@ _MEDIA_TYPES = {
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".md": "text/markdown",
     ".txt": "text/plain",
+    ".zip": "application/zip",
 }
 _EXECUTABLE_SUFFIXES = frozenset({".bat", ".cmd", ".com", ".exe", ".js", ".ps1", ".sh"})
 
@@ -274,6 +275,13 @@ class FileUploadStore:
             raise UploadRejectedError("PDF signature is invalid")
         if extension in {".md", ".txt"} and b"\x00" in content:
             raise UploadRejectedError("Text upload contains binary null bytes")
+        if extension == ".zip":
+            with tempfile.NamedTemporaryFile() as temporary:
+                temporary.write(content)
+                temporary.flush()
+                if not zipfile.is_zipfile(temporary.name):
+                    raise UploadRejectedError("ZIP signature is invalid")
+            return
         if extension != ".docx":
             return
         with tempfile.NamedTemporaryFile() as temporary:

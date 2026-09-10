@@ -192,12 +192,16 @@ main() {
   curl --fail --silent --show-error --retry 20 --retry-all-errors \
     --retry-delay 10 "${service_url}/health/ready" >/dev/null
 
+  local header_file
   local response_file
+  header_file="$(mktemp)"
   response_file="$(mktemp)"
-  trap 'rm -f "${response_file:-}"' EXIT
+  trap 'rm -f "${header_file:-}" "${response_file:-}"' EXIT
+  printf "Authorization: Bearer %s\n" "${SHAPER_SMOKE_TOKEN}" >"${header_file}"
+  chmod 600 "${header_file}"
   curl --fail --silent --show-error \
     --header "Accept: application/json, text/event-stream" \
-    --header "Authorization: Bearer ${SHAPER_SMOKE_TOKEN}" \
+    --header "@${header_file}" \
     --header "Content-Type: application/json" \
     --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"deploy-smoke","version":"1.0"}}}' \
     "${service_url}/mcp/" >"${response_file}"

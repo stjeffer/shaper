@@ -123,6 +123,7 @@ class SharePointSource:
                     document=document,
                     source_id=item_id,
                     checkpoint=page_checkpoint,
+                    content=content,
                 )
             next_url = _optional_string(page, "@odata.nextLink")
 

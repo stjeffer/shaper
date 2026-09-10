@@ -30,6 +30,7 @@ class SourceChange:
     document: SourceDocument | None
     source_id: str
     checkpoint: str
+    content: bytes | None = None
 
 
 @dataclass(frozen=True)

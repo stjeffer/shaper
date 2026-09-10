@@ -199,3 +199,18 @@ def test_given_exhausted_model_budget_when_shaped_then_failure_is_explicit(
             source_span,
             budget=ShapingBudget(maximum_model_calls=1),
         )
+
+
+def test_given_provider_response_over_token_cap_when_valid_then_it_is_not_accepted(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    # Act & Assert
+    with pytest.raises(ShapingBudgetExceeded, match="provider response") as captured:
+        run_loop(
+            [candidate_payload()],
+            source_document,
+            source_span,
+            budget=ShapingBudget(maximum_tokens=1),
+        )
+    assert captured.value.input_tokens + captured.value.output_tokens > 1

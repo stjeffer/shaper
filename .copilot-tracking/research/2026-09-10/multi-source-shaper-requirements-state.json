@@ -1,0 +1,62 @@
+{
+  "task_id": "multi-source-shaper-requirements",
+  "task_slug": "multi-source-shaper-requirements",
+  "parent_task": {
+    "task_id": "answer-shaped-knowledge-mcp",
+    "task_slug": "answer-shaped-knowledge-mcp"
+  },
+  "mode": "automatic",
+  "active_phase": "Research",
+  "status": "active",
+  "session_status": "running",
+  "artifact_paths": {
+    "research": ".copilot-tracking/research/2026-09-10/multi-source-shaper-requirements-research.md",
+    "plan": null,
+    "details": null,
+    "critique": null,
+    "changes": null,
+    "review": null
+  },
+  "confirmed_decisions": [
+    {
+      "decision": "Research executed through wider, deeper, and contrarian waves",
+      "status": "complete",
+      "evidence": ".copilot-tracking/research/2026-09-10/multi-source-shaper-requirements-research.md"
+    },
+    {
+      "decision": "Planning Readiness",
+      "status": "ready",
+      "evidence": "Exact seven-input and eight-output capability baseline, gap matrix, and selected contract boundary are recorded"
+    },
+    {
+      "decision": "Transition to Plan",
+      "status": "intended",
+      "evidence": "Automatic mode continues after Research readiness gates pass"
+    }
+  ],
+  "blockers": [],
+  "next_action": {
+    "phase": "Plan",
+    "action": "Create and critique an implementation plan covering the exact capability lists"
+  },
+  "prioritized_follow_ups": [
+    {
+      "rank": 1,
+      "task": "Implement the exact multi-source input and canonical output capability contracts",
+      "rationale": "This is the selected child task and prerequisite for all connector and renderer work",
+      "evidence": ".copilot-tracking/research/2026-09-10/multi-source-shaper-requirements-research.md"
+    },
+    {
+      "rank": 2,
+      "task": "Design paired baseline-versus-shaped evaluations",
+      "rationale": "Required for defensible accuracy-improvement reporting",
+      "evidence": ".copilot-tracking/research/2026-09-09/answer-shaped-knowledge-mcp-state.json"
+    },
+    {
+      "rank": 3,
+      "task": "Replace ephemeral SQLite coordination with managed state",
+      "rationale": "Required before production scaling and zero-downtime rollout",
+      "evidence": "docs/deployment.md"
+    }
+  ]
+}

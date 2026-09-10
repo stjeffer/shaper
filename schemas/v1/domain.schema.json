@@ -442,6 +442,7 @@
           "enum": [
             "queued",
             "running",
+            "awaiting_review",
             "cancelling",
             "cancelled",
             "failed",
@@ -612,6 +613,1237 @@
         "output"
       ],
       "title": "CompileJob",
+      "type": "object"
+    },
+    "EstateAssessment": {
+      "$defs": {
+        "AssessmentCoverage": {
+          "additionalProperties": false,
+          "description": "Completeness of the evidence used to calculate readiness.",
+          "properties": {
+            "available_metric_count": {
+              "minimum": 1,
+              "title": "Available Metric Count",
+              "type": "integer"
+            },
+            "coverage_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Coverage Percent",
+              "type": "number"
+            },
+            "unavailable_metric_count": {
+              "minimum": 0,
+              "title": "Unavailable Metric Count",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "available_metric_count",
+            "unavailable_metric_count",
+            "coverage_percent"
+          ],
+          "title": "AssessmentCoverage",
+          "type": "object"
+        },
+        "AssessmentFinding": {
+          "additionalProperties": false,
+          "description": "Evidence-linked candidate condition that never mutates source content.",
+          "properties": {
+            "assertion_provenance": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Assertion Provenance",
+              "type": "array"
+            },
+            "detail": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Detail",
+              "type": "string"
+            },
+            "evidence_document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Evidence Document Ids",
+              "type": "array"
+            },
+            "finding_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Finding Id",
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/AssessmentFindingKind"
+            },
+            "review_required": {
+              "const": true,
+              "default": true,
+              "title": "Review Required",
+              "type": "boolean"
+            },
+            "severity": {
+              "$ref": "#/$defs/FindingSeverity"
+            },
+            "title": {
+              "maxLength": 300,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "finding_id",
+            "kind",
+            "severity",
+            "title",
+            "detail",
+            "evidence_document_ids"
+          ],
+          "title": "AssessmentFinding",
+          "type": "object"
+        },
+        "AssessmentFindingKind": {
+          "description": "Candidate estate conditions that require attention or review.",
+          "enum": [
+            "duplicate",
+            "stale",
+            "missing_owner",
+            "poor_metadata",
+            "contradiction",
+            "authority_gap",
+            "structure_gap",
+            "faq_gap",
+            "procedure_gap"
+          ],
+          "title": "AssessmentFindingKind",
+          "type": "string"
+        },
+        "AssessmentMetric": {
+          "additionalProperties": false,
+          "description": "One transparent readiness metric, including unavailable evidence.",
+          "properties": {
+            "evidence_document_ids": {
+              "default": [],
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "title": "Evidence Document Ids",
+              "type": "array"
+            },
+            "explanation": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Explanation",
+              "type": "string"
+            },
+            "name": {
+              "$ref": "#/$defs/MetricName"
+            },
+            "score": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Score"
+            }
+          },
+          "required": [
+            "name",
+            "explanation"
+          ],
+          "title": "AssessmentMetric",
+          "type": "object"
+        },
+        "DimensionScore": {
+          "additionalProperties": false,
+          "description": "Aggregate score and evidence coverage for one readiness dimension.",
+          "properties": {
+            "coverage_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Coverage Percent",
+              "type": "number"
+            },
+            "dimension": {
+              "$ref": "#/$defs/ReadinessDimension"
+            },
+            "metrics": {
+              "items": {
+                "$ref": "#/$defs/AssessmentMetric"
+              },
+              "minItems": 1,
+              "title": "Metrics",
+              "type": "array"
+            },
+            "score": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Score",
+              "type": "number"
+            }
+          },
+          "required": [
+            "dimension",
+            "score",
+            "coverage_percent",
+            "metrics"
+          ],
+          "title": "DimensionScore",
+          "type": "object"
+        },
+        "FindingSeverity": {
+          "description": "Validation finding severity.",
+          "enum": [
+            "info",
+            "warning",
+            "blocking"
+          ],
+          "title": "FindingSeverity",
+          "type": "string"
+        },
+        "InterventionKind": {
+          "description": "Remediation interventions supported by the product brief.",
+          "enum": [
+            "consolidate_duplicate_content",
+            "identify_authoritative_versions",
+            "archive_redundant_material",
+            "modernize_document_structure",
+            "generate_metadata",
+            "generate_executive_summaries",
+            "generate_faqs",
+            "extract_procedures",
+            "create_agent_knowledge_packs",
+            "create_canonical_business_guidance"
+          ],
+          "title": "InterventionKind",
+          "type": "string"
+        },
+        "InterventionRecommendation": {
+          "additionalProperties": false,
+          "description": "Prioritized, human-approved remediation option.",
+          "properties": {
+            "approval_required": {
+              "const": true,
+              "default": true,
+              "title": "Approval Required",
+              "type": "boolean"
+            },
+            "document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Document Ids",
+              "type": "array"
+            },
+            "kind": {
+              "$ref": "#/$defs/InterventionKind"
+            },
+            "priority": {
+              "minimum": 1,
+              "title": "Priority",
+              "type": "integer"
+            },
+            "rationale": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Rationale",
+              "type": "string"
+            },
+            "recommendation_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Recommendation Id",
+              "type": "string"
+            },
+            "supported_modes": {
+              "items": {
+                "$ref": "#/$defs/TransformationMode"
+              },
+              "minItems": 1,
+              "title": "Supported Modes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "recommendation_id",
+            "kind",
+            "priority",
+            "rationale",
+            "document_ids",
+            "supported_modes"
+          ],
+          "title": "InterventionRecommendation",
+          "type": "object"
+        },
+        "MetricName": {
+          "description": "Explainable component metrics used by the assessment heuristic.",
+          "enum": [
+            "structure",
+            "readability",
+            "metadata_completeness",
+            "freshness",
+            "duplication",
+            "contradictions",
+            "authority",
+            "coverage",
+            "retrieval_effectiveness",
+            "procedural_clarity",
+            "faq_coverage",
+            "chunking_suitability",
+            "semantic_consistency"
+          ],
+          "title": "MetricName",
+          "type": "string"
+        },
+        "ReadinessDimension": {
+          "description": "Top-level agent-readiness assessment dimensions.",
+          "enum": [
+            "content_quality",
+            "knowledge_quality",
+            "agent_readiness"
+          ],
+          "title": "ReadinessDimension",
+          "type": "string"
+        },
+        "TopicCluster": {
+          "additionalProperties": false,
+          "description": "Related documents and their observed lexical overlap.",
+          "properties": {
+            "document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Document Ids",
+              "type": "array"
+            },
+            "overlap_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Overlap Percent",
+              "type": "number"
+            },
+            "recommendation": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Recommendation",
+              "type": "string"
+            },
+            "topic": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Topic",
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic",
+            "document_ids",
+            "overlap_percent",
+            "recommendation"
+          ],
+          "title": "TopicCluster",
+          "type": "object"
+        },
+        "TransformationMode": {
+          "description": "Human-approved transformation modes.",
+          "enum": [
+            "safe",
+            "guided_rewrite",
+            "knowledge_consolidation"
+          ],
+          "title": "TransformationMode",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Immutable read-only analysis of one normalized content estate.",
+      "properties": {
+        "assessed_at": {
+          "format": "date-time",
+          "title": "Assessed At",
+          "type": "string"
+        },
+        "assessment_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Assessment Id",
+          "type": "string"
+        },
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "coverage": {
+          "$ref": "#/$defs/AssessmentCoverage"
+        },
+        "dimensions": {
+          "items": {
+            "$ref": "#/$defs/DimensionScore"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Dimensions",
+          "type": "array"
+        },
+        "document_count": {
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Document Count",
+          "type": "integer"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/AssessmentFinding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "overall_score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Overall Score",
+          "type": "number"
+        },
+        "recommendations": {
+          "items": {
+            "$ref": "#/$defs/InterventionRecommendation"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "topics": {
+          "items": {
+            "$ref": "#/$defs/TopicCluster"
+          },
+          "title": "Topics",
+          "type": "array"
+        }
+      },
+      "required": [
+        "assessment_id",
+        "collection_id",
+        "assessed_at",
+        "document_count",
+        "overall_score",
+        "coverage",
+        "dimensions",
+        "findings",
+        "topics",
+        "recommendations",
+        "limitations"
+      ],
+      "title": "EstateAssessment",
+      "type": "object"
+    },
+    "KnowledgeDocumentProfile": {
+      "$defs": {
+        "AuthorityStatus": {
+          "description": "Declared authority state for one source document.",
+          "enum": [
+            "authoritative",
+            "candidate",
+            "unknown"
+          ],
+          "title": "AuthorityStatus",
+          "type": "string"
+        },
+        "BusinessAssertion": {
+          "additionalProperties": false,
+          "description": "Normalized business-term assertion with source provenance.",
+          "properties": {
+            "provenance": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Provenance",
+              "type": "string"
+            },
+            "term": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Term",
+              "type": "string"
+            },
+            "value": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Value",
+              "type": "string"
+            }
+          },
+          "required": [
+            "term",
+            "value",
+            "provenance"
+          ],
+          "title": "BusinessAssertion",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Bounded normalized input for read-only estate assessment.",
+      "properties": {
+        "assertions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BusinessAssertion"
+          },
+          "maxItems": 200,
+          "title": "Assertions",
+          "type": "array"
+        },
+        "authority": {
+          "$ref": "#/$defs/AuthorityStatus",
+          "default": "unknown"
+        },
+        "document_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Document Id",
+          "type": "string"
+        },
+        "faq_count": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Faq Count",
+          "type": "integer"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 50,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "modified_at": {
+          "format": "date-time",
+          "title": "Modified At",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner"
+        },
+        "procedure_step_count": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Procedure Step Count",
+          "type": "integer"
+        },
+        "text": {
+          "maxLength": 100000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Topic"
+        }
+      },
+      "required": [
+        "document_id",
+        "title",
+        "text",
+        "modified_at"
+      ],
+      "title": "KnowledgeDocumentProfile",
+      "type": "object"
+    },
+    "KnowledgeTransformationAnalysis": {
+      "$defs": {
+        "AgentReadinessAgentResult": {
+          "additionalProperties": false,
+          "description": "Evidence answering whether content is ready for agent consumption.",
+          "properties": {
+            "agent_readiness": {
+              "$ref": "#/$defs/DimensionScore"
+            },
+            "assessment_id": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Assessment Id",
+              "type": "string"
+            },
+            "evidence_coverage": {
+              "$ref": "#/$defs/AssessmentCoverage"
+            },
+            "limitations": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Limitations",
+              "type": "array"
+            },
+            "overall_score": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Overall Score",
+              "type": "number"
+            },
+            "prioritized_recommendations": {
+              "items": {
+                "$ref": "#/$defs/InterventionRecommendation"
+              },
+              "title": "Prioritized Recommendations",
+              "type": "array"
+            },
+            "role": {
+              "const": "agent_readiness",
+              "default": "agent_readiness",
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assessment_id",
+            "overall_score",
+            "evidence_coverage",
+            "agent_readiness",
+            "prioritized_recommendations",
+            "limitations"
+          ],
+          "title": "AgentReadinessAgentResult",
+          "type": "object"
+        },
+        "AssessmentAgentResult": {
+          "additionalProperties": false,
+          "description": "Content-health evidence produced by the Assessment Agent.",
+          "properties": {
+            "assessment_id": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Assessment Id",
+              "type": "string"
+            },
+            "content_quality": {
+              "$ref": "#/$defs/DimensionScore"
+            },
+            "findings": {
+              "items": {
+                "$ref": "#/$defs/AssessmentFinding"
+              },
+              "title": "Findings",
+              "type": "array"
+            },
+            "role": {
+              "const": "assessment",
+              "default": "assessment",
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assessment_id",
+            "content_quality",
+            "findings"
+          ],
+          "title": "AssessmentAgentResult",
+          "type": "object"
+        },
+        "AssessmentCoverage": {
+          "additionalProperties": false,
+          "description": "Completeness of the evidence used to calculate readiness.",
+          "properties": {
+            "available_metric_count": {
+              "minimum": 1,
+              "title": "Available Metric Count",
+              "type": "integer"
+            },
+            "coverage_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Coverage Percent",
+              "type": "number"
+            },
+            "unavailable_metric_count": {
+              "minimum": 0,
+              "title": "Unavailable Metric Count",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "available_metric_count",
+            "unavailable_metric_count",
+            "coverage_percent"
+          ],
+          "title": "AssessmentCoverage",
+          "type": "object"
+        },
+        "AssessmentFinding": {
+          "additionalProperties": false,
+          "description": "Evidence-linked candidate condition that never mutates source content.",
+          "properties": {
+            "assertion_provenance": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Assertion Provenance",
+              "type": "array"
+            },
+            "detail": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Detail",
+              "type": "string"
+            },
+            "evidence_document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Evidence Document Ids",
+              "type": "array"
+            },
+            "finding_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Finding Id",
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/AssessmentFindingKind"
+            },
+            "review_required": {
+              "const": true,
+              "default": true,
+              "title": "Review Required",
+              "type": "boolean"
+            },
+            "severity": {
+              "$ref": "#/$defs/FindingSeverity"
+            },
+            "title": {
+              "maxLength": 300,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "finding_id",
+            "kind",
+            "severity",
+            "title",
+            "detail",
+            "evidence_document_ids"
+          ],
+          "title": "AssessmentFinding",
+          "type": "object"
+        },
+        "AssessmentFindingKind": {
+          "description": "Candidate estate conditions that require attention or review.",
+          "enum": [
+            "duplicate",
+            "stale",
+            "missing_owner",
+            "poor_metadata",
+            "contradiction",
+            "authority_gap",
+            "structure_gap",
+            "faq_gap",
+            "procedure_gap"
+          ],
+          "title": "AssessmentFindingKind",
+          "type": "string"
+        },
+        "AssessmentMetric": {
+          "additionalProperties": false,
+          "description": "One transparent readiness metric, including unavailable evidence.",
+          "properties": {
+            "evidence_document_ids": {
+              "default": [],
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "title": "Evidence Document Ids",
+              "type": "array"
+            },
+            "explanation": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Explanation",
+              "type": "string"
+            },
+            "name": {
+              "$ref": "#/$defs/MetricName"
+            },
+            "score": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Score"
+            }
+          },
+          "required": [
+            "name",
+            "explanation"
+          ],
+          "title": "AssessmentMetric",
+          "type": "object"
+        },
+        "DimensionScore": {
+          "additionalProperties": false,
+          "description": "Aggregate score and evidence coverage for one readiness dimension.",
+          "properties": {
+            "coverage_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Coverage Percent",
+              "type": "number"
+            },
+            "dimension": {
+              "$ref": "#/$defs/ReadinessDimension"
+            },
+            "metrics": {
+              "items": {
+                "$ref": "#/$defs/AssessmentMetric"
+              },
+              "minItems": 1,
+              "title": "Metrics",
+              "type": "array"
+            },
+            "score": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Score",
+              "type": "number"
+            }
+          },
+          "required": [
+            "dimension",
+            "score",
+            "coverage_percent",
+            "metrics"
+          ],
+          "title": "DimensionScore",
+          "type": "object"
+        },
+        "FindingSeverity": {
+          "description": "Validation finding severity.",
+          "enum": [
+            "info",
+            "warning",
+            "blocking"
+          ],
+          "title": "FindingSeverity",
+          "type": "string"
+        },
+        "GovernanceAgentResult": {
+          "additionalProperties": false,
+          "description": "Knowledge-health conditions available for governance monitoring.",
+          "properties": {
+            "assessment_id": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Assessment Id",
+              "type": "string"
+            },
+            "monitored_conditions": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Monitored Conditions",
+              "type": "array"
+            },
+            "monitored_findings": {
+              "items": {
+                "$ref": "#/$defs/AssessmentFinding"
+              },
+              "title": "Monitored Findings",
+              "type": "array"
+            },
+            "recurring_monitoring_configured": {
+              "const": false,
+              "default": false,
+              "title": "Recurring Monitoring Configured",
+              "type": "boolean"
+            },
+            "role": {
+              "const": "governance",
+              "default": "governance",
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assessment_id",
+            "monitored_findings",
+            "monitored_conditions"
+          ],
+          "title": "GovernanceAgentResult",
+          "type": "object"
+        },
+        "InterventionKind": {
+          "description": "Remediation interventions supported by the product brief.",
+          "enum": [
+            "consolidate_duplicate_content",
+            "identify_authoritative_versions",
+            "archive_redundant_material",
+            "modernize_document_structure",
+            "generate_metadata",
+            "generate_executive_summaries",
+            "generate_faqs",
+            "extract_procedures",
+            "create_agent_knowledge_packs",
+            "create_canonical_business_guidance"
+          ],
+          "title": "InterventionKind",
+          "type": "string"
+        },
+        "InterventionRecommendation": {
+          "additionalProperties": false,
+          "description": "Prioritized, human-approved remediation option.",
+          "properties": {
+            "approval_required": {
+              "const": true,
+              "default": true,
+              "title": "Approval Required",
+              "type": "boolean"
+            },
+            "document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Document Ids",
+              "type": "array"
+            },
+            "kind": {
+              "$ref": "#/$defs/InterventionKind"
+            },
+            "priority": {
+              "minimum": 1,
+              "title": "Priority",
+              "type": "integer"
+            },
+            "rationale": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Rationale",
+              "type": "string"
+            },
+            "recommendation_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Recommendation Id",
+              "type": "string"
+            },
+            "supported_modes": {
+              "items": {
+                "$ref": "#/$defs/TransformationMode"
+              },
+              "minItems": 1,
+              "title": "Supported Modes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "recommendation_id",
+            "kind",
+            "priority",
+            "rationale",
+            "document_ids",
+            "supported_modes"
+          ],
+          "title": "InterventionRecommendation",
+          "type": "object"
+        },
+        "KnowledgeAgentResult": {
+          "additionalProperties": false,
+          "description": "Topics and knowledge-quality evidence produced by the Knowledge Agent.",
+          "properties": {
+            "assessment_id": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Assessment Id",
+              "type": "string"
+            },
+            "findings": {
+              "items": {
+                "$ref": "#/$defs/AssessmentFinding"
+              },
+              "title": "Findings",
+              "type": "array"
+            },
+            "knowledge_quality": {
+              "$ref": "#/$defs/DimensionScore"
+            },
+            "role": {
+              "const": "knowledge",
+              "default": "knowledge",
+              "title": "Role",
+              "type": "string"
+            },
+            "topics": {
+              "items": {
+                "$ref": "#/$defs/TopicCluster"
+              },
+              "title": "Topics",
+              "type": "array"
+            }
+          },
+          "required": [
+            "assessment_id",
+            "knowledge_quality",
+            "topics",
+            "findings"
+          ],
+          "title": "KnowledgeAgentResult",
+          "type": "object"
+        },
+        "MetricName": {
+          "description": "Explainable component metrics used by the assessment heuristic.",
+          "enum": [
+            "structure",
+            "readability",
+            "metadata_completeness",
+            "freshness",
+            "duplication",
+            "contradictions",
+            "authority",
+            "coverage",
+            "retrieval_effectiveness",
+            "procedural_clarity",
+            "faq_coverage",
+            "chunking_suitability",
+            "semantic_consistency"
+          ],
+          "title": "MetricName",
+          "type": "string"
+        },
+        "ReadinessDimension": {
+          "description": "Top-level agent-readiness assessment dimensions.",
+          "enum": [
+            "content_quality",
+            "knowledge_quality",
+            "agent_readiness"
+          ],
+          "title": "ReadinessDimension",
+          "type": "string"
+        },
+        "TopicCluster": {
+          "additionalProperties": false,
+          "description": "Related documents and their observed lexical overlap.",
+          "properties": {
+            "document_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Document Ids",
+              "type": "array"
+            },
+            "overlap_percent": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Overlap Percent",
+              "type": "number"
+            },
+            "recommendation": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Recommendation",
+              "type": "string"
+            },
+            "topic": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Topic",
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic",
+            "document_ids",
+            "overlap_percent",
+            "recommendation"
+          ],
+          "title": "TopicCluster",
+          "type": "object"
+        },
+        "TransformationAgentResult": {
+          "additionalProperties": false,
+          "description": "Human-governed transformation proposals, never autonomous source changes.",
+          "properties": {
+            "assessment_id": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Assessment Id",
+              "type": "string"
+            },
+            "execution_available": {
+              "const": false,
+              "default": false,
+              "title": "Execution Available",
+              "type": "boolean"
+            },
+            "execution_note": {
+              "maxLength": 1000,
+              "minLength": 1,
+              "title": "Execution Note",
+              "type": "string"
+            },
+            "proposal_only": {
+              "const": true,
+              "default": true,
+              "title": "Proposal Only",
+              "type": "boolean"
+            },
+            "proposals": {
+              "items": {
+                "$ref": "#/$defs/InterventionRecommendation"
+              },
+              "title": "Proposals",
+              "type": "array"
+            },
+            "role": {
+              "const": "transformation",
+              "default": "transformation",
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assessment_id",
+            "proposals",
+            "execution_note"
+          ],
+          "title": "TransformationAgentResult",
+          "type": "object"
+        },
+        "TransformationMode": {
+          "description": "Human-approved transformation modes.",
+          "enum": [
+            "safe",
+            "guided_rewrite",
+            "knowledge_consolidation"
+          ],
+          "title": "TransformationMode",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One content-addressed analysis coordinated by the Shaper platform.",
+      "properties": {
+        "agent_readiness": {
+          "$ref": "#/$defs/AgentReadinessAgentResult"
+        },
+        "analysis_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "assessed_at": {
+          "format": "date-time",
+          "title": "Assessed At",
+          "type": "string"
+        },
+        "assessment": {
+          "$ref": "#/$defs/AssessmentAgentResult"
+        },
+        "assessment_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Assessment Id",
+          "type": "string"
+        },
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "governance": {
+          "$ref": "#/$defs/GovernanceAgentResult"
+        },
+        "knowledge": {
+          "$ref": "#/$defs/KnowledgeAgentResult"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "transformation": {
+          "$ref": "#/$defs/TransformationAgentResult"
+        }
+      },
+      "required": [
+        "analysis_id",
+        "assessment_id",
+        "collection_id",
+        "assessed_at",
+        "assessment",
+        "knowledge",
+        "transformation",
+        "governance",
+        "agent_readiness"
+      ],
+      "title": "KnowledgeTransformationAnalysis",
       "type": "object"
     },
     "Principal": {

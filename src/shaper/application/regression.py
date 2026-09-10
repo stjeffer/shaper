@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import random
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from shaper.domain.models import canonical_hash
 
 
 class Difficulty(StrEnum):
@@ -102,6 +105,141 @@ class RegressionDecision:
 
     passed: bool
     reasons: tuple[str, ...]
+
+
+class PairedCaseOutcome(BaseModel):
+    """Baseline and shaped pass outcomes for one unchanged evaluation case."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    case_id: str = Field(min_length=1, max_length=128)
+    baseline_passed: bool
+    shaped_passed: bool
+
+
+class ImprovementReport(BaseModel):
+    """Evidence-backed paired pass-rate comparison, never model confidence."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    metric: str
+    input_hash: str
+    sample_size: int = Field(ge=1, le=500)
+    baseline_pass_rate: float = Field(ge=0, le=1)
+    shaped_pass_rate: float = Field(ge=0, le=1)
+    absolute_improvement_percentage_points: float
+    relative_improvement_percent: float | None
+    confidence_level: float = Field(gt=0.5, lt=1)
+    confidence_interval_percentage_points: tuple[float, float]
+    improved_cases: int = Field(ge=0)
+    regressed_cases: int = Field(ge=0)
+    unchanged_cases: int = Field(ge=0)
+    claim_status: str
+    explanation: str
+    limitations: tuple[str, ...] = Field(min_length=1)
+
+
+def compare_paired_answer_pass_rates(
+    outcomes: Sequence[PairedCaseOutcome],
+    *,
+    dataset_reviewed: bool,
+    confidence_level: float = 0.95,
+) -> ImprovementReport:
+    """Compare unchanged baseline and shaped cases with a paired bootstrap interval."""
+    if not outcomes:
+        raise ValueError("An improvement comparison requires at least one paired outcome")
+    if len(outcomes) > 500:
+        raise ValueError("An improvement comparison accepts at most 500 paired outcomes")
+    if not 0.5 < confidence_level < 1:
+        raise ValueError("Confidence level must be between 0.5 and 1")
+    case_ids = [outcome.case_id for outcome in outcomes]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("Paired outcome case IDs must be unique")
+
+    count = len(outcomes)
+    baseline_rate = sum(outcome.baseline_passed for outcome in outcomes) / count
+    shaped_rate = sum(outcome.shaped_passed for outcome in outcomes) / count
+    differences = tuple(
+        int(outcome.shaped_passed) - int(outcome.baseline_passed) for outcome in outcomes
+    )
+    improvement = shaped_rate - baseline_rate
+    interval = _paired_bootstrap_interval(differences, confidence_level)
+    improved = differences.count(1)
+    regressed = differences.count(-1)
+
+    if improvement <= 0:
+        claim_status = "no_measured_improvement"
+    elif dataset_reviewed and count >= 30 and interval[0] > 0:
+        claim_status = "eligible_for_reviewed_claim"
+    else:
+        claim_status = "observed_only"
+
+    limitations = [
+        "The interval estimates paired pass-rate uncertainty, not model confidence or "
+        "per-answer correctness."
+    ]
+    if not dataset_reviewed:
+        limitations.append(
+            "The dataset has not completed evaluation-design and subject-matter review; "
+            "do not use this result for production quality claims."
+        )
+    if count < 30:
+        limitations.append(
+            "Fewer than 30 paired cases cannot reliably separate improvement from noise "
+            "across evaluation categories."
+        )
+
+    percentage_points = round(100 * improvement, 1)
+    explanation = (
+        f"Across {count} unchanged paired cases, baseline pass rate was "
+        f"{100 * baseline_rate:.1f}% and shaped pass rate was {100 * shaped_rate:.1f}%, "
+        f"an observed change of {percentage_points:+.1f} percentage points. "
+        f"The {100 * confidence_level:.0f}% paired bootstrap interval is "
+        f"[{interval[0]:.1f}, {interval[1]:.1f}] percentage points."
+    )
+    identity = {
+        "metric": "paired_answer_pass_rate",
+        "outcomes": [outcome.model_dump(mode="json") for outcome in outcomes],
+        "dataset_reviewed": dataset_reviewed,
+        "confidence_level": confidence_level,
+    }
+    return ImprovementReport(
+        metric="paired_answer_pass_rate",
+        input_hash=canonical_hash(identity),
+        sample_size=count,
+        baseline_pass_rate=round(baseline_rate, 4),
+        shaped_pass_rate=round(shaped_rate, 4),
+        absolute_improvement_percentage_points=percentage_points,
+        relative_improvement_percent=(
+            None if baseline_rate == 0 else round(100 * improvement / baseline_rate, 1)
+        ),
+        confidence_level=confidence_level,
+        confidence_interval_percentage_points=interval,
+        improved_cases=improved,
+        regressed_cases=regressed,
+        unchanged_cases=count - improved - regressed,
+        claim_status=claim_status,
+        explanation=explanation,
+        limitations=tuple(limitations),
+    )
+
+
+def _paired_bootstrap_interval(
+    differences: tuple[int, ...],
+    confidence_level: float,
+    *,
+    samples: int = 10_000,
+) -> tuple[float, float]:
+    """Return a deterministic percentile interval over paired case differences."""
+    randomizer = random.Random(0)
+    count = len(differences)
+    estimates = sorted(
+        sum(randomizer.choice(differences) for _ in range(count)) / count for _ in range(samples)
+    )
+    tail = (1 - confidence_level) / 2
+    lower = estimates[int(tail * (samples - 1))]
+    upper = estimates[int((1 - tail) * (samples - 1))]
+    return round(100 * lower, 1), round(100 * upper, 1)
 
 
 def load_dataset(

@@ -6,7 +6,7 @@ import json
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -46,7 +46,7 @@ class CandidatePayload(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    status: str
+    status: Literal["candidate", "tool", "abstain"]
     canonical_questions: tuple[str, ...] = ()
     answer: str = ""
     claims: tuple[CandidateClaimPayload, ...] = ()
@@ -76,11 +76,30 @@ class ShapingOutcome:
     reason: str
     model_calls: int
     tool_calls: int
-    tokens: int
+    input_tokens: int
+    output_tokens: int
+
+    @property
+    def tokens(self) -> int:
+        """Return total provider-reported token usage."""
+        return self.input_tokens + self.output_tokens
 
 
 class ShapingBudgetExceeded(RuntimeError):
     """Raised when any independent shaping budget is exhausted."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        model_calls: int = 0,
+    ) -> None:
+        super().__init__(message)
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.model_calls = model_calls
 
 
 class ShapingCancelled(RuntimeError):
@@ -120,7 +139,8 @@ class ShapingLoop:
         started = self._monotonic()
         model_calls = 0
         tool_calls = 0
-        tokens = 0
+        input_tokens = 0
+        output_tokens = 0
         candidates = 0
         context: list[object] = [span.model_dump(mode="json") for span in spans]
         feedback: list[str] = []
@@ -130,7 +150,7 @@ class ShapingLoop:
                 started=started,
                 model_calls=model_calls,
                 tool_calls=tool_calls,
-                tokens=tokens,
+                tokens=input_tokens + output_tokens,
                 candidates=candidates,
                 cancelled=cancelled,
             )
@@ -147,21 +167,50 @@ class ShapingLoop:
                 prompt=prompt, schema=CandidatePayload.model_json_schema()
             )
             model_calls += 1
-            tokens += result.input_tokens + result.output_tokens
+            input_tokens += result.input_tokens
+            output_tokens += result.output_tokens
+            if input_tokens + output_tokens > self._budget.maximum_tokens:
+                self._checkpoints.save(
+                    run_id,
+                    "budget_exhausted",
+                    json.dumps(
+                        {
+                            "input_tokens": input_tokens,
+                            "output_tokens": output_tokens,
+                            "model_calls": model_calls,
+                        },
+                        sort_keys=True,
+                    ),
+                )
+                raise ShapingBudgetExceeded(
+                    "Shaping token budget exhausted after provider response: "
+                    f"{input_tokens + output_tokens} of {self._budget.maximum_tokens}",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model_calls=model_calls,
+                )
             self._checkpoints.save(
                 run_id,
                 "model_response",
                 json.dumps({"response_id": result.response_id, "calls": model_calls}),
             )
             try:
-                payload = CandidatePayload.model_validate(result.payload)
+                payload = CandidatePayload.model_validate_json(json.dumps(result.payload))
             except ValidationError as error:
                 feedback = [f"Response schema validation failed: {error.error_count()} errors"]
                 continue
             if payload.status == "abstain":
                 reason = payload.reason or "Model abstained without a reason"
                 self._checkpoints.save(run_id, "abstained", json.dumps({"reason": reason}))
-                return ShapingOutcome(None, True, reason, model_calls, tool_calls, tokens)
+                return ShapingOutcome(
+                    None,
+                    True,
+                    reason,
+                    model_calls,
+                    tool_calls,
+                    input_tokens,
+                    output_tokens,
+                )
             if payload.status == "tool":
                 if payload.tool is None:
                     feedback = ["Tool response requires a tool request"]
@@ -221,7 +270,13 @@ class ShapingLoop:
                 json.dumps({"unit_id": unit.unit_id, "unit_version": unit.unit_version}),
             )
             return ShapingOutcome(
-                unit, False, "candidate accepted", model_calls, tool_calls, tokens
+                unit,
+                False,
+                "candidate accepted",
+                model_calls,
+                tool_calls,
+                input_tokens,
+                output_tokens,
             )
 
     def _guard(

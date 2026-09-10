@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 import sqlite3
 import threading
 from collections.abc import Sequence
@@ -92,12 +93,14 @@ class SQLiteLexicalIndex:
 
     def query(self, text: str, *, limit: int) -> Sequence[str]:
         """Return BM25-ranked unit IDs."""
-        if not text.strip() or limit <= 0:
+        terms = re.findall(r"\w+", text)
+        if not terms or limit <= 0:
             return []
+        match_expression = " OR ".join(f'"{term}"' for term in terms)
         with self._lock:
             rows = self._connection.execute(
                 "SELECT unit_id FROM units WHERE units MATCH ? ORDER BY bm25(units) LIMIT ?",
-                (text, limit),
+                (match_expression, limit),
             ).fetchall()
         return [str(row[0]) for row in rows]
 
