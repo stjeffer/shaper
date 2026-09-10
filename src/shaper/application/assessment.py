@@ -64,9 +64,7 @@ class DocumentAssessmentService:
             _metadata_score(profile),
             _freshness_score(profile, assessed_at),
             _retrieval_score(profile),
-            _procedure_score(profile)
-            if _PROCEDURAL_CUE.search(profile.text)
-            else None,
+            _procedure_score(profile) if _PROCEDURAL_CUE.search(profile.text) else None,
             _faq_score(profile),
             _chunking_score(profile.text),
         )
@@ -74,8 +72,7 @@ class DocumentAssessmentService:
         finding_codes = self._finding_codes(profile, assessed_at)
         effort_points = min(
             100,
-            round(100 - sum(available) / len(available))
-            + 10 * len(finding_codes),
+            round(100 - sum(available) / len(available)) + 10 * len(finding_codes),
         )
         readiness_score = round(sum(available) / len(available), 1)
         identity = {

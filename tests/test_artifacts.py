@@ -214,6 +214,9 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert review.unit.state.value == "approved"
         assert published.value.status.value == "approved"
         assert repository.list_usage(run.value.run_id)[0].total_tokens == 20
+        assert artifact.evaluation is not None
+        assert artifact.evaluation.passed
+        assert artifact.evaluation.overall_score == 100
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
     finally:

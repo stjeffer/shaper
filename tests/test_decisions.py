@@ -96,9 +96,7 @@ def _principal() -> Principal:
     return Principal(
         principal_id="person-1",
         tenant_id="tenant-1",
-        collection_roles={
-            "collection-1": frozenset({CollectionRole.QUERY, CollectionRole.REVIEW})
-        },
+        collection_roles={"collection-1": frozenset({CollectionRole.QUERY, CollectionRole.REVIEW})},
     )
 
 

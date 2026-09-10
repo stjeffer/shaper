@@ -660,19 +660,16 @@ class SQLiteEstateRepository(EstateRepository):
                         )
             for document_id in document_ids:
                 connection.execute(
-                    "DELETE FROM records WHERE category = 'document_content' "
-                    "AND record_id LIKE ?",
+                    "DELETE FROM records WHERE category = 'document_content' AND record_id LIKE ?",
                     (f"{document_id}:%",),
                 )
                 connection.execute(
-                    "DELETE FROM records WHERE category = 'token_usage' "
-                    "AND record_id LIKE ?",
+                    "DELETE FROM records WHERE category = 'token_usage' AND record_id LIKE ?",
                     (f"%:{document_id}",),
                 )
             for run_id in run_ids:
                 connection.execute(
-                    "DELETE FROM records WHERE category = 'token_usage' "
-                    "AND record_id LIKE ?",
+                    "DELETE FROM records WHERE category = 'token_usage' AND record_id LIKE ?",
                     (f"{run_id}:%",),
                 )
                 connection.execute(

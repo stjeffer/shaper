@@ -12,7 +12,7 @@ from shaper.application.jobs import (
 )
 from shaper.domain import CollectionRole, JobState, OutputRef, Principal, SourceRef
 from shaper.domain.models import OutputKind, SourceKind
-from shaper.interfaces.auth import ClaimsPrincipalMapper, discover_jwks_uri
+from shaper.interfaces.auth import ClaimsPrincipalMapper, OIDCAuthenticator, discover_jwks_uri
 
 
 def principal() -> Principal:
@@ -128,6 +128,22 @@ def test_given_mismatched_metadata_issuer_when_discovered_then_validation_fails(
                 "jwks_uri": "https://login.microsoftonline.com/other/discovery/v2.0/keys",
             },
         )
+
+
+def test_given_authenticator_when_created_then_oidc_discovery_is_deferred() -> None:
+    requested: list[str] = []
+
+    def load(url: str) -> dict[str, object]:
+        requested.append(url)
+        return {}
+
+    OIDCAuthenticator(
+        issuer="https://login.microsoftonline.com/tenant-1/v2.0",
+        audience="api-client",
+        metadata_loader=load,
+    )
+
+    assert requested == []
 
 
 def test_given_queued_job_when_worker_runs_then_job_reaches_completed() -> None:

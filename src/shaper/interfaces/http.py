@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
@@ -42,6 +42,7 @@ from shaper.application.jobs import (
     QuotaExceededError,
 )
 from shaper.application.orchestration import KnowledgeTransformationOrchestrator
+from shaper.application.ports import MalwareScanner
 from shaper.application.query import QueryGateway
 from shaper.application.regression import (
     ImprovementReport,
@@ -232,6 +233,7 @@ class HttpServices:
     transformations: EstateTransformationService | None = None
     estate_repository: EstateRepository | None = None
     archive_expander: ZipArchiveExpander | None = None
+    malware_scanner: MalwareScanner | None = None
     max_upload_bytes: int = 25 * 1024 * 1024
 
 
@@ -260,10 +262,25 @@ def create_app(services: HttpServices) -> FastAPI:
     for conflict_type in (
         ConcurrencyError,
         DecisionConflictError,
+        ReviewConflictError,
         StaleProposalError,
         EstateArchivedError,
     ):
         app.add_exception_handler(conflict_type, conflict_handler)
+
+    @app.exception_handler(UploadRejectedError)
+    async def upload_rejected_handler(
+        _request: object,
+        error: UploadRejectedError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(error)})
+
+    @app.exception_handler(ScannerUnavailableError)
+    async def scanner_unavailable_handler(
+        _request: object,
+        error: ScannerUnavailableError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(error)})
 
     def _bearer_principal(authorization: str = Header()) -> Principal:
         prefix = "Bearer "
@@ -533,7 +550,6 @@ def create_app(services: HttpServices) -> FastAPI:
                 )
             registered_sources: list[dict[str, object]] = []
             documents: list[VersionedRecord[EstateDocument]] = []
-            captured_at = datetime.now(UTC)
             for upload in files:
                 filename = upload.filename or "upload"
                 content = await _read_upload(
@@ -563,17 +579,21 @@ def create_app(services: HttpServices) -> FastAPI:
                             filename=member.path,
                             media_type=member.media_type,
                             content=member.content,
-                            modified_at=captured_at,
                         )
                         for member in staged
                     )
                 else:
+                    if services.malware_scanner is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Upload scanning is unavailable",
+                        )
+                    services.malware_scanner.scan(content)
                     items = (
                         InventoryInput(
                             filename=filename,
                             media_type=upload.content_type or "application/octet-stream",
                             content=content,
-                            modified_at=captured_at,
                         ),
                     )
                 documents.extend(
@@ -710,6 +730,18 @@ def create_app(services: HttpServices) -> FastAPI:
                 "review": jsonable_encoder(review),
                 "artifact": _versioned_payload(artifact),
             }
+
+        @app.get("/v1/artifacts/{artifact_id}/evaluation")
+        def get_artifact_evaluation(
+            artifact_id: str,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            evaluation = transformation_service.evaluation(
+                artifact_id,
+                principal=actor,
+            )
+            payload: dict[str, object] = evaluation.model_dump(mode="json")
+            return payload
 
         @app.get("/v1/artifacts/{artifact_id}/content")
         def get_artifact_content(

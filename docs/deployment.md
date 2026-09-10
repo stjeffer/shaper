@@ -10,25 +10,22 @@ The deployment uses these Azure resources:
 
 * Azure Container Apps for the authenticated HTTP and MCP service
 * A ClamAV sidecar reachable only inside the Container App replica
+* Azure Database for PostgreSQL 16 for durable workflow and review state
 * Azure Files for uploads and immutable release artifacts
 * Azure Container Registry with admin access disabled
 * A user-assigned managed identity with `AcrPull`
 * Log Analytics for container and platform logs
-* The four-phase Shaper product concept and fixed live sample analysis served by
-  the same Container App
+* The live authenticated Knowledge Estates workspace served by the same
+  Container App
 
 The application and scanner share one replica. The application listens on port
 8000, exposes HTTPS through Container Apps ingress, and mounts persistent state
 at `/mnt/state`.
 
-> [!IMPORTANT]
-> The dev profile keeps SQLite job coordination on the container's local
-> filesystem because Azure Files SMB does not provide the locking semantics
-> required by SQLite in Container Apps. Uploads and immutable releases remain
-> durable on Azure Files, but in-flight jobs and review state do not survive a
-> replica replacement. The profile has `minReplicas` and `maxReplicas` fixed at
-> one and accepts deployment downtime. Replace SQLite with a managed
-> transactional database before production use or horizontal scaling.
+PostgreSQL stores estate state, compile jobs, collection grants, decisions,
+token usage, and output review. A process-local SQLite store supports only
+legacy compilation checkpoints and candidates; it is not authoritative estate
+state and cannot create a cross-revision file lock.
 
 The current service exposes compile, review, publish, query, and MCP capabilities
 together with authenticated `POST /v1/assessments` and
@@ -37,10 +34,11 @@ Assessment, Knowledge, Transformation, Governance, and Agent Readiness roles ove
 one immutable assessment. These roles run in the application container today;
 they are responsibility boundaries, not separate deployments.
 
-The unauthenticated `GET /v1/demo/analysis` endpoint returns fixed, server-owned
-source metadata together with the analysis produced by that same orchestrator.
-It accepts no caller-supplied content and exists only to make the hosted concept
-testable without weakening the authenticated production analysis boundary.
+The authenticated estate API exposes source registration, file and ZIP upload,
+discovery, per-document reports, recommendations, decisions, transformations,
+token usage, artifact review, archive, and purge. Container Apps authentication
+redirects browser users to Entra. Bearer-authenticated MCP remains excluded from
+interactive ingress handling and is validated by the application.
 
 The assessment accepts canonical document profiles and returns immutable
 readiness metrics, evidence coverage, findings, topic clusters, and ranked
@@ -84,7 +82,9 @@ and prepare:
 * Collection-scoped app roles such as `shaper:{collection}:query`
 * Existing Azure OpenAI chat and embedding deployments
 * An approved ClamAV image reference pinned by digest for production
-* A short-lived bearer token for deployment smoke testing
+* Permission to create an application credential for Container Apps
+  authentication, or `SHAPER_ENTRA_CLIENT_SECRET`
+* A short-lived bearer token for optional MCP deployment smoke testing
 
 The Bicep deployment does not create tenant-level Entra applications or grant
 SharePoint permissions. Those operations require separate tenant governance.
@@ -115,6 +115,9 @@ export SHAPER_AZURE_OPENAI_RESOURCE_GROUP="YOUR_OPENAI_RESOURCE_GROUP"
 export SHAPER_OIDC_AUDIENCE="YOUR_APPLICATION_ID"
 export SHAPER_OIDC_ISSUER="https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0"
 export SHAPER_SCANNER_IMAGE="clamav/clamav-debian@sha256:APPROVED_DIGEST"
+# Optional overrides:
+export SHAPER_ENTRA_CLIENT_SECRET="ROTATABLE_APPLICATION_SECRET"
+export SHAPER_POSTGRES_ADMIN_PASSWORD="STRONG_DATABASE_PASSWORD"
 export SHAPER_SMOKE_TOKEN="SHORT_LIVED_TOKEN"
 
 ./scripts/deploy.sh \
@@ -124,22 +127,21 @@ export SHAPER_SMOKE_TOKEN="SHORT_LIVED_TOKEN"
   --prefix shaper
 ```
 
-The script performs two deployments. The first provisions the registry and
-supporting resources. Azure Container Registry then builds the image from the
-checked-out source. The second deploys the Container App, records the image
-digest and revision, waits for liveness and readiness, and initializes a real
-MCP session.
+The script provisions PostgreSQL and supporting resources, builds the image in
+Azure Container Registry, deploys the Container App and interactive
+authentication, registers its callback URL, and waits for liveness and
+readiness. It initializes a real MCP session when `SHAPER_SMOKE_TOKEN` is set.
+When application or database secrets are omitted, the script creates bounded
+deployment credentials without writing them to the repository.
 
 For Entra v2 client-credential tokens, set `SHAPER_OIDC_AUDIENCE` to the API
 application UUID emitted in the token's `aud` claim. The `api://` identifier URI
 is used in the OAuth scope request, but it is not the expected JWT audience.
 
-The deployment output includes a `Pitch prototype` URL at `/concept/`. This
-concept demonstrates Discover, Understand, Recommend, and Transform by rendering
-the real orchestrator's fixed sample response. It is intentionally
-unauthenticated, accepts no caller-provided content, and performs no source
-mutation. Do not add customer or tenant data to the prototype assets or demo
-service.
+The deployment output includes the live workspace URL at `/concept/`.
+Interactive Entra sign-in is required. The bootstrap principal receives an
+administrator grant for the configured collection; subsequent access is
+resolved exclusively from persistent collection grants.
 
 ## Roll back
 

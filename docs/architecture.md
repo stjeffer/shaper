@@ -109,7 +109,7 @@ Exposes capabilities and coordinates bounded agents`")
 *[Container: Azure Container Apps]*
 Runs scalable specialist-agent jobs`")
             ctr_workflow_state[("`**Workflow State**
-*[Container: SQLite today, PostgreSQL planned]*
+*[Container: Azure Database for PostgreSQL]*
 Stores jobs, approvals, provenance, and checkpoints`")]
             ctr_knowledge_asset_store[("`**Knowledge Asset Store**
 *[Container: Azure Files today, Blob Storage planned]*
@@ -216,7 +216,7 @@ Enforces approval before publication`"]
 
     subgraph layout_bottom[" "]
         ctr_workflow_state[("`**Workflow State**
-*[Container: SQLite today, PostgreSQL planned]*
+*[Container: Azure Database for PostgreSQL]*
 Stores jobs, approvals, provenance, and checkpoints`")]
         ctr_knowledge_asset_store[("`**Knowledge Asset Store**
 *[Container: Azure Files today, Blob Storage planned]*

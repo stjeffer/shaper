@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     profile: RuntimeProfile = RuntimeProfile.LOCAL
     database_path: Path = Path("shaper.db")
+    postgres_url: SecretStr | None = None
     sqlite_journal_mode: SQLiteJournalMode = SQLiteJournalMode.WAL
     upload_root: Path = Path("uploads")
     release_root: Path = Path("releases")
@@ -56,6 +57,8 @@ class Settings(BaseSettings):
     oidc_audience: str | None = None
     public_url: str | None = None
     trust_ingress_identity: bool = False
+    bootstrap_tenant_id: str | None = None
+    bootstrap_principal_id: str | None = None
     clamd_host: str = "127.0.0.1"
     clamd_port: int = Field(default=3310, ge=1, le=65535)
     log_source_text: bool = Field(default=False, description="Unsafe outside isolated tests.")
@@ -98,6 +101,16 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Production profile requires identity settings: " + ", ".join(missing)
                 )
+            if self.postgres_url is None:
+                raise ValueError("Production profile requires postgres_url")
+            if str(self.database_path) != ":memory:":
+                raise ValueError(
+                    "Production SQLite compatibility state must be process-local memory"
+                )
             if self.log_source_text:
                 raise ValueError("Production profile cannot enable source text logging")
+            if (self.bootstrap_tenant_id is None) != (self.bootstrap_principal_id is None):
+                raise ValueError(
+                    "bootstrap_tenant_id and bootstrap_principal_id must be set together"
+                )
         return self

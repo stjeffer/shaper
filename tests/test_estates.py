@@ -500,15 +500,18 @@ def test_given_inventory_when_discovery_runs_then_reports_and_five_agent_evidenc
         assert len(repository.list_reports(run.value.run_id)) == 1
         analysis = repository.load_analysis(run.value.run_id)
         assert analysis is not None
-        assert len(
-            {
-                analysis.assessment.role,
-                analysis.knowledge.role,
-                analysis.transformation.role,
-                analysis.governance.role,
-                analysis.agent_readiness.role,
-            }
-        ) == 5
+        assert (
+            len(
+                {
+                    analysis.assessment.role,
+                    analysis.knowledge.role,
+                    analysis.transformation.role,
+                    analysis.governance.role,
+                    analysis.agent_readiness.role,
+                }
+            )
+            == 5
+        )
     finally:
         store.close()
 
@@ -561,9 +564,7 @@ def test_given_selected_discovered_document_when_recommended_then_one_estimate_i
         proposals = recommendations.proposals(run.value.run_id, principal=caller)
 
         # Assert
-        assert [item.document_id for item in proposals] == [
-            documents[0].value.document_id
-        ]
+        assert [item.document_id for item in proposals] == [documents[0].value.document_id]
         assert proposals[0].token_estimate.enforced_maximum > 0
         assert proposals[0].expected_artifact == "shaper_travel.html"
     finally:

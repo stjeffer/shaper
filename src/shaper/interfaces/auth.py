@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import threading
 from collections.abc import Callable, Mapping
 from typing import Protocol
 from urllib.parse import urlparse
@@ -177,12 +178,14 @@ class OIDCAuthenticator:
     ) -> None:
         self._issuer = issuer.rstrip("/")
         self._audience = audience
-        self._keys = PyJWKClient(discover_jwks_uri(self._issuer, metadata_loader=metadata_loader))
+        self._metadata_loader = metadata_loader
+        self._keys: PyJWKClient | None = None
+        self._keys_lock = threading.Lock()
         self._mapper = ClaimsPrincipalMapper()
 
     def authenticate(self, token: str) -> Principal:
         """Validate signature, issuer, audience, lifetime, and application claims."""
-        signing_key = self._keys.get_signing_key_from_jwt(token)
+        signing_key = self._key_client().get_signing_key_from_jwt(token)
         claims = jwt.decode(
             token,
             signing_key.key,
@@ -192,6 +195,18 @@ class OIDCAuthenticator:
             options={"require": ["exp", "iat", "sub"]},
         )
         return self._mapper.map(claims)
+
+    def _key_client(self) -> PyJWKClient:
+        if self._keys is None:
+            with self._keys_lock:
+                if self._keys is None:
+                    self._keys = PyJWKClient(
+                        discover_jwks_uri(
+                            self._issuer,
+                            metadata_loader=self._metadata_loader,
+                        )
+                    )
+        return self._keys
 
 
 class McpOIDCTokenVerifier:

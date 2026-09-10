@@ -719,7 +719,9 @@
             "authority_gap",
             "structure_gap",
             "faq_gap",
-            "procedure_gap"
+            "procedure_gap",
+            "long_paragraph",
+            "cross_policy_reference"
           ],
           "title": "AssessmentFindingKind",
           "type": "string"
@@ -1398,7 +1400,9 @@
             "authority_gap",
             "structure_gap",
             "faq_gap",
-            "procedure_gap"
+            "procedure_gap",
+            "long_paragraph",
+            "cross_policy_reference"
           ],
           "title": "AssessmentFindingKind",
           "type": "string"

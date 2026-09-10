@@ -479,6 +479,18 @@ function renderArtifacts() {
       );
       const actions = document.createElement("div");
       actions.className = "artifact-actions";
+      const evaluation = artifact.evaluation;
+      const evaluationGrid = document.createElement("div");
+      evaluationGrid.className = "token-grid";
+      if (evaluation) {
+        evaluationGrid.setAttribute("aria-label", "Transformation evaluation");
+        evaluationGrid.append(
+          tokenMetric("Overall evaluation", `${evaluation.overall_score}/100`),
+          tokenMetric("Citation coverage", `${evaluation.citation_coverage_score}/100`),
+          tokenMetric("Structure", `${evaluation.structure_score}/100`),
+          tokenMetric("Validation", `${evaluation.validation_score}/100`),
+        );
+      }
       if (artifact.status !== "approved") {
         const approve = text("button", "Approve for publication", "button primary");
         approve.type = "button";
@@ -495,6 +507,17 @@ function renderArtifacts() {
       card.append(
         heading,
         text("p", `Source version ${artifact.source_version.slice(0, 12)}…`),
+        ...(evaluation
+          ? [
+              evaluationGrid,
+              text(
+                "p",
+                evaluation.passed
+                  ? "Automated evaluation passed. Human review is still required."
+                  : `${evaluation.blocking_findings} blocking evaluation finding(s).`,
+              ),
+            ]
+          : []),
         actions,
       );
       return card;

@@ -91,9 +91,61 @@ main() {
   require_environment SHAPER_OIDC_AUDIENCE
   require_environment SHAPER_OIDC_ISSUER
   require_environment SHAPER_SCANNER_IMAGE
-  require_environment SHAPER_SMOKE_TOKEN
 
   az account show --output none
+  if [[ -z "$(printenv SHAPER_ENTRA_CLIENT_ID || true)" ]]; then
+    export SHAPER_ENTRA_CLIENT_ID="${SHAPER_OIDC_AUDIENCE#api://}"
+  fi
+  if [[ -z "$(printenv SHAPER_ENTRA_CLIENT_SECRET || true)" ]]; then
+    export SHAPER_ENTRA_CLIENT_SECRET
+    SHAPER_ENTRA_CLIENT_SECRET="$(az ad app credential reset \
+      --id "${SHAPER_ENTRA_CLIENT_ID}" \
+      --append \
+      --display-name "shaper-${environment_name}-container-app" \
+      --years 1 \
+      --query password \
+      --output tsv)"
+  fi
+  if [[ -z "$(printenv SHAPER_POSTGRES_ADMIN_PASSWORD || true)" ]]; then
+    export SHAPER_POSTGRES_ADMIN_PASSWORD
+    SHAPER_POSTGRES_ADMIN_PASSWORD="$(python3 -c \
+      'import secrets; print(secrets.token_urlsafe(36))')"
+  fi
+  if [[ -z "$(printenv SHAPER_BOOTSTRAP_TENANT_ID || true)" ]]; then
+    export SHAPER_BOOTSTRAP_TENANT_ID
+    SHAPER_BOOTSTRAP_TENANT_ID="$(az account show --query tenantId --output tsv)"
+  fi
+  if [[ -z "$(printenv SHAPER_BOOTSTRAP_PRINCIPAL_ID || true)" ]]; then
+    export SHAPER_BOOTSTRAP_PRINCIPAL_ID
+    SHAPER_BOOTSTRAP_PRINCIPAL_ID="$(az ad signed-in-user show --query id --output tsv)"
+  fi
+
+  local secure_parameter_file
+  secure_parameter_file="$(mktemp)"
+  chmod 600 "${secure_parameter_file}"
+  trap 'rm -f "${secure_parameter_file:-}"' EXIT
+  python3 - "${secure_parameter_file}" <<'PY'
+import json
+import os
+import sys
+
+payload = {
+    "$schema": (
+        "https://schema.management.azure.com/schemas/"
+        "2019-04-01/deploymentParameters.json#"
+    ),
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "entraClientSecret": {"value": os.environ["SHAPER_ENTRA_CLIENT_SECRET"]},
+        "postgresAdministratorPassword": {
+            "value": os.environ["SHAPER_POSTGRES_ADMIN_PASSWORD"]
+        },
+    },
+}
+with open(sys.argv[1], "w", encoding="utf-8") as stream:
+    json.dump(payload, stream)
+PY
+
   az bicep build --file "${SCRIPT_ROOT}/bicep/main.bicep" --stdout >/dev/null
   az group create \
     --name "${resource_group}" \
@@ -108,6 +160,9 @@ main() {
     "azureOpenAIResourceGroupName=${SHAPER_AZURE_OPENAI_RESOURCE_GROUP}"
     "collectionId=${SHAPER_COLLECTION_ID}"
     "environmentName=${environment_name}"
+    "entraClientId=${SHAPER_ENTRA_CLIENT_ID}"
+    "bootstrapPrincipalId=${SHAPER_BOOTSTRAP_PRINCIPAL_ID}"
+    "bootstrapTenantId=${SHAPER_BOOTSTRAP_TENANT_ID}"
     "imageTag=${image_tag}"
     "oidcAudience=${SHAPER_OIDC_AUDIENCE}"
     "oidcIssuer=${SHAPER_OIDC_ISSUER}"
@@ -119,7 +174,7 @@ main() {
     --name "${deployment_name}-foundation" \
     --resource-group "${resource_group}" \
     --template-file "${SCRIPT_ROOT}/bicep/main.bicep" \
-    --parameters "${common_parameters[@]}" shouldDeployApp=false \
+    --parameters "${common_parameters[@]}" "@${secure_parameter_file}" shouldDeployApp=false \
     --output none
 
   local registry_name
@@ -143,32 +198,11 @@ main() {
     --output tsv)"
   [[ -n "${image_digest}" ]] || err "Built image digest could not be resolved"
 
-  local container_app_name="ca-${prefix}-${environment_name}"
-  if az containerapp show \
-    --name "${container_app_name}" \
-    --resource-group "${resource_group}" \
-    --output none 2>/dev/null; then
-    local active_revisions
-    active_revisions="$(az containerapp revision list \
-      --name "${container_app_name}" \
-      --resource-group "${resource_group}" \
-      --query "[?properties.active].name" \
-      --output tsv)"
-    while IFS= read -r active_revision; do
-      [[ -z "${active_revision}" ]] && continue
-      az containerapp revision deactivate \
-        --name "${container_app_name}" \
-        --resource-group "${resource_group}" \
-        --revision "${active_revision}" \
-        --output none
-    done <<<"${active_revisions}"
-  fi
-
   az deployment group create \
     --name "${deployment_name}" \
     --resource-group "${resource_group}" \
     --template-file "${SCRIPT_ROOT}/bicep/main.bicep" \
-    --parameters "${common_parameters[@]}" shouldDeployApp=true \
+    --parameters "${common_parameters[@]}" "@${secure_parameter_file}" shouldDeployApp=true \
     --output none
 
   local fqdn
@@ -187,16 +221,22 @@ main() {
     || err "Application deployment returned incomplete outputs"
 
   local service_url="https://${fqdn}"
+  az ad app update \
+    --id "${SHAPER_ENTRA_CLIENT_ID}" \
+    --web-redirect-uris "${service_url}/.auth/login/aad/callback" \
+    --output none
+
   curl --fail --silent --show-error --retry 20 --retry-all-errors \
     --retry-delay 10 "${service_url}/health/live" >/dev/null
   curl --fail --silent --show-error --retry 20 --retry-all-errors \
     --retry-delay 10 "${service_url}/health/ready" >/dev/null
 
+  if [[ -n "$(printenv SHAPER_SMOKE_TOKEN || true)" ]]; then
   local header_file
   local response_file
   header_file="$(mktemp)"
   response_file="$(mktemp)"
-  trap 'rm -f "${header_file:-}" "${response_file:-}"' EXIT
+  trap 'rm -f "${secure_parameter_file:-}" "${header_file:-}" "${response_file:-}"' EXIT
   printf "Authorization: Bearer %s\n" "${SHAPER_SMOKE_TOKEN}" >"${header_file}"
   chmod 600 "${header_file}"
   curl --fail --silent --show-error \
@@ -208,12 +248,13 @@ main() {
   python3 -c \
     'import json,sys; from pathlib import Path; value=json.loads(Path(sys.argv[1]).read_text()); assert "result" in value' \
     "${response_file}"
+  fi
 
   printf "Deployment complete\n"
   printf "Image digest: %s\n" "${image_digest}"
   printf "Revision: %s\n" "${revision}"
   printf "Service URL: %s\n" "${service_url}"
-  printf "Pitch prototype: %s/concept/\n" "${service_url}"
+  printf "Knowledge estates: %s/concept/\n" "${service_url}"
 }
 
 main "$@"

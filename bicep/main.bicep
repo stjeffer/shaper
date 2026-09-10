@@ -55,6 +55,23 @@ param oidcAudience string
 @description('OIDC issuer used to validate inbound tokens.')
 param oidcIssuer string
 
+@description('Microsoft Entra application client ID used for interactive browser sign-in.')
+param entraClientId string
+
+@secure()
+@description('Microsoft Entra application secret used by Container Apps authentication.')
+param entraClientSecret string
+
+@description('Tenant ID granted initial Shaper collection administration.')
+param bootstrapTenantId string
+
+@description('Object ID granted initial Shaper collection administration.')
+param bootstrapPrincipalId string
+
+@secure()
+@description('Administrator password for the Shaper PostgreSQL server.')
+param postgresAdministratorPassword string
+
 @description('Whether to deploy the Container App after its image has been built.')
 param shouldDeployApp bool = true
 
@@ -77,6 +94,7 @@ param stateShareQuotaGiB int = 100
 var containerAppName = 'ca-${prefix}-${environmentName}'
 var containerEnvironmentName = 'cae-${prefix}-${environmentName}'
 var identityName = 'id-${prefix}-${environmentName}'
+var postgresName = take(replace('psql-${prefix}-${environmentName}-${uniqueString(resourceGroup().id)}', '_', '-'), 63)
 var registryName = take(replace('cr${prefix}${environmentName}${uniqueString(resourceGroup().id)}', '-', ''), 50)
 var shareName = 'shaper-state'
 var storageName = take(replace('st${prefix}${environmentName}${uniqueString(resourceGroup().id)}', '-', ''), 24)
@@ -204,6 +222,54 @@ resource environmentStorage 'Microsoft.App/managedEnvironments/storages@2024-03-
   }
 }
 
+resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview' = {
+      #disable-next-line BCP334
+      name: postgresName
+      location: location
+      tags: tags
+      sku: {
+        name: 'Standard_B1ms'
+        tier: 'Burstable'
+      }
+      properties: {
+        administratorLogin: 'shaperadmin'
+        administratorLoginPassword: postgresAdministratorPassword
+        authConfig: {
+          activeDirectoryAuth: 'Disabled'
+          passwordAuth: 'Enabled'
+        }
+        backup: {
+          backupRetentionDays: 7
+          geoRedundantBackup: 'Disabled'
+        }
+        highAvailability: {
+          mode: 'Disabled'
+        }
+        storage: {
+          storageSizeGB: 32
+        }
+        version: '16'
+      }
+    }
+
+resource postgresDatabase 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12-01-preview' = {
+      parent: postgres
+      name: 'shaper'
+      properties: {
+        charset: 'UTF8'
+        collation: 'en_US.utf8'
+      }
+    }
+
+resource postgresAzureAccess 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
+      parent: postgres
+      name: 'AllowAzureServices'
+      properties: {
+        startIpAddress: '0.0.0.0'
+        endIpAddress: '0.0.0.0'
+  }
+}
+
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeployApp) {
   name: containerAppName
   location: location
@@ -218,6 +284,16 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
     environmentId: containerEnvironment.id
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: [
+        {
+          name: 'entra-client-secret'
+          value: entraClientSecret
+        }
+        {
+          name: 'postgres-url'
+          value: 'postgresql://shaperadmin:${uriComponent(postgresAdministratorPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/shaper?sslmode=require'
+        }
+      ]
       ingress: {
         allowInsecure: false
         external: true
@@ -258,6 +334,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
               value: 'true'
             }
             {
+              name: 'SHAPER_BOOTSTRAP_PRINCIPAL_ID'
+              value: bootstrapPrincipalId
+            }
+            {
+              name: 'SHAPER_BOOTSTRAP_TENANT_ID'
+              value: bootstrapTenantId
+            }
+            {
               name: 'SHAPER_CLAMD_HOST'
               value: '127.0.0.1'
             }
@@ -267,7 +351,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
             }
             {
               name: 'SHAPER_DATABASE_PATH'
-              value: '/tmp/shaper.db'
+              value: ':memory:'
             }
             {
               name: 'SHAPER_OIDC_AUDIENCE'
@@ -276,6 +360,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
             {
               name: 'SHAPER_OIDC_ISSUER'
               value: oidcIssuer
+            }
+            {
+              name: 'SHAPER_POSTGRES_URL'
+              secretRef: 'postgres-url'
             }
             {
               name: 'SHAPER_PROFILE'
@@ -292,6 +380,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
             {
               name: 'SHAPER_PUBLIC_URL'
               value: 'https://${containerAppName}.${containerEnvironment.properties.defaultDomain}'
+            }
+            {
+              name: 'SHAPER_TRUST_INGRESS_IDENTITY'
+              value: 'true'
             }
           ]
           probes: [
@@ -351,8 +443,44 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
   }
   dependsOn: [
     openAIUser
+    postgresDatabase
+    postgresAzureAccess
     registryPull
   ]
+}
+
+resource containerAppAuth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (shouldDeployApp) {
+  parent: containerApp
+  name: 'current'
+  properties: {
+    globalValidation: {
+      excludedPaths: [
+        '/health/*'
+        '/mcp/*'
+        '/v1/demo/analysis'
+      ]
+      redirectToProvider: 'azureactivedirectory'
+      unauthenticatedClientAction: 'RedirectToLoginPage'
+    }
+    identityProviders: {
+      azureActiveDirectory: {
+        registration: {
+          clientId: entraClientId
+          clientSecretSettingName: 'entra-client-secret'
+          openIdIssuer: oidcIssuer
+        }
+        validation: {
+          allowedAudiences: [
+            entraClientId
+            oidcAudience
+          ]
+        }
+      }
+    }
+    platform: {
+      enabled: true
+    }
+  }
 }
 
 /*
@@ -373,3 +501,6 @@ output registryName string = registry.name
 
 @description('User-assigned managed identity resource ID.')
 output managedIdentityId string = identity.id
+
+@description('Provisioned PostgreSQL server name.')
+output postgresServerName string = postgres.name

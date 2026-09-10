@@ -84,23 +84,23 @@ not autonomous decisions, and authority is never inferred from recency alone.
 
 The implemented vertical slice includes:
 
-* Immutable estate profiles and assessments with content-addressed identity
-* Deterministic quality metrics, evidence coverage, findings, topic clusters,
-  and ranked interventions
-* Provenance-backed normalized assertion comparison for contradiction candidates
-* Authenticated `POST /v1/assessments` access
-* Authenticated `POST /v1/platform/analyses` orchestration across five
-  responsibility-specific agent outputs
-* Public, read-only `GET /v1/demo/analysis` returning fixed server-owned source
-  evidence and the analysis it produced
-* The existing compile, review, publish, query, and MCP transformation kernel
-* A hosted four-phase concept at `/concept/` that renders the live sample analysis
+* Named, durable Knowledge Estates containing SharePoint or URL registrations,
+  individual uploads, and bounded ZIP bundles
+* Immutable source versions and per-document readiness, evidence coverage, and
+  reshaping-effort reports
+* Selection-scoped recommendations with input/output token ranges, an expected
+  total, and an enforced maximum before model use
+* Append-only approve or decline decisions pinned to the exact source,
+  recommendation, estimate, estimator, and model deployment
+* Approved-only transformation into escaped semantic HTML using estate-owned
+  names such as `shaper_{source_stem}.html`
+* Separate human output review before an artifact can be retrieved
+* PostgreSQL-backed Azure workflow state and local SQLite development state
+* A live authenticated estate workspace at `/concept/`
 
-The MVP accepts canonical document profiles through the assessment API. Live
-estate crawling, production connectors, distributed orchestration, score
-calibration, and execution of Guided rewrite and Knowledge consolidation remain
-production follow-up work. The platform analysis is currently synchronous and
-stateless; it does not claim a persisted Discover-to-Govern workflow run.
+SharePoint sources remain truthful registrations until Microsoft Graph consent
+and synchronization are configured. Confluence, ServiceNow, arbitrary wiki
+crawling, distributed workers, and score calibration remain follow-up work.
 
 ## Azure architecture
 
@@ -110,17 +110,14 @@ container on Azure Container Apps. One ASGI process exposes:
 * Authenticated HTTP endpoints on `/v1`
 * MCP Streamable HTTP on `/mcp/`
 * Liveness and dependency-aware readiness probes on `/health`
-* The product concept and its fixed live sample analysis on `/concept/`
+* The authenticated Knowledge Estates workspace on `/concept/`
 
-Azure Container Registry, a user-assigned managed identity, Log Analytics, and
-an Azure Files share support the deployment. A ClamAV sidecar scans direct
-uploads before they enter the transformation workflow.
-
-The development profile uses one replica and local SQLite coordination. The
-production target replaces local coordination with managed PostgreSQL and
-Service Bus workers, retains Blob or SharePoint-backed durable assets, and can
-project approved knowledge into Azure AI Search. Search is a projection, not
-the canonical source of authority.
+Azure Database for PostgreSQL persists estates, workflows, decisions, token
+usage, reviews, and artifact manifests. Azure Container Registry, a
+user-assigned managed identity, Log Analytics, and an Azure Files share support
+the deployment. A ClamAV sidecar scans uploads before inventory creation.
+Container Apps authentication provides interactive Entra sign-in, while
+persisted collection grants remain the application authorization boundary.
 
 Product surfaces are prioritized as the Azure-native platform, REST API, Copilot
 Agent, SharePoint integration, Teams integration, then Foundry integration.
@@ -156,11 +153,15 @@ All settings use the `SHAPER_` prefix.
 |---|---|
 | `SHAPER_COLLECTION_ID` | Collection served by this deployment |
 | `SHAPER_DATABASE_PATH` | SQLite workflow-state path |
+| `SHAPER_POSTGRES_URL` | Required production PostgreSQL connection URL |
 | `SHAPER_RELEASE_ROOT` | Root containing `current.json` and immutable releases |
 | `SHAPER_UPLOAD_ROOT` | Quarantined upload staging root |
 | `SHAPER_OIDC_ISSUER` | Trusted OIDC issuer |
 | `SHAPER_OIDC_AUDIENCE` | Required token audience |
 | `SHAPER_PUBLIC_URL` | Externally reachable HTTPS service URL |
+| `SHAPER_TRUST_INGRESS_IDENTITY` | Trust Container Apps identity headers |
+| `SHAPER_BOOTSTRAP_TENANT_ID` | Tenant for the initial collection administrator |
+| `SHAPER_BOOTSTRAP_PRINCIPAL_ID` | Object ID for the initial collection administrator |
 | `SHAPER_CLAMD_HOST` | Private ClamAV daemon host |
 | `SHAPER_CLAMD_PORT` | Private ClamAV daemon port |
 | `SHAPER_AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint |
@@ -168,8 +169,9 @@ All settings use the `SHAPER_` prefix.
 | `SHAPER_AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | Embedding model deployment |
 | `SHAPER_AZURE_OPENAI_USE_MANAGED_IDENTITY` | Use workload identity instead of an API key |
 
-Production startup fails when the collection or identity settings are absent.
-The readiness probe fails when SQLite or ClamAV is unavailable.
+Production startup fails when collection, identity, process-local compatibility
+state, or PostgreSQL settings are absent. The readiness probe checks local
+compatibility state, PostgreSQL, ClamAV, and the compile worker.
 
 ## Evaluation status
 

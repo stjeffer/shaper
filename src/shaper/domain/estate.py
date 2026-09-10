@@ -218,9 +218,10 @@ class EstateSource(DomainModel):
     @model_validator(mode="after")
     def validate_locator(self) -> Self:
         if self.kind in {EstateSourceKind.UPLOAD, EstateSourceKind.ZIP}:
-            if not self.locator.startswith("asset:") or not self.locator.removeprefix(
-                "asset:"
-            ).isalnum():
+            if (
+                not self.locator.startswith("asset:")
+                or not self.locator.removeprefix("asset:").isalnum()
+            ):
                 raise ValueError("Upload and ZIP sources require an opaque asset locator")
             return self
         parsed = urlparse(self.locator)
@@ -486,6 +487,27 @@ class TokenUsage(DomainModel):
         return round(100 * self.variance_tokens / self.expected_total, 1)
 
 
+class TransformationEvaluation(DomainModel):
+    """Deterministic quality evaluation for one reshaped knowledge artifact."""
+
+    evaluation_id: Sha256
+    evaluator_version: str = Field(min_length=1, max_length=50)
+    citation_coverage_score: int = Field(ge=0, le=100)
+    structure_score: int = Field(ge=0, le=100)
+    validation_score: int = Field(ge=0, le=100)
+    overall_score: int = Field(ge=0, le=100)
+    blocking_findings: int = Field(ge=0)
+    warning_findings: int = Field(ge=0)
+    passed: bool
+    limitations: tuple[str, ...] = Field(min_length=1)
+    evaluated_at: datetime
+
+    @field_validator("evaluated_at")
+    @classmethod
+    def require_aware_time(cls, value: datetime) -> datetime:
+        return _aware(value)
+
+
 class KnowledgeArtifact(DomainModel):
     """Hash-verified named HTML output for one approved source version."""
 
@@ -499,6 +521,7 @@ class KnowledgeArtifact(DomainModel):
     content_locator: str = Field(min_length=1, max_length=2048)
     status: ArtifactStatus = ArtifactStatus.GENERATED
     approval_id: Identifier | None = None
+    evaluation: TransformationEvaluation | None = None
     created_at: datetime
 
     @field_validator("created_at")

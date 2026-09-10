@@ -461,9 +461,7 @@ class EstateSourceService:
             locator=source.value.locator,
         )
         try:
-            changes = tuple(
-                connector.changes(reference, checkpoint=source.value.checkpoint)
-            )
+            changes = tuple(connector.changes(reference, checkpoint=source.value.checkpoint))
             inputs = tuple(
                 InventoryInput(
                     filename=change.document.title,
@@ -560,9 +558,7 @@ class EstateSourceService:
             {
                 "status": status,
                 "status_detail": detail,
-                "checkpoint": checkpoint
-                if checkpoint is not None
-                else source.value.checkpoint,
+                "checkpoint": checkpoint if checkpoint is not None else source.value.checkpoint,
                 "updated_at": self._clock(),
             }
         )
@@ -585,7 +581,7 @@ class InventoryInput:
     filename: str
     media_type: str
     content: bytes
-    modified_at: datetime
+    modified_at: datetime | None = None
     owner: str | None = None
     logical_id: str | None = None
 
@@ -666,6 +662,7 @@ class EstateInventoryService:
     ) -> tuple[EstateDocument, str]:
         logical_id = item.logical_id or item.filename
         document_id = self.document_id(source.source_id, logical_id)
+        modified_at = item.modified_at or self._clock()
         ingested = ingest_content(
             source_id=document_id,
             tenant_id=estate.tenant_id,
@@ -677,7 +674,7 @@ class EstateInventoryService:
                 {"estate": estate.estate_id, "source": source.source_id}
             ),
             parser=self._parser,
-            observed_at=item.modified_at,
+            observed_at=modified_at,
         )
         normalized_text = "\n\n".join(span.text for span in ingested.spans)
         document = EstateDocument(
@@ -690,7 +687,7 @@ class EstateInventoryService:
             filename=item.filename,
             media_type=item.media_type,
             content_locator=f"repository:{document_id}:{ingested.document.source_version}",
-            modified_at=item.modified_at,
+            modified_at=modified_at,
             discovered_at=self._clock(),
             owner=item.owner,
         )
@@ -727,9 +724,7 @@ class EstateDiscoveryService:
         """Create and execute one reconstructable discovery run."""
         estate = self._active_estate(estate_id, principal)
         inventory = tuple(
-            item
-            for item in self._repository.list_documents(estate_id)
-            if not item.value.deleted
+            item for item in self._repository.list_documents(estate_id) if not item.value.deleted
         )
         if not inventory:
             raise ValueError("Discovery requires at least one current document")
@@ -965,8 +960,7 @@ class EstateRecommendationService:
         if (
             discovery is None
             or discovery.value.kind is not WorkflowKind.DISCOVER
-            or discovery.value.status
-            not in {WorkflowStatus.COMPLETED, WorkflowStatus.PARTIAL}
+            or discovery.value.status not in {WorkflowStatus.COMPLETED, WorkflowStatus.PARTIAL}
         ):
             raise ValueError("Recommendations require a completed discovery run")
         estate = self._repository.get_estate(discovery.value.estate_id)
@@ -993,8 +987,7 @@ class EstateRecommendationService:
         )
         running = self._running(queued)
         reports = {
-            report.document_id: report
-            for report in self._repository.list_reports(discovery_run_id)
+            report.document_id: report for report in self._repository.list_reports(discovery_run_id)
         }
         completed = []
         failed = []

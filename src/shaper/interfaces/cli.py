@@ -18,6 +18,7 @@ from shaper.application.estates import (
     EstateDiscoveryService,
     EstateInventoryService,
     EstateRecommendationService,
+    EstateRepository,
     EstateService,
     EstateSourceService,
 )
@@ -25,6 +26,7 @@ from shaper.application.jobs import (
     CompileJobDispatcher,
     CompileJobService,
     CompileJobWorker,
+    JobStore,
 )
 from shaper.application.model import AzureOpenAIModelGateway
 from shaper.application.orchestration import (
@@ -35,10 +37,11 @@ from shaper.application.orchestration import (
     KnowledgeTransformationOrchestrator,
     TransformationAgent,
 )
-from shaper.application.review import ReviewService
+from shaper.application.review import ReviewService, ReviewStore
 from shaper.application.token_estimation import TokenEstimator
 from shaper.application.validation import DeterministicValidator
-from shaper.config import ModelProvider, Settings
+from shaper.config import ModelProvider, RuntimeProfile, Settings
+from shaper.domain import CollectionGrant, CollectionRole
 from shaper.infrastructure.archive import ZipArchiveExpander
 from shaper.infrastructure.compilation import (
     FilesystemCompilationPublisher,
@@ -47,6 +50,12 @@ from shaper.infrastructure.compilation import (
     SQLiteReviewStore,
 )
 from shaper.infrastructure.parsers import SupportedDocumentParser
+from shaper.infrastructure.postgres import (
+    PostgresEstateRepository,
+    PostgresJobStore,
+    PostgresRecordStore,
+    PostgresReviewStore,
+)
 from shaper.infrastructure.projection import ReloadingQueryService
 from shaper.infrastructure.sqlite import SQLiteEstateRepository, SQLiteStore
 from shaper.infrastructure.uploads import ClamdScanner, FileUploadStore
@@ -82,13 +91,54 @@ def serve(
         )
     configure_logging()
     store = SQLiteStore(
-        settings.database_path,
+        ":memory:" if settings.profile is RuntimeProfile.PRODUCTION else settings.database_path,
         journal_mode=settings.sqlite_journal_mode.value,
     )
     store.connect()
     store.migrate()
-    estate_repository = SQLiteEstateRepository(store)
-    jobs = CompileJobService(store)
+    postgres_store: PostgresRecordStore | None = None
+    estate_repository: EstateRepository
+    job_store: JobStore
+    review_store: ReviewStore
+    if settings.profile is RuntimeProfile.PRODUCTION:
+        if settings.postgres_url is None:
+            raise typer.BadParameter("Production estate persistence requires PostgreSQL")
+        postgres_store = PostgresRecordStore(settings.postgres_url.get_secret_value())
+        postgres_store.connect()
+        postgres_store.migrate()
+        estate_repository = PostgresEstateRepository(postgres_store)
+        job_store = PostgresJobStore(postgres_store)
+        review_store = PostgresReviewStore(postgres_store)
+    else:
+        estate_repository = SQLiteEstateRepository(store)
+        job_store = store
+        review_store = SQLiteReviewStore(store)
+    if (
+        settings.bootstrap_tenant_id is not None
+        and settings.bootstrap_principal_id is not None
+        and settings.collection_id is not None
+    ):
+        estate_repository.save_grant(
+            CollectionGrant(
+                grant_id=(
+                    f"grant-{settings.bootstrap_tenant_id}-"
+                    f"{settings.bootstrap_principal_id}-{settings.collection_id}"
+                ),
+                tenant_id=settings.bootstrap_tenant_id,
+                principal_id=settings.bootstrap_principal_id,
+                collection_id=settings.collection_id,
+                roles=frozenset(
+                    {
+                        CollectionRole.ADMIN,
+                        CollectionRole.COMPILE,
+                        CollectionRole.QUERY,
+                        CollectionRole.REVIEW,
+                    }
+                ),
+                created_at=datetime.now(UTC),
+            )
+        )
+    jobs = CompileJobService(job_store)
     authenticator = OIDCAuthenticator(
         issuer=settings.oidc_issuer,
         audience=settings.oidc_audience,
@@ -120,10 +170,9 @@ def serve(
     )
     parser = SupportedDocumentParser()
     validator = DeterministicValidator()
-    review_store = SQLiteReviewStore(store)
     reviews = ReviewService(review_store)
     compilation = CompilationService(
-        jobs=store,
+        jobs=job_store,
         uploads=uploads,
         parser=parser,
         model=model,
@@ -134,8 +183,8 @@ def serve(
         publisher=FilesystemCompilationPublisher(settings.release_root),
     )
     dispatcher = CompileJobDispatcher(
-        store,
-        CompileJobWorker(store, compilation.compile),
+        job_store,
+        CompileJobWorker(job_store, compilation.compile),
     )
     assessments = EstateAssessmentService()
     orchestrator = KnowledgeTransformationOrchestrator(
@@ -203,8 +252,12 @@ def serve(
         transformations=transformation_service,
         estate_repository=estate_repository,
         archive_expander=ZipArchiveExpander(scanner),
+        malware_scanner=scanner,
         readiness=lambda: {
             "state_store": store.is_ready(),
+            "estate_store": (
+                store.is_ready() if postgres_store is None else postgres_store.is_ready()
+            ),
             "malware_scanner": scanner.is_ready(),
             "compile_worker": dispatcher.is_ready(),
         },
@@ -225,6 +278,8 @@ def serve(
 
     def shutdown() -> None:
         dispatcher.stop()
+        if postgres_store is not None:
+            postgres_store.close()
         store.close()
 
     hosted_app = create_hosted_app(

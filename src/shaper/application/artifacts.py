@@ -32,7 +32,9 @@ from shaper.domain import (
     SourceDocument,
     SourceSpan,
     TokenUsage,
+    TransformationEvaluation,
     TransformationProposal,
+    ValidationFinding,
     WorkflowKind,
     WorkflowRun,
     WorkflowStatus,
@@ -65,11 +67,11 @@ class HtmlArtifactRenderer:
             "</head>\n<body>\n"
             "<article>\n"
             f"<header><h1>{html.escape(title)}</h1></header>\n"
-            "<section aria-labelledby=\"summary\"><h2 id=\"summary\">Canonical guidance</h2>"
+            '<section aria-labelledby="summary"><h2 id="summary">Canonical guidance</h2>'
             f"<p>{html.escape(unit.answer)}</p></section>\n"
-            "<section aria-labelledby=\"questions\"><h2 id=\"questions\">Questions answered</h2>"
+            '<section aria-labelledby="questions"><h2 id="questions">Questions answered</h2>'
             f"<ul>{questions}</ul></section>\n"
-            "<section aria-labelledby=\"claims\"><h2 id=\"claims\">Grounded claims</h2>"
+            '<section aria-labelledby="claims"><h2 id="claims">Grounded claims</h2>'
             f"<ul>{claims}</ul></section>\n"
             "<footer>"
             f"<p>Recommendation: {proposal.recommendation_version}</p>"
@@ -78,6 +80,66 @@ class HtmlArtifactRenderer:
             "</article>\n</body>\n</html>\n"
         )
         return markup.encode("utf-8")
+
+
+class ArtifactEvaluator:
+    """Score generated structure and citation coverage without claiming correctness."""
+
+    VERSION = "1.0"
+    LIMITATIONS = (
+        "Deterministic checks do not establish factual correctness or policy authority.",
+        "Citation coverage confirms references exist, not that every claim is entailed.",
+    )
+
+    def evaluate(
+        self,
+        *,
+        unit: AnswerUnit,
+        spans: Sequence[SourceSpan],
+        findings: Sequence[ValidationFinding],
+        evaluated_at: datetime,
+    ) -> TransformationEvaluation:
+        """Return a transparent, versioned evaluation for one generated unit."""
+        span_ids = {span.span_id for span in spans}
+        cited_claims = sum(
+            1 for claim in unit.claims if claim.span_ids and set(claim.span_ids).issubset(span_ids)
+        )
+        citation_score = round(100 * cited_claims / len(unit.claims)) if unit.claims else 0
+        structure_checks = (
+            bool(unit.answer.strip()),
+            bool(unit.canonical_questions),
+            bool(unit.claims),
+            all(question.strip() for question in unit.canonical_questions),
+        )
+        structure_score = round(100 * sum(structure_checks) / len(structure_checks))
+        blocking = sum(1 for finding in findings if finding.severity.value == "blocking")
+        warnings = sum(1 for finding in findings if finding.severity.value == "warning")
+        validation_score = 0 if blocking else 80 if warnings else 100
+        overall_score = round(
+            (citation_score * 0.45) + (structure_score * 0.25) + (validation_score * 0.30)
+        )
+        identity = {
+            "unit_version": unit.unit_version,
+            "evaluator_version": self.VERSION,
+            "citation_coverage_score": citation_score,
+            "structure_score": structure_score,
+            "validation_score": validation_score,
+            "blocking_findings": blocking,
+            "warning_findings": warnings,
+        }
+        return TransformationEvaluation(
+            evaluation_id=canonical_hash(identity),
+            evaluator_version=self.VERSION,
+            citation_coverage_score=citation_score,
+            structure_score=structure_score,
+            validation_score=validation_score,
+            overall_score=overall_score,
+            blocking_findings=blocking,
+            warning_findings=warnings,
+            passed=blocking == 0,
+            limitations=self.LIMITATIONS,
+            evaluated_at=evaluated_at,
+        )
 
 
 class _RepositoryCheckpoints(CheckpointStore):
@@ -116,6 +178,7 @@ class EstateTransformationService:
         reviews: ReviewService,
         renderer: HtmlArtifactRenderer,
         clock: Callable[[], datetime],
+        evaluator: ArtifactEvaluator | None = None,
         monotonic: Callable[[], float] = time.monotonic,
         id_factory: Callable[[], str] | None = None,
     ) -> None:
@@ -125,6 +188,7 @@ class EstateTransformationService:
         self._reviews = reviews
         self._renderer = renderer
         self._clock = clock
+        self._evaluator = evaluator or ArtifactEvaluator()
         self._monotonic = monotonic
         self._id_factory = id_factory or (lambda: uuid.uuid4().hex)
 
@@ -258,6 +322,24 @@ class EstateTransformationService:
             raise ValueError("Artifact content hash does not match its manifest")
         return content
 
+    def evaluation(
+        self,
+        artifact_id: str,
+        *,
+        principal: Principal,
+    ) -> TransformationEvaluation:
+        """Return the generated evaluation to an authorized reviewer."""
+        artifact = self._repository.get_artifact(artifact_id)
+        if artifact is None:
+            raise KeyError(f"Knowledge artifact does not exist: {artifact_id}")
+        estate = self._repository.get_estate(artifact.value.estate_id)
+        if estate is None:
+            raise KeyError(f"Knowledge estate does not exist: {artifact.value.estate_id}")
+        EstateService._authorize(estate.value, principal, CollectionRole.REVIEW)
+        if artifact.value.evaluation is None:
+            raise KeyError(f"Knowledge artifact has no evaluation: {artifact_id}")
+        return artifact.value.evaluation
+
     def _transform(
         self,
         run_id: str,
@@ -347,6 +429,13 @@ class EstateTransformationService:
             raise ValueError(f"Transformation abstained: {outcome.reason}")
         findings = self._validator.validate(outcome.unit, (span,))
         review = self._reviews.submit(outcome.unit, findings)
+        evaluated_at = self._clock()
+        evaluation = self._evaluator.evaluate(
+            unit=review.unit,
+            spans=(span,),
+            findings=findings,
+            evaluated_at=evaluated_at,
+        )
         content = self._renderer.render(
             title=document.value.title,
             unit=review.unit,
@@ -369,7 +458,8 @@ class EstateTransformationService:
             content_hash=content_hash,
             content_locator=f"repository:{proposal.expected_artifact}",
             status=ArtifactStatus.IN_REVIEW,
-            created_at=self._clock(),
+            evaluation=evaluation,
+            created_at=evaluated_at,
         )
         self._repository.save_artifact_bundle(artifact, content)
 

@@ -147,6 +147,7 @@ def _client(path: Path) -> tuple[TestClient, SQLiteStore]:
                     ),
                     estate_repository=repository,
                     archive_expander=ZipArchiveExpander(CleanScanner()),
+                    malware_scanner=CleanScanner(),
                 )
             )
         ),
@@ -231,6 +232,13 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         artifact = artifacts_response.json()["items"][0]
         artifact_id = artifact["value"]["artifact_id"]
         assert artifact["value"]["filename"] == "shaper_leave-policy.html"
+        assert artifact["value"]["evaluation"]["passed"]
+        evaluation_response = client.get(
+            f"/v1/artifacts/{artifact_id}/evaluation",
+            headers=headers,
+        )
+        assert evaluation_response.status_code == 200
+        assert evaluation_response.json()["overall_score"] == 100
 
         approval_response = client.post(
             f"/v1/artifacts/{artifact_id}/approve",
