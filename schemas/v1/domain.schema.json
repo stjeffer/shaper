@@ -1,0 +1,1148 @@
+{
+  "$id": "urn:shaper:schema:domain:1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "models": {
+    "AgentRun": {
+      "additionalProperties": false,
+      "description": "Reconstructable bounded shaping run.",
+      "properties": {
+        "abstained": {
+          "default": false,
+          "title": "Abstained",
+          "type": "boolean"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "estimated_cost": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Estimated Cost",
+          "type": "number"
+        },
+        "input_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Input Hash",
+          "type": "string"
+        },
+        "input_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "job_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "output_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "tool_calls": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tool Calls",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "job_id",
+        "source_id",
+        "model",
+        "prompt_version",
+        "input_hash",
+        "started_at"
+      ],
+      "title": "AgentRun",
+      "type": "object"
+    },
+    "AnswerUnit": {
+      "$defs": {
+        "Applicability": {
+          "additionalProperties": false,
+          "description": "Audience, jurisdiction, and temporal applicability.",
+          "properties": {
+            "audiences": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Audiences",
+              "type": "array"
+            },
+            "effective_from": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Effective From"
+            },
+            "effective_until": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Effective Until"
+            },
+            "jurisdictions": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Jurisdictions",
+              "type": "array"
+            }
+          },
+          "title": "Applicability",
+          "type": "object"
+        },
+        "Claim": {
+          "additionalProperties": false,
+          "description": "Answer claim grounded in one or more exact source spans.",
+          "properties": {
+            "qualifiers": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Qualifiers",
+              "type": "array"
+            },
+            "span_ids": {
+              "items": {
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Span Ids",
+              "type": "array"
+            },
+            "text": {
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text",
+            "span_ids"
+          ],
+          "title": "Claim",
+          "type": "object"
+        },
+        "Derivation": {
+          "additionalProperties": false,
+          "description": "Pinned agent and prompt provenance.",
+          "properties": {
+            "model": {
+              "minLength": 1,
+              "title": "Model",
+              "type": "string"
+            },
+            "parameters_hash": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Parameters Hash",
+              "type": "string"
+            },
+            "prompt_version": {
+              "minLength": 1,
+              "title": "Prompt Version",
+              "type": "string"
+            },
+            "run_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "run_id",
+            "model",
+            "prompt_version",
+            "parameters_hash"
+          ],
+          "title": "Derivation",
+          "type": "object"
+        },
+        "UnitState": {
+          "description": "Evidence-unit lifecycle states.",
+          "enum": [
+            "candidate",
+            "quarantined",
+            "in_review",
+            "approved",
+            "rejected",
+            "superseded",
+            "withdrawn"
+          ],
+          "title": "UnitState",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Versioned answer-ready derivative with complete grounding.",
+      "properties": {
+        "answer": {
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "applicability": {
+          "$ref": "#/$defs/Applicability"
+        },
+        "canonical_questions": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Canonical Questions",
+          "type": "array"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "minItems": 1,
+          "title": "Claims",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "conflict_unit_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Conflict Unit Ids",
+          "type": "array"
+        },
+        "derivation": {
+          "$ref": "#/$defs/Derivation"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_version": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/UnitState",
+          "default": "candidate"
+        },
+        "unit_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Unit Id",
+          "type": "string"
+        },
+        "unit_version": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Unit Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "unit_version",
+        "source_id",
+        "source_version",
+        "canonical_questions",
+        "answer",
+        "claims",
+        "derivation",
+        "confidence"
+      ],
+      "title": "AnswerUnit",
+      "type": "object"
+    },
+    "Collection": {
+      "$defs": {
+        "OutputKind": {
+          "description": "Supported release sink kinds.",
+          "enum": [
+            "filesystem",
+            "sharepoint"
+          ],
+          "title": "OutputKind",
+          "type": "string"
+        },
+        "OutputRef": {
+          "additionalProperties": false,
+          "description": "Validated reference to a configured release destination.",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/OutputKind"
+            },
+            "relative_path": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Relative Path",
+              "type": "string"
+            },
+            "root_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Root Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "root_id"
+          ],
+          "title": "OutputRef",
+          "type": "object"
+        },
+        "SourceKind": {
+          "description": "Supported source connector kinds.",
+          "enum": [
+            "sharepoint",
+            "upload"
+          ],
+          "title": "SourceKind",
+          "type": "string"
+        },
+        "SourceRef": {
+          "additionalProperties": false,
+          "description": "Caller-supplied reference to a source collection or staged asset.",
+          "properties": {
+            "collection_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Collection Id",
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/SourceKind"
+            },
+            "locator": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "title": "Locator",
+              "type": "string"
+            },
+            "tenant_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tenant_id",
+            "collection_id",
+            "kind",
+            "locator"
+          ],
+          "title": "SourceRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Permission-homogeneous source and output boundary.",
+      "properties": {
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "output": {
+          "$ref": "#/$defs/OutputRef"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "tenant_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "collection_id",
+        "tenant_id",
+        "display_name",
+        "source",
+        "output"
+      ],
+      "title": "Collection",
+      "type": "object"
+    },
+    "CompileJob": {
+      "$defs": {
+        "JobState": {
+          "description": "Compile-job lifecycle states.",
+          "enum": [
+            "queued",
+            "running",
+            "cancelling",
+            "cancelled",
+            "failed",
+            "completed",
+            "completed_not_current"
+          ],
+          "title": "JobState",
+          "type": "string"
+        },
+        "OutputKind": {
+          "description": "Supported release sink kinds.",
+          "enum": [
+            "filesystem",
+            "sharepoint"
+          ],
+          "title": "OutputKind",
+          "type": "string"
+        },
+        "OutputRef": {
+          "additionalProperties": false,
+          "description": "Validated reference to a configured release destination.",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/OutputKind"
+            },
+            "relative_path": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Relative Path",
+              "type": "string"
+            },
+            "root_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Root Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "root_id"
+          ],
+          "title": "OutputRef",
+          "type": "object"
+        },
+        "SourceKind": {
+          "description": "Supported source connector kinds.",
+          "enum": [
+            "sharepoint",
+            "upload"
+          ],
+          "title": "SourceKind",
+          "type": "string"
+        },
+        "SourceRef": {
+          "additionalProperties": false,
+          "description": "Caller-supplied reference to a source collection or staged asset.",
+          "properties": {
+            "collection_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Collection Id",
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/$defs/SourceKind"
+            },
+            "locator": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "title": "Locator",
+              "type": "string"
+            },
+            "tenant_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tenant_id",
+            "collection_id",
+            "kind",
+            "locator"
+          ],
+          "title": "SourceRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Durable, idempotent compile job.",
+      "properties": {
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "diagnostic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnostic"
+        },
+        "idempotency_key": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "job_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "output": {
+          "$ref": "#/$defs/OutputRef"
+        },
+        "requested_token_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Requested Token Budget",
+          "type": "integer"
+        },
+        "revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "state": {
+          "$ref": "#/$defs/JobState",
+          "default": "queued"
+        },
+        "submitted_by": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Submitted By",
+          "type": "string"
+        },
+        "tenant_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id",
+        "tenant_id",
+        "collection_id",
+        "idempotency_key",
+        "submitted_by",
+        "requested_token_budget",
+        "source",
+        "output"
+      ],
+      "title": "CompileJob",
+      "type": "object"
+    },
+    "Principal": {
+      "$defs": {
+        "CollectionRole": {
+          "description": "Collection-scoped authorization roles.",
+          "enum": [
+            "query",
+            "compile",
+            "review",
+            "admin"
+          ],
+          "title": "CollectionRole",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "OIDC-derived principal and its explicit collection roles.",
+      "properties": {
+        "collection_roles": {
+          "patternProperties": {
+            "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$": {
+              "items": {
+                "$ref": "#/$defs/CollectionRole"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "title": "Collection Roles",
+          "type": "object"
+        },
+        "principal_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Tenant Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "principal_id",
+        "tenant_id"
+      ],
+      "title": "Principal",
+      "type": "object"
+    },
+    "ReleaseManifest": {
+      "$defs": {
+        "ReleaseUnitRef": {
+          "additionalProperties": false,
+          "description": "Unit entry in a complete active-corpus release.",
+          "properties": {
+            "approval_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Approval Id",
+              "type": "string"
+            },
+            "artifact_hash": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Artifact Hash",
+              "type": "string"
+            },
+            "origin_run_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Origin Run Id",
+              "type": "string"
+            },
+            "permission_hash": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Permission Hash",
+              "type": "string"
+            },
+            "source_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Source Id",
+              "type": "string"
+            },
+            "source_version": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Source Version",
+              "type": "string"
+            },
+            "unit_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Unit Id",
+              "type": "string"
+            },
+            "unit_version": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Unit Version",
+              "type": "string"
+            }
+          },
+          "required": [
+            "unit_id",
+            "unit_version",
+            "source_id",
+            "source_version",
+            "permission_hash",
+            "approval_id",
+            "origin_run_id",
+            "artifact_hash"
+          ],
+          "title": "ReleaseUnitRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Integrity-checkable immutable release snapshot.",
+      "properties": {
+        "artifact_hashes": {
+          "additionalProperties": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "title": "Artifact Hashes",
+          "type": "object"
+        },
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "previous_release_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Release Id"
+        },
+        "release_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Release Id",
+          "type": "string"
+        },
+        "run_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tenant_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "units": {
+          "items": {
+            "$ref": "#/$defs/ReleaseUnitRef"
+          },
+          "title": "Units",
+          "type": "array"
+        }
+      },
+      "required": [
+        "release_id",
+        "tenant_id",
+        "collection_id",
+        "created_at",
+        "run_id",
+        "units",
+        "artifact_hashes"
+      ],
+      "title": "ReleaseManifest",
+      "type": "object"
+    },
+    "ReviewDecision": {
+      "$defs": {
+        "CollectionRole": {
+          "description": "Collection-scoped authorization roles.",
+          "enum": [
+            "query",
+            "compile",
+            "review",
+            "admin"
+          ],
+          "title": "CollectionRole",
+          "type": "string"
+        },
+        "Principal": {
+          "additionalProperties": false,
+          "description": "OIDC-derived principal and its explicit collection roles.",
+          "properties": {
+            "collection_roles": {
+              "patternProperties": {
+                "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$": {
+                  "items": {
+                    "$ref": "#/$defs/CollectionRole"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "title": "Collection Roles",
+              "type": "object"
+            },
+            "principal_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Principal Id",
+              "type": "string"
+            },
+            "tenant_id": {
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "principal_id",
+            "tenant_id"
+          ],
+          "title": "Principal",
+          "type": "object"
+        },
+        "ReviewOutcome": {
+          "description": "Human review outcomes.",
+          "enum": [
+            "approve",
+            "reject",
+            "supersede",
+            "withdraw"
+          ],
+          "title": "ReviewOutcome",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Immutable human review decision.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/Principal"
+        },
+        "decided_at": {
+          "format": "date-time",
+          "title": "Decided At",
+          "type": "string"
+        },
+        "decision_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ReviewOutcome"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "unit_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Unit Id",
+          "type": "string"
+        },
+        "unit_version": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Unit Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "unit_id",
+        "unit_version",
+        "outcome",
+        "actor",
+        "reason",
+        "expected_revision",
+        "decided_at"
+      ],
+      "title": "ReviewDecision",
+      "type": "object"
+    },
+    "SourceDocument": {
+      "$defs": {
+        "PermissionSnapshot": {
+          "additionalProperties": false,
+          "description": "Hash-pinned permission state used for carry-forward decisions.",
+          "properties": {
+            "captured_at": {
+              "format": "date-time",
+              "title": "Captured At",
+              "type": "string"
+            },
+            "homogeneous": {
+              "const": true,
+              "default": true,
+              "title": "Homogeneous",
+              "type": "boolean"
+            },
+            "permission_hash": {
+              "pattern": "^[a-f0-9]{64}$",
+              "title": "Permission Hash",
+              "type": "string"
+            }
+          },
+          "required": [
+            "permission_hash",
+            "captured_at"
+          ],
+          "title": "PermissionSnapshot",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Immutable source version normalized across connectors.",
+      "properties": {
+        "collection_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Collection Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "media_type": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "permission": {
+          "$ref": "#/$defs/PermissionSnapshot"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_version": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "tenant_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_version",
+        "content_hash",
+        "tenant_id",
+        "collection_id",
+        "title",
+        "media_type",
+        "observed_at",
+        "permission"
+      ],
+      "title": "SourceDocument",
+      "type": "object"
+    },
+    "SourceSpan": {
+      "additionalProperties": false,
+      "description": "Ordered, addressable source evidence.",
+      "properties": {
+        "heading_path": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Heading Path",
+          "type": "array"
+        },
+        "location": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Location",
+          "type": "object"
+        },
+        "ordinal": {
+          "minimum": 0,
+          "title": "Ordinal",
+          "type": "integer"
+        },
+        "source_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_version": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "span_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Span Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "text_hash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Text Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "span_id",
+        "source_id",
+        "source_version",
+        "ordinal",
+        "text",
+        "text_hash"
+      ],
+      "title": "SourceSpan",
+      "type": "object"
+    },
+    "ValidationFinding": {
+      "$defs": {
+        "FindingSeverity": {
+          "description": "Validation finding severity.",
+          "enum": [
+            "info",
+            "warning",
+            "blocking"
+          ],
+          "title": "FindingSeverity",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Independent validation evidence.",
+      "properties": {
+        "evidence_span_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Evidence Span Ids",
+          "type": "array"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "remedy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remedy"
+        },
+        "rule_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "subject_id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$",
+          "title": "Subject Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "severity",
+        "subject_id",
+        "message"
+      ],
+      "title": "ValidationFinding",
+      "type": "object"
+    }
+  }
+}

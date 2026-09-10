@@ -1,0 +1,10 @@
+{
+  "status": "pending",
+  "approval": {
+    "evaluation_owner": null,
+    "domain_reviewer": null,
+    "approved_at": null
+  },
+  "benchmark": null,
+  "reason": "A configured live run and required human approvals have not been completed."
+}

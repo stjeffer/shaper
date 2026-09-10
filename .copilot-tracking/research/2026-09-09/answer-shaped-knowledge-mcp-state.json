@@ -1,0 +1,195 @@
+{
+  "task_id": "answer-shaped-knowledge-mcp",
+  "task_slug": "answer-shaped-knowledge-mcp",
+  "parent_task": null,
+  "mode": "manual",
+  "active_phase": "Implement",
+  "status": "blocked",
+  "session_status": "stopped",
+  "artifact_paths": {
+    "research": ".copilot-tracking/research/2026-09-09/answer-shaped-knowledge-mcp-research.md",
+    "plan": ".copilot-tracking/plans/2026-09-09/answer-shaped-knowledge-mcp-plan.md",
+    "details": ".copilot-tracking/details/2026-09-09/answer-shaped-knowledge-mcp-phase-details.md",
+    "critique": ".copilot-tracking/reviews/plans/2026-09-09/answer-shaped-knowledge-mcp-plan-critique.md",
+    "changes": ".copilot-tracking/changes/2026-09-09/answer-shaped-knowledge-mcp-changes.md",
+    "review": ".copilot-tracking/reviews/logs/2026-09-09/answer-shaped-knowledge-mcp-review.md"
+  },
+  "confirmed_decisions": [
+    {
+      "decision": "Use a two-plane knowledge compiler and query service with a thin, read-only MCP adapter.",
+      "status": "superseded",
+      "evidence": "Cycle 2 extends this decision with source connectors, output sinks, and bounded compile job tools."
+    },
+    {
+      "decision": "Research completed all three waves and Planning Readiness is Ready.",
+      "status": "superseded",
+      "evidence": "Cycle 1 completed, but the caller added material SharePoint input/output scope requiring Cycle 2."
+    },
+    {
+      "decision": "Compile source documents into versioned answer-ready evidence units.",
+      "status": "confirmed",
+      "evidence": "Direct caller confirmation on 2026-09-09."
+    },
+    {
+      "decision": "Accept a SharePoint document library URL or direct upload and publish to a caller-selected path, preferably SharePoint.",
+      "status": "confirmed",
+      "evidence": "Direct caller scope addition on 2026-09-09."
+    },
+    {
+      "decision": "Use SharePoint and direct-upload source connectors, one bounded AI shaping agent inside a deterministic compiler workflow, pluggable output sinks, immutable release snapshots, and a thin MCP orchestration/query adapter.",
+      "status": "proposed",
+      "evidence": "W1-W32 in .copilot-tracking/research/2026-09-09/answer-shaped-knowledge-mcp-research.md"
+    },
+    {
+      "decision": "Cycle 2 completed all three waves and Planning Readiness is Ready.",
+      "status": "superseded",
+      "evidence": "The caller subsequently confirmed an agentic AI answer-shaping component, requiring Cycle 3 revalidation."
+    },
+    {
+      "decision": "Implement answer shaping as an agentic AI component.",
+      "status": "confirmed",
+      "evidence": "Direct caller confirmation on 2026-09-09."
+    },
+    {
+      "decision": "Cycle 3 is evaluating the agent workflow and control boundary.",
+      "status": "superseded",
+      "evidence": "Cycle 3 completed all three waves."
+    },
+    {
+      "decision": "Place one bounded answer-shaping agent with read-only tools inside a deterministic, checkpointed compiler workflow.",
+      "status": "proposed",
+      "evidence": "W24-W32 and Cycle 3 synthesis in the research artifact."
+    },
+    {
+      "decision": "The shaping agent cannot publish or approve its own output; deterministic, model-assisted, and risk-based human gates control publication.",
+      "status": "proposed",
+      "evidence": "W25, W26, W29, W31, and W32."
+    },
+    {
+      "decision": "Cycle 3 completed all three waves and Planning Readiness is Ready.",
+      "status": "confirmed",
+      "evidence": "Research artifact Cycle 3 closeout and self-check."
+    },
+    {
+      "decision": "Use Python 3.11 with uv, provider-neutral ports, a transparent bounded shaping loop, SQLite state and FTS5, an Azure OpenAI adapter, and thin HTTP, CLI, and MCP interfaces.",
+      "status": "proposed",
+      "evidence": ".copilot-tracking/plans/2026-09-09/answer-shaped-knowledge-mcp-plan.md implementation baseline."
+    },
+    {
+      "decision": "Use OIDC-authenticated collection-scoped roles and permission-homogeneous SharePoint roots for the initial build; defer per-user SharePoint permission trimming.",
+      "status": "proposed",
+      "evidence": "Planner disposition for PC-003 in the implementation plan."
+    },
+    {
+      "decision": "Final-candidate critique executed once with a Revise verdict and findings PC-001 through PC-012.",
+      "status": "confirmed",
+      "evidence": ".copilot-tracking/reviews/plans/2026-09-09/answer-shaped-knowledge-mcp-plan-critique.md"
+    },
+    {
+      "decision": "All critique findings were resolved in one planner-owned revision; implementation plan and phase details are Ready.",
+      "status": "confirmed",
+      "evidence": "Critique Disposition in .copilot-tracking/plans/2026-09-09/answer-shaped-knowledge-mcp-plan.md"
+    },
+    {
+      "decision": "Implement the full approved plan in dependency order, beginning with P01-T01.",
+      "status": "confirmed",
+      "evidence": "Explicit /hve-core:rpi-implement invocation on 2026-09-09."
+    },
+    {
+      "decision": "Make hosting and deployment a primary deliverable using a containerized Azure Container Apps profile and infrastructure-as-code.",
+      "status": "confirmed",
+      "evidence": "Direct caller requirement on 2026-09-09 that deployment and hosting be the main part of the solution."
+    },
+    {
+      "decision": "Implementation completed P01 through P07 for the local delivery boundary and is ready for explicit Review.",
+      "status": "confirmed",
+      "evidence": ".copilot-tracking/changes/2026-09-09/answer-shaped-knowledge-mcp-changes.md"
+    },
+    {
+      "decision": "Human evaluation interview, sample review, live baseline approval, and production activation remain incomplete.",
+      "status": "confirmed",
+      "evidence": "tests/evaluation/metadata.json and tests/evaluation/baselines/live-approved.json"
+    },
+    {
+      "decision": "Review executed once across the full P01-P07 task boundary.",
+      "status": "confirmed",
+      "evidence": ".copilot-tracking/reviews/logs/2026-09-09/answer-shaped-knowledge-mcp-review.md"
+    },
+    {
+      "decision": "Review outcome is Not accepted with one Critical and two High findings.",
+      "status": "confirmed",
+      "evidence": "RV-001 through RV-003 in the canonical review record"
+    },
+    {
+      "decision": "Skip directly to Azure deployment and live testing.",
+      "status": "confirmed",
+      "evidence": "Direct caller request on 2026-09-09."
+    },
+    {
+      "decision": "Use a bounded single-owner SQLite test profile with rollback journaling and shutdown-before-revision deployment; horizontal scaling and zero-downtime rollout remain blocked on a managed database.",
+      "status": "confirmed",
+      "evidence": "RV-003 remediation in bicep/main.bicep, scripts/deploy.sh, and docs/deployment.md"
+    },
+    {
+      "decision": "Resolve Azure AD signing keys from validated OpenID configuration metadata.",
+      "status": "confirmed",
+      "evidence": "RV-002 remediation in src/shaper/interfaces/auth.py and tests/test_jobs_auth.py"
+    },
+    {
+      "decision": "RV-001 is resolved for the bounded direct-upload and filesystem-publication deployment profile.",
+      "status": "confirmed",
+      "evidence": "Hosted dispatcher, compilation, review approval, immutable publication, and release reload wiring validated by 76 passing tests at 75.88 percent branch coverage."
+    },
+    {
+      "decision": "Represent the capability as a clearly labelled Copilot Studio product concept within the agent Knowledge surface.",
+      "status": "confirmed",
+      "evidence": "prototype/copilot-studio-knowledge-compiler/ and .copilot-tracking/ux-artifacts/answer-shaped-knowledge/copilot-studio-knowledge-compiler/sketch-structure.md"
+    },
+    {
+      "decision": "Align the pitch prototype to the caller-supplied current Copilot Studio Build canvas and Add knowledge dialog.",
+      "status": "confirmed",
+      "evidence": "The prototype now enters through the Knowledge plus action, presents Knowledge compiler as a native-looking source option, and completes the interactive publish flow."
+    },
+    {
+      "decision": "Package the pitch prototype into the Azure Container App at /concept/ alongside the authenticated API and MCP service.",
+      "status": "confirmed",
+      "evidence": "Dockerfile copies the static assets, the HTTP composition mounts them, and hosted interface tests verify index and JavaScript delivery."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "AZURE-CREATION-CONSENT",
+      "summary": "Creating the billable dev environment and tenant-visible Entra application requires explicit confirmation.",
+      "resolution": "Confirm creation of the complete dev environment after reviewing the proposed regions and resource scope."
+    },
+    {
+      "id": "AZURE-CONFIG",
+      "summary": "The nine required deployment environment variables are unset.",
+      "resolution": "Supply the governed Azure OpenAI, collection, OIDC, scanner, and short-lived smoke-token values."
+    }
+  ],
+  "next_action": {
+    "phase": "Implement",
+    "action": "Confirm creation of the complete dev environment in the authenticated personal subscription, then register providers, create Azure OpenAI and Entra resources, deploy the Container App, and run live validation."
+  },
+  "prioritized_follow_ups": [
+    {
+      "rank": 1,
+      "task": "Deploy to a governed Azure subscription and run the live smoke and integration matrix.",
+      "rationale": "Bicep and automation are locally validated, but Azure, SharePoint, Entra, Azure OpenAI, and container execution require external resources and credentials.",
+      "evidence": "P07-T02, P07-T04, docs/deployment.md, and the changes validation record"
+    },
+    {
+      "rank": 2,
+      "task": "Run the evaluation-design interview, sample review, and live baseline approval.",
+      "rationale": "Production expected behavior, user populations, thresholds, and automatic-publication gates cannot be invented from synthetic fixtures.",
+      "evidence": "tests/evaluation/metadata.json, live-approved.json, NFR-06, and P07-T01"
+    },
+    {
+      "rank": 3,
+      "task": "Replace SQLite and local vector indexing before horizontal scaling.",
+      "rationale": "The hosted profile is intentionally one replica; measured corpus and concurrency determine the managed database and vector backend.",
+      "evidence": "NFR-10, P05-T03, P07-T04, and docs/deployment.md"
+    }
+  ]
+}

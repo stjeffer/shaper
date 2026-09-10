@@ -1,0 +1,22 @@
+{
+  "system_name": "Shaper",
+  "created_date": "2026-09-09",
+  "version": "1.0.0",
+  "total_pairs": 30,
+  "distribution": {
+    "easy": 6,
+    "grounding": 3,
+    "hard": 12,
+    "negative": 6,
+    "safety": 3
+  },
+  "user_populations": [],
+  "population_coverage": {},
+  "approach": "pro-code",
+  "evaluation_mode": ["manual", "batch"],
+  "recommended_tooling": "Repository-native Python runner for deterministic CI; configured Azure evaluation for approved live baselines.",
+  "review_state": "draft",
+  "validation_status": "ai-generated",
+  "generation_method": "plan-derived-synthetic-generation",
+  "interview_status": "pending customer evaluation-design interview and sample review"
+}
