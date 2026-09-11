@@ -135,6 +135,7 @@ class EstateCreateRequest(BaseModel):
         default="shaper_{source_stem}.html",
         max_length=200,
     )
+    generate_evaluations: bool = False
 
 
 class EstateUpdateRequest(BaseModel):
@@ -146,6 +147,7 @@ class EstateUpdateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=2000)
     artifact_name_template: str = Field(max_length=200)
+    generate_evaluations: bool
 
 
 class SourceCreateRequest(BaseModel):
@@ -400,6 +402,7 @@ def create_app(services: HttpServices) -> FastAPI:
                 name=request.name,
                 description=request.description,
                 artifact_name_template=request.artifact_name_template,
+                generate_evaluations=request.generate_evaluations,
             )
             return _versioned_payload(record)
 
@@ -423,6 +426,7 @@ def create_app(services: HttpServices) -> FastAPI:
                 name=request.name,
                 description=request.description,
                 artifact_name_template=request.artifact_name_template,
+                generate_evaluations=request.generate_evaluations,
             )
             return _versioned_payload(record)
 

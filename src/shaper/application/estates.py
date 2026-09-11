@@ -232,6 +232,7 @@ class EstateService:
         name: str,
         description: str = "",
         artifact_name_template: str = "shaper_{source_stem}.html",
+        generate_evaluations: bool = False,
     ) -> VersionedRecord[KnowledgeEstate]:
         """Create an active estate inside an authorized collection."""
         principal.require(collection_id, CollectionRole.COMPILE)
@@ -244,6 +245,7 @@ class EstateService:
                 name=name,
                 description=description,
                 artifact_name_template=artifact_name_template,
+                generate_evaluations=generate_evaluations,
                 created_at=now,
                 updated_at=now,
             )
@@ -278,6 +280,7 @@ class EstateService:
         name: str,
         description: str,
         artifact_name_template: str,
+        generate_evaluations: bool = False,
     ) -> VersionedRecord[KnowledgeEstate]:
         """Update mutable estate settings using optimistic concurrency."""
         record = self._require_estate(estate_id)
@@ -289,6 +292,7 @@ class EstateService:
                 "name": name,
                 "description": description,
                 "artifact_name_template": artifact_name_template,
+                "generate_evaluations": generate_evaluations,
                 "updated_at": self._clock(),
             }
         )

@@ -57,7 +57,8 @@ def test_given_postgres_store_when_estate_revised_then_optimistic_lock_is_enforc
     # Arrange
     connection = FakePostgresConnection()
 
-    def connect(_url: str, **_kwargs: object) -> FakePostgresConnection:
+    def connect(_url: str, **kwargs: object) -> FakePostgresConnection:
+        assert kwargs["autocommit"] is True
         return connection
 
     monkeypatch.setattr("shaper.infrastructure.postgres.psycopg.connect", connect)

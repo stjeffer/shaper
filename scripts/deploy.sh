@@ -223,6 +223,7 @@ PY
   local service_url="https://${fqdn}"
   az ad app update \
     --id "${SHAPER_ENTRA_CLIENT_ID}" \
+    --enable-id-token-issuance true \
     --web-redirect-uris "${service_url}/.auth/login/aad/callback" \
     --output none
 

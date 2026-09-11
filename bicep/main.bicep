@@ -458,9 +458,11 @@ resource containerAppAuth 'Microsoft.App/containerApps/authConfigs@2024-03-01' =
         '/health/*'
         '/mcp/*'
         '/v1/demo/analysis'
+        '/concept'
+        '/concept/*'
       ]
       redirectToProvider: 'azureactivedirectory'
-      unauthenticatedClientAction: 'RedirectToLoginPage'
+      unauthenticatedClientAction: 'Return401'
     }
     identityProviders: {
       azureActiveDirectory: {

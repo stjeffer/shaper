@@ -430,11 +430,15 @@ class EstateTransformationService:
         findings = self._validator.validate(outcome.unit, (span,))
         review = self._reviews.submit(outcome.unit, findings)
         evaluated_at = self._clock()
-        evaluation = self._evaluator.evaluate(
-            unit=review.unit,
-            spans=(span,),
-            findings=findings,
-            evaluated_at=evaluated_at,
+        evaluation = (
+            self._evaluator.evaluate(
+                unit=review.unit,
+                spans=(span,),
+                findings=findings,
+                evaluated_at=evaluated_at,
+            )
+            if self._required_estate(proposal).generate_evaluations
+            else None
         )
         content = self._renderer.render(
             title=document.value.title,

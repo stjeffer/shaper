@@ -34,12 +34,27 @@
       "decision": "Planning completed and the revised plan is implementation-ready.",
       "status": "confirmed",
       "evidence": ".copilot-tracking/plans/2026-09-10/knowledge-estate-workflow-redesign-plan.md and .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md"
+    },
+    {
+      "decision": "Knowledge estates may opt in to versioned evaluations for reshaped artifacts.",
+      "status": "implemented",
+      "evidence": "Revision ca-shaper-dev--0000031; 148 tests passed at 78.52% coverage."
+    },
+    {
+      "decision": "The data-free concept shell is public while session and estate APIs remain protected, allowing the UI to initiate Entra sign-in explicitly.",
+      "status": "implemented",
+      "evidence": "Revision ca-shaper-dev--0000031 is healthy; /concept/ returns 200, one /v1/session probe returns 401, browser navigation reaches Microsoft Entra sign-in without a cross-origin fetch, and the application registration enables ID-token issuance for the requested hybrid flow."
+    },
+    {
+      "decision": "The estate interface uses Microsoft Fluent 2 visual conventions, an outcome-led portfolio, and an explicit governed workflow rather than unavailable global destinations and equal-weight administration panels.",
+      "status": "implemented",
+      "evidence": "Revision ca-shaper-dev--0000031; compact 24 px semibold application titles; responsive browser rendering with realistic estate data; no duplicate IDs or unnamed controls in the rendered portfolio."
     }
   ],
   "blockers": [],
   "next_action": {
     "phase": "Implement",
-    "action": "Complete P06 persistence, protected REST resources, browser identity, and live UI redesign."
+    "action": "Validate the post-authentication estate workspace, then complete P07 passwordless PostgreSQL identity."
   },
   "prioritized_follow_ups": [
     {

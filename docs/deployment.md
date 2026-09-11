@@ -138,10 +138,11 @@ For Entra v2 client-credential tokens, set `SHAPER_OIDC_AUDIENCE` to the API
 application UUID emitted in the token's `aud` claim. The `api://` identifier URI
 is used in the OAuth scope request, but it is not the expected JWT audience.
 
-The deployment output includes the live workspace URL at `/concept/`.
-Interactive Entra sign-in is required. The bootstrap principal receives an
-administrator grant for the configured collection; subsequent access is
-resolved exclusively from persistent collection grants.
+The deployment output includes the live workspace URL at `/concept/`. Its
+data-free signed-out shell is public and explicitly initiates interactive Entra
+sign-in; all session and estate APIs remain protected. The bootstrap principal
+receives an administrator grant for the configured collection; subsequent
+access is resolved exclusively from persistent collection grants.
 
 ## Roll back
 

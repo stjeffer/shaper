@@ -169,6 +169,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
                 "name": "Policy estate",
                 "description": "Current people policies",
                 "artifact_name_template": "shaper_{source_stem}.html",
+                "generate_evaluations": True,
             },
         )
         assert estate_response.status_code == 201

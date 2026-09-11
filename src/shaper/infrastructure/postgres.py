@@ -75,6 +75,7 @@ class PostgresRecordStore:
                 self._connection_url,
                 row_factory=dict_row,
                 connect_timeout=10,
+                autocommit=True,
             )
 
     def close(self) -> None:

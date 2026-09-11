@@ -90,6 +90,8 @@ The implemented vertical slice includes:
   reshaping-effort reports
 * Selection-scoped recommendations with input/output token ranges, an expected
   total, and an enforced maximum before model use
+* An estate-level option to generate versioned citation-coverage, structure,
+  and validation evaluations with each reshaped artifact
 * Append-only approve or decline decisions pinned to the exact source,
   recommendation, estimate, estimator, and model deployment
 * Approved-only transformation into escaped semantic HTML using estate-owned

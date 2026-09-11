@@ -8,38 +8,47 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260911-ui4" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <header class="topbar">
       <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
         <span class="brand-mark" aria-hidden="true">S</span>
-        <span>Shaper</span>
+        <span class="brand-copy">
+          <strong>Shaper</strong>
+          <small>Knowledge transformation</small>
+        </span>
       </a>
-      <span class="product-name">Knowledge Transformation Platform</span>
       <div class="identity">
-        <span id="environment">Live service</span>
+        <span id="environment" class="environment"><span></span> Live service</span>
         <span id="avatar" class="avatar" aria-hidden="true">--</span>
       </div>
     </header>
 
     <div class="app-shell">
       <nav class="sidebar" aria-label="Primary navigation">
+        <p class="nav-label">Workspace</p>
         <a class="nav-item active" href="#estates" data-action="home" aria-current="page">
-          <span aria-hidden="true">◇</span> Knowledge estates
+          <span class="nav-icon" aria-hidden="true">⌂</span>
+          <span>
+            <strong>Knowledge estates</strong>
+            <small>Sources, evidence, outputs</small>
+          </span>
         </a>
-        <span class="nav-item unavailable" aria-disabled="true">
-          <span aria-hidden="true">⌁</span> Transformations
-        </span>
-        <span class="nav-item unavailable" aria-disabled="true">
-          <span aria-hidden="true">◎</span> Agent knowledge
-        </span>
-        <span class="nav-item unavailable" aria-disabled="true">
-          <span aria-hidden="true">↻</span> Governance
-        </span>
-        <div class="nav-spacer"></div>
-        <p class="platform-note">Five specialist agents. One governed platform.</p>
+        <div class="process-card">
+          <p class="nav-label">Governed process</p>
+          <ol>
+            <li><span>1</span> Define sources</li>
+            <li><span>2</span> Assess readiness</li>
+            <li><span>3</span> Approve changes</li>
+            <li><span>4</span> Publish knowledge</li>
+          </ol>
+          <p>Five specialist agents work inside one controlled workflow.</p>
+        </div>
+        <p class="platform-note">
+          Source content stays unchanged until you explicitly approve a transformation.
+        </p>
       </nav>
 
       <main id="workspace" class="workspace" tabindex="-1">
@@ -67,18 +76,30 @@
         </section>
 
         <section id="estateListView" hidden aria-labelledby="estateListTitle">
-          <div class="page-heading">
+          <div class="page-heading portfolio-hero">
             <div>
-              <p class="eyebrow">KNOWLEDGE ESTATES</p>
-              <h1 id="estateListTitle">Define the content Shaper should understand</h1>
+              <p class="eyebrow">SHAPER</p>
+              <h1 id="estateListTitle">Knowledge estates</h1>
               <p>
-                Combine SharePoint locations, URLs, ZIP bundles, and individual files.
-                Nothing is modified during discovery.
+                Organize source content, assess readiness, and publish governed knowledge for
+                your agents.
               </p>
             </div>
             <button class="button primary" type="button" data-action="open-create">
-              Create knowledge estate
+              <span aria-hidden="true">+</span> New estate
             </button>
+            <div class="portfolio-metrics" aria-label="Knowledge estate summary">
+              <div><strong id="estateTotal">0</strong><span>Total estates</span></div>
+              <div><strong id="estateActive">0</strong><span>Active</span></div>
+              <div><strong id="estateEvaluated">0</strong><span>With evaluations</span></div>
+            </div>
+          </div>
+          <div class="collection-heading">
+            <div>
+              <p class="eyebrow">ESTATES</p>
+              <h2>All knowledge estates</h2>
+            </div>
+            <p>Select an estate to continue shaping its content.</p>
           </div>
           <div id="estateList" class="estate-grid" aria-live="polite"></div>
           <div id="estateEmpty" class="empty-state" hidden>
@@ -97,18 +118,37 @@
           </button>
           <div class="page-heading estate-heading">
             <div>
-              <p class="eyebrow">KNOWLEDGE ESTATE</p>
+              <p class="eyebrow">ESTATE WORKSPACE</p>
               <h1 id="estateTitle">Estate</h1>
               <p id="estateDescription"></p>
             </div>
-            <span id="estateStatus" class="badge">Active</span>
+            <div class="estate-state">
+              <span>Lifecycle</span>
+              <strong id="estateStatus" class="badge">Active</strong>
+            </div>
           </div>
 
           <ol class="workflow" aria-label="Knowledge transformation workflow">
-            <li><button type="button" data-tab="sources" aria-current="step"><span>1</span> Define</button></li>
-            <li><button type="button" data-tab="discover"><span>2</span> Discover</button></li>
-            <li><button type="button" data-tab="recommend"><span>3</span> Recommend</button></li>
-            <li><button type="button" data-tab="transform"><span>4</span> Transform</button></li>
+            <li>
+              <button type="button" data-tab="sources" aria-current="step">
+                <span>1</span><strong>Define</strong><small>Add source content</small>
+              </button>
+            </li>
+            <li>
+              <button type="button" data-tab="discover">
+                <span>2</span><strong>Discover</strong><small>Assess readiness</small>
+              </button>
+            </li>
+            <li>
+              <button type="button" data-tab="recommend">
+                <span>3</span><strong>Recommend</strong><small>Approve changes</small>
+              </button>
+            </li>
+            <li>
+              <button type="button" data-tab="transform">
+                <span>4</span><strong>Transform</strong><small>Review outputs</small>
+              </button>
+            </li>
           </ol>
 
           <section class="panel" data-panel="sources" aria-labelledby="sourcesTitle">
@@ -217,7 +257,13 @@
               <p>Select discovered documents and request recommendations.</p>
             </div>
             <div class="sticky-actions">
-              <span id="approvalSummary">0 approved transformations</span>
+              <div>
+                <span id="approvalSummary">0 approved transformations</span>
+                <label class="checkbox-option" for="generateEvaluations">
+                  <input id="generateEvaluations" type="checkbox" />
+                  Create evaluations for reshaped content
+                </label>
+              </div>
               <button id="transformButton" class="button primary" type="button" disabled>
                 Transform approved documents
               </button>
@@ -272,6 +318,13 @@
           maxlength="200"
         />
         <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
+        <label class="checkbox-option" for="createEvaluations">
+          <input id="createEvaluations" name="generate_evaluations" type="checkbox" />
+          Create evaluations for reshaped content
+        </label>
+        <p class="hint">
+          Adds citation coverage, structure, and validation checks to every generated asset.
+        </p>
         <div class="dialog-actions">
           <button class="button quiet" type="button" data-action="close-create">Cancel</button>
           <button class="button primary" type="submit">Create estate</button>
@@ -286,6 +339,6 @@
       </div>
     </template>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260911-ui4"></script>
   </body>
 </html>

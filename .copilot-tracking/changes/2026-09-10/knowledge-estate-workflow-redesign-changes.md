@@ -12,9 +12,9 @@
 
 * Status: Partial
 * Declared invocation scope: Full plan
-* Completed scope markers: P01-P05 and P01-T01 through P05-T03
-* All remaining active-plan markers: P06-P07 and P06-T01 through P07-T03
-* Status basis: P01-P05 are complete and P06-T01 is active.
+* Completed scope markers: P01-P06, P01-T01 through P06-T04, and P07-T02
+* All remaining active-plan markers: P07, P07-T01, and P07-T03
+* Status basis: The live estate workflow and signed-out authentication shell are deployed; production identity and authenticated browser evidence remain active-plan work.
 
 ## Execution Summary
 
@@ -22,10 +22,10 @@ Implementation is active. The approved outcome preserves the five-agent architec
 
 ## Active Work
 
-### Expose Durable APIs and Live Product Experience
+### Deploy and Prove the Azure Workflow
 
-* Active phase or task: P06-T01
-* Intended result: Expose the persistent workflow through complete protected resources and a substantially redesigned live UI.
+* Active phase or task: P07-T01
+* Intended result: Reconcile production PostgreSQL identity with the plan's passwordless target and complete the authenticated estate-workspace browser journey.
 * Current blockers: None
 
 ## Completed Work
@@ -78,6 +78,24 @@ Implementation is active. The approved outcome preserves the five-agent architec
 * Completion evidence: Declined proposals make zero model calls and create no artifact; an approved proposal creates usage and an in-review artifact that becomes retrievable only after separate review.
 * Validation: 18 focused transformation and publication tests passed; changed Python passed Ruff and strict mypy.
 
+### Expose the Live Estate Workflow and Optional Evaluations
+
+* Related phase or task: P06, P06-T01 through P06-T04, and P07-T02
+* Files: src/shaper/domain/estate.py, src/shaper/application/estates.py, src/shaper/application/artifacts.py, src/shaper/interfaces/http.py, src/shaper/infrastructure/postgres.py, prototype/copilot-studio-knowledge-compiler/, README.md, docs/
+* What changed and why: Added PostgreSQL-backed estate APIs, interactive Entra browser identity, the live estate workspace, and an estate-level opt-in that generates versioned citation-coverage, structure, and validation evaluations for reshaped artifacts.
+* Completion evidence: The checkbox is present at estate creation and transformation, the setting persists through optimistic estate updates, disabled estates create no evaluation, enabled estates expose evaluations in artifact records and through the evaluation API, and superseded PostgreSQL transactions no longer block revision startup.
+* Validation: 148 tests passed at 78.52% coverage; Ruff, formatting, strict mypy, schema, JavaScript, shell, Bicep, and diff checks passed.
+
+### Deploy the Evaluation Option, Authentication Flow, and Redesigned Workspace
+
+* Related phase or task: P07-T03 deployment evidence
+* Deployment: Revision `ca-shaper-dev--0000031`, image digest `sha256:0d91cab6f1a2705a36ebddceb097342bdf0e7a2576e6e846270041c0af2c0e29`
+* Evidence: Revision is Healthy, RunningAtMaxScale, and receives 100% traffic; `/health/ready` reports every dependency ready. Anonymous `/concept/` returns the data-free shell, `/v1/session` remains protected, and a browser reaches the Microsoft Entra sign-in page through the explicit UI bootstrap.
+* Authentication correction: The Entra application now enables ID-token issuance because Container Apps authentication requests the hybrid `code id_token` response type. Deployment automation preserves this setting, preventing the post-sign-in 401 caused by the incomplete application registration.
+* Redirect-loop correction: The UI no longer probes the unavailable token-store-backed `/.auth/me` endpoint. It checks `/v1/session`, prevents `fetch` from following browser-only authentication redirects across origins, and converts the resulting 401 or opaque redirect into one top-level Entra navigation.
+* Workspace redesign: Replaced the generic administration shell with a Microsoft Fluent 2-style estate portfolio using Segoe UI, Microsoft blue, neutral surfaces, compact controls, restrained elevation, meaningful portfolio measures, scannable configuration cards, simplified governed-process navigation, and active/completed workflow stages. Page and estate titles now use a compact 24 px semibold application hierarchy rather than a large marketing-style treatment. Shaper retains its own product identity rather than using a protected Microsoft corporate logo. The design remains responsive and preserves named controls, landmark structure, visible focus, reduced motion, loading, access, empty, error, and approval states.
+* Remaining acceptance boundary: PostgreSQL currently uses a protected password secret rather than the plan's passwordless application identity, and the post-authentication estate workspace requires user validation.
+
 ## Implementation-Time Plan and Detail Updates
 
 ### UI Scope Confirmation
@@ -106,12 +124,15 @@ Implementation is active. The approved outcome preserves the five-agent architec
 | Recommendation and decisions | P04 | Passed | 28 focused tests passed. |
 | Approved transformation and artifacts | P05 | Passed | 18 focused tests passed. |
 | Ruff and strict mypy | P04-P05 | Passed | Changed recommendation and transformation files pass. |
+| Full pytest and coverage | P01-P07 | Passed | 148 tests passed; total coverage 78.52% exceeds 75%. |
+| Static and build validation | P06-P07 | Passed | Ruff, formatting, strict mypy, schema, JavaScript syntax, shell syntax, Bicep build, and diff checks passed. |
+| Azure revision | P07-T03 | Partial | Revision 0000031 is healthy with 100% traffic and RunningAtMaxScale. The compact Fluent-styled public shell, single session probe, protected API boundary, Entra redirect, active client credential, callback URI, and ID-token issuance pass; the post-authentication estate journey awaits user validation. |
 
 ## Pre-Review Reconciliation
 
-* Plan markers and phase details: Current; implementation markers remain unchecked.
-* Completed-work evidence and handoff prose: Active.
-* Validation, blockers, remaining work, and follow-up items: Full-plan validation pending.
+* Plan markers and phase details: P01-P06 and P07-T02 are current; P07-T01 and P07-T03 remain open.
+* Completed-work evidence and handoff prose: Current through the optional evaluation and signed-out authentication-shell deployment.
+* Validation, blockers, remaining work, and follow-up items: Local validation, Azure health, public-shell delivery, API protection, and the Entra redirect pass; passwordless PostgreSQL identity and post-authentication hosted-browser evidence remain.
 * Review readiness: Not ready; implementation is active.
 
 ## Blockers
@@ -120,7 +141,7 @@ Implementation is active. The approved outcome preserves the five-agent architec
 
 ## Remaining Work
 
-* P06-P07 and P06-T01 through P07-T03
+* P07, P07-T01, and P07-T03
 
 ## Follow-Up Items
 

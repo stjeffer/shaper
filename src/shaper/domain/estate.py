@@ -171,6 +171,7 @@ class KnowledgeEstate(DomainModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=2000)
     artifact_name_template: str = Field(default=DEFAULT_ARTIFACT_TEMPLATE, max_length=200)
+    generate_evaluations: bool = False
     status: EstateStatus = EstateStatus.ACTIVE
     created_at: datetime
     updated_at: datetime

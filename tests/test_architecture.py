@@ -35,15 +35,24 @@ def test_given_inner_package_when_imports_inspected_then_outer_layers_are_absent
 def test_given_postgres_deployment_when_inspected_then_compatibility_state_is_local() -> None:
     template = (REPOSITORY_ROOT / "bicep/main.bicep").read_text(encoding="utf-8")
     script = (REPOSITORY_ROOT / "scripts/deploy.sh").read_text(encoding="utf-8")
+    browser_app = (
+        REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js"
+    ).read_text(encoding="utf-8")
 
     assert "activeRevisionsMode: 'Single'" in template
     assert "name: 'SHAPER_DATABASE_PATH'" in template
     assert "value: ':memory:'" in template
     assert "name: 'SHAPER_POSTGRES_URL'" in template
     assert "secretRef: 'postgres-url'" in template
+    assert "'/concept/*'" in template
+    assert "unauthenticatedClientAction: 'Return401'" in template
     assert "name: 'SHAPER_SQLITE_JOURNAL_MODE'" in template
     assert "value: 'DELETE'" in template
     assert "SHAPER_SMOKE_TOKEN" in script
+    assert "--enable-id-token-issuance true" in script
+    assert 'redirect: "manual"' in browser_app
+    assert 'response.type === "opaqueredirect"' in browser_app
+    assert '"/.auth/me"' not in browser_app
 
 
 def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -> None:

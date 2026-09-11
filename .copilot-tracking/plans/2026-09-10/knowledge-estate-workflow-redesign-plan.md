@@ -334,34 +334,34 @@ For current user input, see [User Decisions and Requirements](#user-decisions-an
 * Detail section: P05-T03 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:phase id=P06 -->
-### [ ] P06: Expose Durable APIs and the Live Product Experience
+### [x] P06: Expose Durable APIs and the Live Product Experience
 
 * Intent: Make the workflow persistent, authenticated, operable, and accessible.
 * Dependencies: P01-P05
 
 <!-- rpi:task id=P06-T01 -->
-#### [ ] P06-T01: Implement Local and Production Persistence
+#### [x] P06-T01: Implement Local and Production Persistence
 
 * Requirement and evidence: NFR-02, NFR-06; research C12, C13
 * Expected result: SQLite supports local development and PostgreSQL supports durable Azure workflow state through the same repository contracts.
 * Detail section: P06-T01 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:task id=P06-T02 -->
-#### [ ] P06-T02: Add Authenticated Estate REST Resources
+#### [x] P06-T02: Add Authenticated Estate REST Resources
 
 * Requirement and evidence: FR-14, NFR-07, NFR-10; research C2
 * Expected result: Complete collection-scoped workflow APIs support bearer clients and same-origin Container Apps browser sessions backed by internal principal grants and fail-closed header trust.
 * Detail section: P06-T02 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:task id=P06-T03 -->
-#### [ ] P06-T03: Replace the Demo-First UI with Live Estate Screens
+#### [x] P06-T03: Replace the Demo-First UI with Live Estate Screens
 
 * Requirement and evidence: FR-15, FR-16; research C14-C16
 * Expected result: Public static assets host a signed-out shell while all estate data and actions require a session; durable run polling shows truthful loading, authorization, empty, partial, failure, retry, and completion states.
 * Detail section: P06-T03 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:task id=P06-T04 -->
-#### [ ] P06-T04: Verify Accessible Interaction Behavior
+#### [x] P06-T04: Verify Accessible Interaction Behavior
 
 * Requirement and evidence: NFR-08, AC-15
 * Expected result: One-time static and rendered methods adequately decide keyboard, focus, announcement, adaptive-rendering, contrast, target-size, and reduced-motion criteria for changed screens and record the accepted regression risk.
@@ -381,7 +381,7 @@ For current user input, see [User Decisions and Requirements](#user-decisions-an
 * Detail section: P07-T01 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:task id=P07-T02 -->
-#### [ ] P07-T02: Update Architecture and Operations Documentation
+#### [x] P07-T02: Update Architecture and Operations Documentation
 
 * Requirement and evidence: Multi-agent user decision, NFR-10
 * Expected result: C4 diagrams, README, and deployment guidance describe durable estates, agent roles, run bounds, two approval gates, token accounting, content lifecycle, acceptable development data, public and protected paths, and truthful connector states.

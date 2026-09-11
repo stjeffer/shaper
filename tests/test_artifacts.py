@@ -6,6 +6,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
 from shaper.application.ports import ModelResult
 from shaper.application.review import ReviewService
@@ -67,6 +69,7 @@ def _setup(
     path: Path,
     *,
     approved: bool,
+    generate_evaluations: bool = True,
 ) -> tuple[SQLiteStore, SQLiteEstateRepository, TransformationProposal]:
     store = SQLiteStore(path)
     store.connect()
@@ -78,6 +81,7 @@ def _setup(
             collection_id="collection-1",
             tenant_id="tenant-1",
             name="Policy estate",
+            generate_evaluations=generate_evaluations,
             created_at=NOW,
             updated_at=NOW,
         )
@@ -219,5 +223,33 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert artifact.evaluation.overall_score == 100
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
+    finally:
+        store.close()
+
+
+def test_given_evaluations_disabled_when_transformed_then_artifact_has_no_evaluation(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        generate_evaluations=False,
+    )
+    service = EstateTransformationService(
+        repository,
+        model=GroundedModel(),
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        service.start((proposal.recommendation_id,), principal=_principal())
+        artifact = repository.list_artifacts("estate-1")[0]
+
+        assert artifact.evaluation is None
+        with pytest.raises(KeyError, match="no evaluation"):
+            service.evaluation(artifact.artifact_id, principal=_principal())
     finally:
         store.close()

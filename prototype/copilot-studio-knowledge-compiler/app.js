@@ -25,6 +25,9 @@ const elements = {
   estateView: document.querySelector("#estateView"),
   estateList: document.querySelector("#estateList"),
   estateEmpty: document.querySelector("#estateEmpty"),
+  estateTotal: document.querySelector("#estateTotal"),
+  estateActive: document.querySelector("#estateActive"),
+  estateEvaluated: document.querySelector("#estateEvaluated"),
   createDialog: document.querySelector("#createDialog"),
   createForm: document.querySelector("#createForm"),
   sourceForm: document.querySelector("#sourceForm"),
@@ -42,6 +45,7 @@ const elements = {
   proposalList: document.querySelector("#proposalList"),
   proposalEmpty: document.querySelector("#proposalEmpty"),
   approvalSummary: document.querySelector("#approvalSummary"),
+  generateEvaluations: document.querySelector("#generateEvaluations"),
   transformButton: document.querySelector("#transformButton"),
   artifactList: document.querySelector("#artifactList"),
   artifactEmpty: document.querySelector("#artifactEmpty"),
@@ -65,6 +69,14 @@ function clearAlert() {
   elements.alert.textContent = "";
 }
 
+async function redirectToSignIn() {
+  const returnPath = `${window.location.pathname}${window.location.hash}`;
+  window.location.assign(
+    `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(returnPath)}`,
+  );
+  await new Promise(() => {});
+}
+
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("Accept", "application/json");
@@ -73,9 +85,13 @@ async function api(path, options = {}) {
   }
   const response = await fetch(path, {
     credentials: "same-origin",
+    redirect: "manual",
     ...options,
     headers,
   });
+  if (response.status === 401 || response.type === "opaqueredirect") {
+    await redirectToSignIn();
+  }
   if (!response.ok) {
     let detail = `Request failed with HTTP ${response.status}`;
     try {
@@ -161,6 +177,14 @@ async function loadEstates() {
 }
 
 function renderEstates() {
+  const estates = state.estates.map(recordValue);
+  elements.estateTotal.textContent = estates.length;
+  elements.estateActive.textContent = estates.filter(
+    (estate) => estate.status === "active",
+  ).length;
+  elements.estateEvaluated.textContent = estates.filter(
+    (estate) => estate.generate_evaluations,
+  ).length;
   elements.estateList.replaceChildren(
     ...state.estates.map((record) => {
       const estate = recordValue(record);
@@ -170,17 +194,29 @@ function renderEstates() {
       button.type = "button";
       button.dataset.estateId = estate.estate_id;
       const badge = text("span", estate.status, `badge ${estate.status}`);
+      const cardTop = document.createElement("div");
+      cardTop.className = "estate-card-top";
+      cardTop.append(badge, text("span", "Open estate →", "card-link"));
       const heading = text("h2", estate.name);
       const description = text(
         "p",
         estate.description || "No estate description has been added.",
       );
+      const configuration = document.createElement("div");
+      configuration.className = "estate-configuration";
+      configuration.append(
+        text(
+          "span",
+          estate.generate_evaluations ? "Evaluations enabled" : "Evaluations off",
+        ),
+        text("span", `Revision ${record.revision}`),
+      );
       const footer = document.createElement("footer");
       footer.append(
-        text("span", `Revision ${record.revision}`),
-        text("span", `Updated ${formatDate(estate.updated_at)}`),
+        text("span", "Last updated"),
+        text("strong", formatDate(estate.updated_at)),
       );
-      button.append(badge, heading, description, footer);
+      button.append(cardTop, heading, description, configuration, footer);
       article.append(button);
       return article;
     }),
@@ -260,10 +296,26 @@ function renderEstate() {
   const status = document.querySelector("#estateStatus");
   status.textContent = estate.status;
   status.className = `badge ${estate.status}`;
+  elements.generateEvaluations.checked = estate.generate_evaluations;
   renderSources();
   renderDocuments();
   renderProposals();
   renderArtifacts();
+  updateWorkflowProgress();
+}
+
+function updateWorkflowProgress() {
+  const completion = {
+    sources: state.sources.length > 0,
+    discover: state.reports.size > 0,
+    recommend: state.proposals.length > 0,
+    transform: state.artifacts.length > 0,
+  };
+  document.querySelectorAll(".workflow [data-tab]").forEach((button) => {
+    button.closest("li").dataset.complete = completion[button.dataset.tab]
+      ? "true"
+      : "false";
+  });
 }
 
 function renderSources() {
@@ -297,6 +349,7 @@ function renderSources() {
       text("p", "No sources have been registered.", "empty-inline"),
     );
   }
+  updateWorkflowProgress();
 }
 
 function renderDocuments() {
@@ -341,6 +394,7 @@ function renderDocuments() {
   elements.documentEmpty.hidden = state.documents.length !== 0;
   renderDiscoverySummary();
   updateSelection();
+  updateWorkflowProgress();
 }
 
 function renderDiscoverySummary() {
@@ -447,6 +501,7 @@ function renderProposals() {
   );
   elements.proposalEmpty.hidden = state.proposals.length !== 0;
   updateApprovals();
+  updateWorkflowProgress();
 }
 
 function tokenMetric(label, value) {
@@ -524,6 +579,7 @@ function renderArtifacts() {
     }),
   );
   elements.artifactEmpty.hidden = state.artifacts.length !== 0;
+  updateWorkflowProgress();
 }
 
 function switchTab(name, focus = true) {
@@ -563,6 +619,7 @@ async function createEstate(event) {
         name: data.get("name"),
         description: data.get("description"),
         artifact_name_template: data.get("artifact_name_template"),
+        generate_evaluations: data.has("generate_evaluations"),
       }),
     });
     elements.createDialog.close();
@@ -726,6 +783,24 @@ async function transformApproved() {
   const panel = document.querySelector('[data-panel="recommend"]');
   setBusy(panel, true, "Creating approved agent-ready HTML…");
   try {
+    const estateRecord = state.estate;
+    const estate = recordValue(estateRecord);
+    if (estate.generate_evaluations !== elements.generateEvaluations.checked) {
+      state.estate = await api(`/v1/estates/${estate.estate_id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          expected_revision: estateRecord.revision,
+          name: estate.name,
+          description: estate.description,
+          artifact_name_template: estate.artifact_name_template,
+          generate_evaluations: elements.generateEvaluations.checked,
+        }),
+      });
+      const estateIndex = state.estates.findIndex(
+        (item) => recordValue(item).estate_id === estate.estate_id,
+      );
+      if (estateIndex >= 0) state.estates[estateIndex] = state.estate;
+    }
     const result = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/transformation-runs`,
       {
