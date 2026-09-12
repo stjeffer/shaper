@@ -192,6 +192,8 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'data-source-input-tab="location"' in html
     assert 'data-source-input-tab="upload"' in html
     assert 'data-source-input-panel="upload"' in html
+    assert 'class="source-workspace-grid"' in html
+    assert 'class="registered-sources-panel"' in html
     assert 'id="deleteConfirmation"' in html
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app

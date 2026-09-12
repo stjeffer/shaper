@@ -817,6 +817,13 @@ h3 {
   border-radius: 18px;
 }
 
+.source-workspace-grid {
+  display: grid;
+  align-items: start;
+  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .source-input-tabs button {
   min-height: 38px;
   padding: 0 16px;
@@ -840,7 +847,7 @@ h3 {
 }
 
 .source-input-panels {
-  margin-bottom: 28px;
+  margin-bottom: 0;
 }
 
 .source-input-panel.form-card {
@@ -849,6 +856,18 @@ h3 {
 
 .source-input-panel[hidden] {
   display: none;
+}
+
+.registered-sources-panel {
+  min-width: 0;
+  margin-top: 16px;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 24px;
+}
+
+.registered-sources-panel .section-heading {
+  margin: 0 0 12px;
 }
 
 .form-card {
@@ -995,6 +1014,7 @@ input[type="file"] {
   margin: 5px 0 0;
   color: var(--muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .state-card,
@@ -2909,6 +2929,14 @@ h2 {
 
   .workspace {
     padding: 24px 24px 48px;
+  }
+
+  .source-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .registered-sources-panel {
+    margin-top: 0;
   }
 }
 

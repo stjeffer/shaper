@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-source-tabs-fix" />
+    <link rel="stylesheet" href="styles.css?v=20260912-source-columns" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -189,84 +189,93 @@
                 <p>Add references or upload source content. Registered does not mean connected.</p>
               </div>
             </div>
-            <div class="source-input-tabs" role="tablist" aria-label="Add content source">
-              <button
-                id="locationSourceTab"
-                type="button"
-                role="tab"
-                aria-selected="true"
-                aria-controls="locationSourcePanel"
-                data-source-input-tab="location"
-              >
-                URL or SharePoint
-              </button>
-              <button
-                id="uploadSourceTab"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="uploadSourcePanel"
-                data-source-input-tab="upload"
-                tabindex="-1"
-              >
-                File upload
-              </button>
-            </div>
-            <div class="source-input-panels">
-              <form
-                id="sourceForm"
-                class="form-card source-input-panel"
-                role="tabpanel"
-                aria-labelledby="locationSourceTab"
-                data-source-input-panel="location"
-              >
-                <h3>Add a location</h3>
-                <label for="sourceKind">Source type</label>
-                <div class="select-field">
-                  <select id="sourceKind" name="kind">
-                    <option value="sharepoint">SharePoint site or library</option>
-                    <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
-                  </select>
-                  <span aria-hidden="true"></span>
+            <div class="source-workspace-grid">
+              <div class="source-input-column">
+                <div class="source-input-tabs" role="tablist" aria-label="Add content source">
+                  <button
+                    id="locationSourceTab"
+                    type="button"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="locationSourcePanel"
+                    data-source-input-tab="location"
+                  >
+                    URL or SharePoint
+                  </button>
+                  <button
+                    id="uploadSourceTab"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="uploadSourcePanel"
+                    data-source-input-tab="upload"
+                    tabindex="-1"
+                  >
+                    File upload
+                  </button>
                 </div>
-                <label for="sourceName">Display name</label>
-                <input id="sourceName" name="display_name" required maxlength="300" />
-                <label for="sourceUrl">URL</label>
-                <input id="sourceUrl" name="locator" type="url" required maxlength="2048" />
-                <button class="button secondary" type="submit">Add location</button>
-              </form>
-              <form
-                id="uploadForm"
-                class="form-card source-input-panel"
-                enctype="multipart/form-data"
-                role="tabpanel"
-                aria-labelledby="uploadSourceTab"
-                data-source-input-panel="upload"
-                hidden
-              >
-                <h3>Upload content</h3>
-                <p>Upload individual PDF, Word, Markdown, or text files, or a safe ZIP bundle.</p>
-                <label class="file-drop" for="files">
-                  <span aria-hidden="true"></span>
-                  <strong>Choose files</strong>
-                  <small id="fileSummary">No files selected</small>
-                </label>
-                <input
-                  id="files"
-                  name="files"
-                  type="file"
-                  accept=".pdf,.docx,.md,.txt,.zip"
-                  multiple
-                  required
-                />
-                <button class="button secondary" type="submit">Upload and inventory</button>
-              </form>
+                <div class="source-input-panels">
+                  <form
+                    id="sourceForm"
+                    class="form-card source-input-panel"
+                    role="tabpanel"
+                    aria-labelledby="locationSourceTab"
+                    data-source-input-panel="location"
+                  >
+                    <h3>Add a location</h3>
+                    <label for="sourceKind">Source type</label>
+                    <div class="select-field">
+                      <select id="sourceKind" name="kind">
+                        <option value="sharepoint">SharePoint site or library</option>
+                        <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
+                      </select>
+                      <span aria-hidden="true"></span>
+                    </div>
+                    <label for="sourceName">Display name</label>
+                    <input id="sourceName" name="display_name" required maxlength="300" />
+                    <label for="sourceUrl">URL</label>
+                    <input id="sourceUrl" name="locator" type="url" required maxlength="2048" />
+                    <button class="button secondary" type="submit">Add location</button>
+                  </form>
+                  <form
+                    id="uploadForm"
+                    class="form-card source-input-panel"
+                    enctype="multipart/form-data"
+                    role="tabpanel"
+                    aria-labelledby="uploadSourceTab"
+                    data-source-input-panel="upload"
+                    hidden
+                  >
+                    <h3>Upload content</h3>
+                    <p>
+                      Upload individual PDF, Word, Markdown, or text files, or a safe ZIP
+                      bundle.
+                    </p>
+                    <label class="file-drop" for="files">
+                      <span aria-hidden="true"></span>
+                      <strong>Choose files</strong>
+                      <small id="fileSummary">No files selected</small>
+                    </label>
+                    <input
+                      id="files"
+                      name="files"
+                      type="file"
+                      accept=".pdf,.docx,.md,.txt,.zip"
+                      multiple
+                      required
+                    />
+                    <button class="button secondary" type="submit">Upload and inventory</button>
+                  </form>
+                </div>
+              </div>
+              <section class="registered-sources-panel" aria-labelledby="registeredSourcesTitle">
+                <div class="section-heading">
+                  <h3 id="registeredSourcesTitle">Registered sources</h3>
+                  <span id="sourceCount" class="count">0 sources</span>
+                </div>
+                <div id="sourceList" class="item-list"></div>
+              </section>
             </div>
-            <div class="section-heading">
-              <h3>Registered sources</h3>
-              <span id="sourceCount" class="count">0 sources</span>
-            </div>
-            <div id="sourceList" class="item-list"></div>
             <section class="lifecycle-card" aria-labelledby="lifecycleTitle">
               <div>
                 <h3 id="lifecycleTitle">Estate lifecycle</h3>

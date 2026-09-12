@@ -77,6 +77,10 @@ Users can:
 * Review the current document inventory
 * Choose whether transformed artifacts include evaluation reports
 
+On wider screens, source input occupies the left half of the Sources workspace
+and the registered-source list occupies the right half. The columns stack on
+narrow screens.
+
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph
 synchronization has occurred.
