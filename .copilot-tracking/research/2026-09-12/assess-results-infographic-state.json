@@ -3,8 +3,8 @@
   "task_slug": "assess-results-infographic",
   "parent_task": null,
   "mode": "automatic",
-  "active_phase": "Implement",
-  "status": "active",
+  "active_phase": "Follow-up",
+  "status": "completed",
   "session_status": "running",
   "artifact_paths": {
     "research": ".copilot-tracking/research/2026-09-12/assess-results-infographic-research.md",
@@ -12,7 +12,7 @@
     "details": ".copilot-tracking/details/2026-09-12/assess-results-infographic-phase-details.md",
     "critique": ".copilot-tracking/reviews/plans/2026-09-12/assess-results-infographic-plan-critique.md",
     "changes": ".copilot-tracking/changes/2026-09-12/assess-results-infographic-changes.md",
-    "review": null
+    "review": ".copilot-tracking/reviews/logs/2026-09-12/assess-results-infographic-review.md"
   },
   "confirmed_decisions": [
     {
@@ -34,12 +34,30 @@
       "decision": "Implementation completed with full static, test, and rendered-browser validation.",
       "status": "confirmed",
       "evidence": ".copilot-tracking/changes/2026-09-12/assess-results-infographic-changes.md"
+    },
+    {
+      "decision": "Post-implementation Review executed once with outcome Defects found.",
+      "status": "confirmed",
+      "evidence": "RV-001 in .copilot-tracking/reviews/logs/2026-09-12/assess-results-infographic-review.md"
     }
   ],
   "blockers": [],
   "next_action": {
-    "phase": "Review",
-    "action": "Run the single post-implementation review."
+    "phase": "Follow-up",
+    "action": "Select a ranked follow-up, stop the automatic session, or switch to manual mode."
   },
-  "prioritized_follow_ups": []
+  "prioritized_follow_ups": [
+    {
+      "rank": 1,
+      "task": "Filter legacy accountability codes from the aggregate Results count.",
+      "rationale": "Small, high-confidence correction that removes the only review defect and makes row and summary semantics consistent.",
+      "evidence": "RV-001"
+    },
+    {
+      "rank": 2,
+      "task": "Add exact issue counts and source locations to assessment results.",
+      "rationale": "Would improve actionability but requires a report-contract change and more research than the current presence indicators.",
+      "evidence": "Plan Follow-Up Items and research residual uncertainty"
+    }
+  ]
 }
