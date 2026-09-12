@@ -77,6 +77,8 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert 'id="documentDialog"' in markup
     assert "checks completed" in script
     assert "result-evidence" in styles
+    assert ".result-item.high" in styles
+    assert "font-family: inherit" in styles
     assert "/documents/` +" in script
     assert "result-list" in styles
 

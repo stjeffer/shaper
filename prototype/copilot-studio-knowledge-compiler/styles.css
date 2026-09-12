@@ -1110,6 +1110,7 @@ td input[type="checkbox"] {
   border-left-color: var(--amber);
 }
 
+.result-item.high,
 .result-item.unknown {
   background: var(--red-soft);
   border-color: #efb8c1;
@@ -1139,6 +1140,7 @@ td input[type="checkbox"] {
   color: var(--amber);
 }
 
+.result-item.high .result-icon,
 .result-item.unknown .result-icon {
   color: var(--red);
 }
@@ -1482,8 +1484,9 @@ dialog form {
   background: #f8f8fa;
   border: 1px solid var(--line);
   border-radius: 8px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 13px;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 14px;
   line-height: 1.55;
 }
 
