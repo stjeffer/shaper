@@ -14,6 +14,8 @@ from shaper.application.review import ReviewService
 from shaper.application.token_estimation import ESTIMATOR_VERSION
 from shaper.application.validation import DeterministicValidator
 from shaper.domain import (
+    AnswerUnit,
+    Claim,
     CollectionRole,
     DecisionOutcome,
     EstateDocument,
@@ -23,6 +25,7 @@ from shaper.domain import (
     TransformationDecision,
     TransformationProposal,
 )
+from shaper.domain.models import Derivation
 from shaper.infrastructure.compilation import SQLiteReviewStore
 from shaper.infrastructure.sqlite import SQLiteEstateRepository, SQLiteStore
 
@@ -54,6 +57,30 @@ class GroundedModel:
         )
 
 
+class SummaryModel:
+    """Return a lossy summary instead of a complete reshaped document."""
+
+    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+        del prompt, schema
+        return ModelResult(
+            payload={
+                "status": "candidate",
+                "canonical_questions": ["What does the policy require?"],
+                "answer": "Employees should follow the leave policy.",
+                "claims": [
+                    {
+                        "text": "Employees should follow the leave policy.",
+                        "span_ids": ["document-1:0"],
+                    }
+                ],
+                "confidence": 0.9,
+            },
+            response_id="response-summary",
+            input_tokens=12,
+            output_tokens=8,
+        )
+
+
 def _principal() -> Principal:
     return Principal(
         principal_id="person-1",
@@ -72,6 +99,8 @@ def _setup(
     approved: bool,
     generate_evaluations: bool = True,
     estimator_version: str = ESTIMATOR_VERSION,
+    source_text: str = "Employees receive leave. <script>alert(1)</script>",
+    enforced_maximum: int = 200,
 ) -> tuple[SQLiteStore, SQLiteEstateRepository, TransformationProposal]:
     store = SQLiteStore(path)
     store.connect()
@@ -106,7 +135,7 @@ def _setup(
     repository.save_document_content(
         "document-1",
         ZERO_HASH,
-        "Employees receive leave. <script>alert(1)</script>",
+        source_text,
     )
     estimate = TokenEstimate(
         estimate_id="1" * 64,
@@ -117,7 +146,7 @@ def _setup(
         output_min=30,
         output_max=50,
         expected_total=150,
-        enforced_maximum=200,
+        enforced_maximum=enforced_maximum,
         assumptions=("Deterministic approximation",),
         confidence=0.65,
     )
@@ -289,5 +318,94 @@ def test_given_evaluations_disabled_when_transformed_then_artifact_has_no_evalua
         assert artifact.evaluation is None
         with pytest.raises(KeyError, match="no evaluation"):
             service.evaluation(artifact.artifact_id, principal=_principal())
+    finally:
+        store.close()
+
+
+def test_given_lossy_summary_when_transformed_then_no_artifact_is_created(
+    tmp_path: Path,
+) -> None:
+    policy = (
+        "Employees must submit annual leave requests at least 20 working days in advance. "
+        "Managers must respond within 5 working days. Employees receive 25 days of annual "
+        "leave each year. Requests longer than 10 days require director approval. "
+        "Emergency leave may only be approved when supporting evidence is provided. "
+        "Unused leave cannot be carried forward unless HR provides written approval."
+    )
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        source_text=policy,
+        enforced_maximum=10_000,
+    )
+    service = EstateTransformationService(
+        repository,
+        model=SummaryModel(),
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "failed"
+        assert run.value.error is not None
+        assert "budget exhausted" in run.value.error
+        assert not repository.list_artifacts("estate-1")
+    finally:
+        store.close()
+
+
+def test_given_structured_document_when_rendered_then_semantic_content_is_preserved() -> None:
+    store, repository, proposal = _setup(Path(":memory:"), approved=True)
+    try:
+        unit = GroundedModel().generate(
+            prompt=json.dumps(
+                {
+                    "source": [
+                        {
+                            "text": (
+                                "# Leave policy\n"
+                                "Employees must request leave.\n"
+                                "- Manager approval is required."
+                            ),
+                            "span_id": "span-1",
+                        }
+                    ]
+                }
+            ),
+            schema={},
+        )
+        payload = unit.payload
+        payload["answer"] = (
+            "# Leave policy\nEmployees must request leave.\n- Manager approval is required."
+        )
+        answer_unit = AnswerUnit.create(
+            source_id="document-1",
+            source_version=ZERO_HASH,
+            canonical_questions=("What does the policy say?",),
+            answer=str(payload["answer"]),
+            claims=(Claim(text="Employees must request leave.", span_ids=("span-1",)),),
+            confidence=0.9,
+            derivation=Derivation(
+                run_id="run-1",
+                model="fake",
+                prompt_version="1.1",
+                parameters_hash=ZERO_HASH,
+            ),
+        )
+
+        content = HtmlArtifactRenderer().render(
+            title="Leave policy",
+            unit=answer_unit,
+            proposal=proposal,
+        )
+
+        assert b"<h2>Leave policy</h2>" in content
+        assert b"<p>Employees must request leave.</p>" in content
+        assert b"<li>Manager approval is required.</li>" in content
+        assert b"Canonical guidance" not in content
     finally:
         store.close()

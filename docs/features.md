@@ -193,6 +193,16 @@ Only approved proposals enter transformation. The current output is escaped
 semantic HTML with an estate-owned name such as
 `shaper_{source_stem}.html`.
 
+Transformation reshapes the complete source document; it does not replace the
+source with a summary. The approved recommendations are included in the shaping
+request, while the shaping contract requires preservation of rules, duties,
+permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
+definitions, procedure steps, escalation paths, and material examples.
+Deterministic gates reject outputs with insufficient source-word coverage,
+missing values or durations, or omitted operative clauses. A rejected candidate
+gets at most one bounded repair attempt. If preservation still fails, the run
+fails visibly and no artifact is saved.
+
 When estate evaluations are enabled, each artifact receives versioned checks for
 citation coverage, structure, and validation. A second human review is required
 before publication approval.

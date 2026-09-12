@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import re
 import time
 import uuid
 from collections.abc import Callable, Sequence
@@ -58,6 +59,7 @@ class HtmlArtifactRenderer:
             f"<li>{html.escape(question)}</li>" for question in unit.canonical_questions
         )
         claims = "".join(f"<li>{html.escape(claim.text)}</li>" for claim in unit.claims)
+        guidance = self._semantic_content(unit.answer)
         markup = (
             "<!doctype html>\n"
             '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
@@ -68,8 +70,9 @@ class HtmlArtifactRenderer:
             "</head>\n<body>\n"
             "<article>\n"
             f"<header><h1>{html.escape(title)}</h1></header>\n"
-            '<section aria-labelledby="summary"><h2 id="summary">Canonical guidance</h2>'
-            f"<p>{html.escape(unit.answer)}</p></section>\n"
+            '<section aria-labelledby="reshaped-content">'
+            '<h2 id="reshaped-content">Reshaped document</h2>'
+            f"{guidance}</section>\n"
             '<section aria-labelledby="questions"><h2 id="questions">Questions answered</h2>'
             f"<ul>{questions}</ul></section>\n"
             '<section aria-labelledby="claims"><h2 id="claims">Grounded claims</h2>'
@@ -81,6 +84,46 @@ class HtmlArtifactRenderer:
             "</article>\n</body>\n</html>\n"
         )
         return markup.encode("utf-8")
+
+    @staticmethod
+    def _semantic_content(value: str) -> str:
+        """Render simple model-authored Markdown as escaped semantic HTML."""
+        parts: list[str] = []
+        list_type: str | None = None
+
+        def close_list() -> None:
+            nonlocal list_type
+            if list_type is not None:
+                parts.append(f"</{list_type}>")
+                list_type = None
+
+        for raw_line in value.splitlines():
+            line = raw_line.strip()
+            if not line:
+                close_list()
+                continue
+            heading = re.match(r"^(#{1,5})\s+(.+)$", line)
+            if heading:
+                close_list()
+                level = len(heading.group(1)) + 1
+                parts.append(f"<h{level}>{html.escape(heading.group(2))}</h{level}>")
+                continue
+            bullet = re.match(r"^[-*]\s+(.+)$", line)
+            numbered = re.match(r"^\d+[.)]\s+(.+)$", line)
+            if bullet or numbered:
+                required_type = "ul" if bullet else "ol"
+                if list_type != required_type:
+                    close_list()
+                    list_type = required_type
+                    parts.append(f"<{list_type}>")
+                match = bullet or numbered
+                assert match is not None
+                parts.append(f"<li>{html.escape(match.group(1))}</li>")
+                continue
+            close_list()
+            parts.append(f"<p>{html.escape(line)}</p>")
+        close_list()
+        return "".join(parts)
 
 
 class ArtifactEvaluator:
@@ -430,6 +473,7 @@ class EstateTransformationService:
                 document=source,
                 spans=(span,),
                 principal=principal,
+                transformation_requirements=proposal.proposed_changes,
             )
         except ShapingBudgetExceeded as error:
             self._append_usage(

@@ -12,7 +12,7 @@ from shaper.application.shaping import CandidatePayload
 from shaper.domain import TokenEstimate
 from shaper.domain.models import canonical_hash
 
-ESTIMATOR_VERSION = "1.1"
+ESTIMATOR_VERSION = "1.2"
 ESTIMATED_MODEL_CALLS = 2
 _WORD = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _LEXICAL_MULTIPLIER = 1.5

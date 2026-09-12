@@ -133,6 +133,7 @@ class ShapingLoop:
         document: SourceDocument,
         spans: Sequence[SourceSpan],
         principal: Principal,
+        transformation_requirements: Sequence[str] = (),
         cancelled: Callable[[], bool] = lambda: False,
     ) -> ShapingOutcome:
         """Run until one valid candidate, an abstention, cancellation, or hard limit."""
@@ -158,6 +159,7 @@ class ShapingLoop:
                 {
                     "instructions": SHAPING_PROMPT,
                     "source": context,
+                    "approved_transformation_requirements": list(transformation_requirements),
                     "validation_feedback": feedback,
                     "allowed_tools": sorted(self._tools.names),
                 },

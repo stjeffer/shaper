@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Sequence
 
 import pytest
 
 from shaper.application.agent_tools import ReadOnlyToolRegistry
 from shaper.application.model import DeterministicModelGateway
+from shaper.application.ports import ModelResult
 from shaper.application.shaping import (
     ShapingBudget,
     ShapingBudgetExceeded,
@@ -169,6 +171,53 @@ def test_given_blocking_feedback_when_shaped_then_candidate_is_repaired(
     # Assert
     assert outcome.model_calls == 2
     assert "candidate_rejected" in checkpoints.states
+
+
+def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    class CapturingModel:
+        def __init__(self) -> None:
+            self.prompt = ""
+
+        def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+            del schema
+            self.prompt = prompt
+            return DeterministicModelGateway([candidate_payload()]).generate(
+                prompt=prompt,
+                schema={},
+            )
+
+    model = CapturingModel()
+    checkpoints = Checkpoints()
+    loop = ShapingLoop(
+        model=model,
+        tools=ReadOnlyToolRegistry(
+            Context([source_span]),
+            source_id=source_document.source_id,
+            collection_id=source_document.collection_id,
+        ),
+        validator=Validator(),
+        checkpoints=checkpoints,
+    )
+    principal = Principal(
+        principal_id="person-1",
+        tenant_id=source_document.tenant_id,
+        collection_roles={source_document.collection_id: frozenset({CollectionRole.COMPILE})},
+    )
+
+    loop.run(
+        run_id="run-1",
+        document=source_document,
+        spans=[source_span],
+        principal=principal,
+        transformation_requirements=("Add descriptive headings",),
+    )
+
+    assert json.loads(model.prompt)["approved_transformation_requirements"] == [
+        "Add descriptive headings"
+    ]
 
 
 def test_given_abstention_when_shaped_then_no_candidate_is_returned(

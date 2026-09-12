@@ -448,13 +448,14 @@ Make the outcome tangible without claiming autonomous rewriting.
 Use one realistic example story based on policy or operational content:
 
 - **Before reshaping**: a dense, cross-referenced, ambiguous document with weak headings and hidden dependencies
-- **After reshaping**: an approved semantic HTML proposal with clearer structure, explicit labels, better chunk boundaries, and preserved governance context
+- **After reshaping**: a complete semantic HTML proposal with clearer structure, explicit labels, better chunk boundaries, and all substantive source content preserved
 
 ### Non-negotiable caveat
 
 State in the section itself:
 
 - the transformed output is a **proposal derived from an approved recommendation**
+- reshaping is **not summarisation**; preservation gates block outputs that omit material facts or operative clauses
 - it does **not** rewrite the original estate automatically
 - publication still requires **human review**
 

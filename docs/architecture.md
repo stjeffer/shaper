@@ -500,7 +500,7 @@ Provides bounded model inference`"]
 |-----------------------|-----------------------------------------------------------------|---------------------------------------------------|
 | Assessment Agent      | Content health, metadata, staleness, ownership, readability     | Topic authority or source mutation                |
 | Knowledge Agent       | Topics, entities, relationships, overlap, conflicts, authority  | Approval or publication                           |
-| Transformation Agent  | Canonicalization, FAQ, summary, metadata, and procedure proposals | Autonomous overwrite or publication             |
+| Transformation Agent  | Structure, FAQ navigation, metadata, and procedure proposals      | Summarisation, autonomous overwrite, or publication |
 | Governance Agent      | Duplicate, contradiction, ownership, freshness, authority health | Current recurring scheduling in the MVP          |
 | Agent Readiness Agent | Retrieval, clarity, FAQ, chunking, consistency, prioritized work | Accuracy or model-confidence claims               |
 
@@ -598,7 +598,11 @@ Recommendation and estimate identities`"]
     preflight["`**Transformation preflight**
 Current source, approval, and estimator version`"]
     shaping["`**Bounded shaping loop**
-Provider-reported token accounting`"]
+Complete-document contract and
+provider-reported token accounting`"]
+    preservation["`**Preservation gate**
+Source coverage, material facts,
+and operative clauses`"]
     artifact["`**Reviewable artifact**
 Preview before publication`"]
 
@@ -606,7 +610,10 @@ Preview before publication`"]
     estimate --> approval
     approval --> preflight
     preflight --> shaping
-    shaping --> artifact
+    shaping --> preservation
+    preservation -->|"`pass`"| artifact
+    preservation -->|"`block with feedback;
+one bounded repair`"| shaping
 ```
 
 The estimator derives fixed request overhead from the active shaping prompt and
@@ -614,6 +621,14 @@ structured-response schema. It adds the source, request-envelope, and expected
 output ranges, then reserves the initial response, one bounded repair, and a
 safety margin. The shaping loop accounts for provider-reported input and output
 tokens after every response and stops when the approved maximum is exceeded.
+
+The shaping request includes the exact approved transformation requirements and
+requires a complete-document result rather than a summary. After each candidate,
+the deterministic preservation gate checks lexical source coverage, exact
+retention of numeric and duration facts, and semantic overlap for operative
+clauses such as duties, prohibitions, and constrained permissions. A blocking
+finding is returned to the bounded loop for one repair attempt. If the repaired
+candidate still fails, transformation stops and no artifact is persisted.
 
 An estimator-version change invalidates an earlier approval for execution.
 The service rejects the stale estimate before calling the model and tells the
