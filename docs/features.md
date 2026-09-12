@@ -54,6 +54,12 @@ Uploading or synchronizing a new source version therefore returns the affected
 estate to a partially assessed or not assessed state until discovery evaluates
 that version. Historical reports do not make changed content appear current.
 
+Each estate row has an accessible **Actions** ellipsis menu. **Edit** updates the
+estate name, description, output naming convention, and evaluation preference
+using optimistic concurrency. Archived estates remain read-only. **Delete**
+opens the same name-confirmed, archive-then-purge safeguard used inside the
+estate workspace.
+
 The **Assessment checks** screen lists all 29 deterministic checks by category.
 Each entry explains what the check looks for and its likely impact on retrieval
 or agent answers. The browser loads this catalogue from the authenticated

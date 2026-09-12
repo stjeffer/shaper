@@ -586,7 +586,7 @@ h3 {
   border-color: #8a8886;
 }
 
-.estate-card button {
+.estate-open-button {
   width: 100%;
   padding: 16px;
   color: inherit;
@@ -602,7 +602,7 @@ h3 {
   font-weight: 600;
 }
 
-.estate-card > button > p {
+.estate-open-button > p {
   min-height: 48px;
   margin: 0;
   color: var(--muted);
@@ -1856,17 +1856,17 @@ h2 {
 }
 
 .estate-list-shell {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #d3d3d3;
   border-radius: 26px;
 }
 
 .estate-list-header,
-.estate-card button {
+.estate-open-button {
   display: grid;
   align-items: center;
   gap: 12px;
-  grid-template-columns: minmax(180px, 1fr) 64px minmax(140px, 180px) 84px 128px 16px;
+  grid-template-columns: minmax(180px, 1fr) 64px minmax(140px, 180px) 84px 128px 48px;
 }
 
 .estate-list-header {
@@ -1882,22 +1882,99 @@ h2 {
 }
 
 .estate-card {
+  position: relative;
   border: 0;
   border-bottom: 1px solid #dedede;
   border-radius: 0;
+}
+
+.estate-card.menu-open {
+  z-index: 3;
 }
 
 .estate-card:last-child {
   border-bottom: 0;
 }
 
-.estate-card button {
+.estate-open-button {
   min-height: 60px;
   padding: 8px 20px;
 }
 
-.estate-card button:hover {
+.estate-open-button:hover {
   background: #f8f8f8;
+}
+
+.estate-actions {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+}
+
+.estate-menu-trigger {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.estate-menu-trigger:hover,
+.estate-menu-trigger[aria-expanded="true"] {
+  background: #ececec;
+}
+
+.estate-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 152px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #c8c8c8;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.estate-menu[hidden] {
+  display: none;
+}
+
+.estate-menu button {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.estate-menu button:hover,
+.estate-menu button:focus-visible {
+  background: #f1f1f1;
+}
+
+.estate-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.estate-menu .destructive-menu-item {
+  color: var(--red);
 }
 
 .estate-name {
@@ -2879,7 +2956,7 @@ h2 {
     border-radius: 18px;
   }
 
-  .estate-card button {
+  .estate-open-button {
     display: grid;
     gap: 10px;
     grid-template-columns: 1fr auto;

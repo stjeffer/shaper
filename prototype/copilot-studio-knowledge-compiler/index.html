@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-assessment-catalog" />
+    <link rel="stylesheet" href="styles.css?v=20260912-estate-actions" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -132,6 +132,7 @@
               <span>Assessment</span>
               <span>Lifecycle</span>
               <span>Last modified</span>
+              <span>Actions</span>
             </div>
             <div id="estateList" class="estate-grid" aria-live="polite"></div>
           </div>
@@ -407,6 +408,61 @@
       </form>
     </dialog>
 
+    <dialog id="editDialog" aria-labelledby="editTitle">
+      <form id="editForm">
+        <div class="dialog-heading">
+          <div>
+            <h2 id="editTitle">Edit knowledge estate</h2>
+            <p>Update the estate details and output settings.</p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-edit"
+            aria-label="Close edit estate dialog"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dialog-body">
+          <label for="editEstateName">Name</label>
+          <input id="editEstateName" name="name" required maxlength="200" />
+          <label for="editEstateDescription">Description</label>
+          <textarea
+            id="editEstateDescription"
+            name="description"
+            maxlength="2000"
+            rows="3"
+          ></textarea>
+          <label for="editArtifactTemplate">Output naming convention</label>
+          <input
+            id="editArtifactTemplate"
+            name="artifact_name_template"
+            required
+            maxlength="200"
+          />
+          <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
+          <label class="checkbox-option dialog-option" for="editEvaluations">
+            <input id="editEvaluations" name="generate_evaluations" type="checkbox" />
+            <span>
+              <strong>Create evaluations for reshaped content</strong>
+              <small
+                >Add citation coverage, structure, and validation checks to every generated
+                asset.</small
+              >
+            </span>
+          </label>
+          <p id="editError" class="dialog-error" role="alert" hidden></p>
+        </div>
+        <div class="dialog-actions">
+          <button class="button quiet" type="button" data-action="close-edit">Cancel</button>
+          <button id="editConfirmButton" class="button primary" type="submit">
+            Save changes
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog
       id="documentDialog"
       class="document-dialog"
@@ -512,6 +568,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-assessment-catalog"></script>
+    <script src="app.js?v=20260912-estate-actions"></script>
   </body>
 </html>

@@ -164,8 +164,8 @@ def test_given_live_estate_workspace_when_inspected_then_lifecycle_actions_are_w
     assert "/purge" in javascript
     assert "waitForRun" in javascript
     assert 'setAttribute("aria-busy"' in javascript
-    assert "if (!isArchived())" in javascript
-    assert javascript.index("function openDeleteDialog()") > javascript.index(
+    assert 'if (estate.status !== "archived")' in javascript
+    assert javascript.index("function openDeleteDialog(estateId)") > javascript.index(
         "async function createEstate"
     )
 
@@ -186,12 +186,17 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'data-action="open-create"' in html
     assert 'aria-label="New estate"' in html
     assert 'data-action="open-delete"' in html
+    assert 'id="editDialog"' in html
+    assert 'id="editForm"' in html
     assert 'id="deleteConfirmation"' in html
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app
     assert "await loadEstates(true)" in browser_app
+    assert 'menu.setAttribute("role", "menu")' in browser_app
+    assert 'editButton.setAttribute("role", "menuitem")' in browser_app
+    assert "`/v1/estates/${estate.estate_id}`" in browser_app
     assert "`/v1/estates/${estate.estate_id}/purge`" in browser_app
-    assert "elements.deleteConfirmation.value !== estate.name" in browser_app
+    assert "function selectedActionEstate()" in browser_app
 
 
 def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent() -> None:

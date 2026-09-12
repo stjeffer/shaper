@@ -14,6 +14,8 @@ const state = {
   artifacts: [],
   selectedDocuments: new Set(),
   assessmentChecks: null,
+  actionEstate: null,
+  openEstateMenuId: null,
 };
 
 const RESULT_PRESENTATION = Object.freeze({
@@ -93,6 +95,14 @@ const elements = {
   estateAssessed: document.querySelector("#estateAssessed"),
   createDialog: document.querySelector("#createDialog"),
   createForm: document.querySelector("#createForm"),
+  editDialog: document.querySelector("#editDialog"),
+  editForm: document.querySelector("#editForm"),
+  editEstateName: document.querySelector("#editEstateName"),
+  editEstateDescription: document.querySelector("#editEstateDescription"),
+  editArtifactTemplate: document.querySelector("#editArtifactTemplate"),
+  editEvaluations: document.querySelector("#editEvaluations"),
+  editConfirmButton: document.querySelector("#editConfirmButton"),
+  editError: document.querySelector("#editError"),
   deleteDialog: document.querySelector("#deleteDialog"),
   deleteForm: document.querySelector("#deleteForm"),
   deleteEstateName: document.querySelector("#deleteEstateName"),
@@ -466,7 +476,9 @@ function renderEstates() {
       article.className = "estate-card";
       const button = document.createElement("button");
       button.type = "button";
+      button.className = "estate-open-button";
       button.dataset.estateId = estate.estate_id;
+      button.setAttribute("aria-label", `Open ${estate.name}`);
       const lifecycle = text("span", estate.status, `badge ${estate.status}`);
       lifecycle.dataset.label = "Lifecycle";
       const nameCell = document.createElement("div");
@@ -494,14 +506,83 @@ function renderEstates() {
         assessment,
         lifecycle,
         footer,
-        text("span", "›", "card-link"),
+        text("span", "", "estate-action-space"),
       );
-      article.append(button);
+      const actions = document.createElement("div");
+      actions.className = "estate-actions";
+      const menuButton = document.createElement("button");
+      menuButton.type = "button";
+      menuButton.className = "estate-menu-trigger";
+      menuButton.dataset.estateMenuToggle = estate.estate_id;
+      menuButton.setAttribute("aria-label", `Actions for ${estate.name}`);
+      menuButton.setAttribute("aria-haspopup", "menu");
+      menuButton.setAttribute("aria-expanded", "false");
+      menuButton.textContent = "⋯";
+      const menu = document.createElement("div");
+      menu.className = "estate-menu";
+      menu.dataset.estateMenu = estate.estate_id;
+      menu.setAttribute("role", "menu");
+      menu.setAttribute("aria-label", `Actions for ${estate.name}`);
+      menu.hidden = true;
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.setAttribute("role", "menuitem");
+      editButton.dataset.estateEdit = estate.estate_id;
+      editButton.textContent = "Edit";
+      editButton.disabled = estate.status === "archived";
+      if (editButton.disabled) {
+        editButton.title = "Archived estates cannot be edited";
+      }
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "destructive-menu-item";
+      deleteButton.setAttribute("role", "menuitem");
+      deleteButton.dataset.estateDelete = estate.estate_id;
+      deleteButton.textContent = "Delete";
+      menu.append(editButton, deleteButton);
+      actions.append(menuButton, menu);
+      article.append(button, actions);
       return article;
     }),
   );
   elements.estateEmpty.hidden = estates.length !== 0;
   elements.estateList.closest(".estate-list-shell").hidden = estates.length === 0;
+}
+
+function estateRecord(estateId) {
+  return state.estates.find((record) => recordValue(record).estate_id === estateId);
+}
+
+function closeEstateMenus({ restoreFocus = false } = {}) {
+  const openId = state.openEstateMenuId;
+  document.querySelectorAll("[data-estate-menu]").forEach((menu) => {
+    menu.hidden = true;
+    menu.closest(".estate-card")?.classList.remove("menu-open");
+  });
+  document.querySelectorAll("[data-estate-menu-toggle]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+  state.openEstateMenuId = null;
+  if (restoreFocus && openId) {
+    document.querySelector(`[data-estate-menu-toggle="${CSS.escape(openId)}"]`)?.focus();
+  }
+}
+
+function toggleEstateMenu(estateId, { focusFirst = false } = {}) {
+  const shouldOpen = state.openEstateMenuId !== estateId;
+  closeEstateMenus();
+  if (!shouldOpen) return;
+  const menu = document.querySelector(`[data-estate-menu="${CSS.escape(estateId)}"]`);
+  const trigger = document.querySelector(
+    `[data-estate-menu-toggle="${CSS.escape(estateId)}"]`,
+  );
+  menu.hidden = false;
+  menu.closest(".estate-card")?.classList.add("menu-open");
+  trigger.setAttribute("aria-expanded", "true");
+  state.openEstateMenuId = estateId;
+  if (focusFirst) {
+    menu.querySelector('[role="menuitem"]:not(:disabled)')?.focus();
+  }
 }
 
 function assessmentStatus(record) {
@@ -1197,8 +1278,87 @@ async function createEstate(event) {
   }
 }
 
-function openDeleteDialog() {
-  const estate = recordValue(state.estate);
+function openEditDialog(estateId) {
+  const record = estateRecord(estateId);
+  if (!record || recordValue(record).status === "archived") return;
+  const estate = recordValue(record);
+  state.actionEstate = record;
+  closeEstateMenus();
+  elements.editForm.reset();
+  elements.editEstateName.value = estate.name;
+  elements.editEstateDescription.value = estate.description || "";
+  elements.editArtifactTemplate.value = estate.artifact_name_template;
+  elements.editEvaluations.checked = estate.generate_evaluations;
+  elements.editError.hidden = true;
+  elements.editError.textContent = "";
+  elements.editDialog.showModal();
+  elements.editEstateName.focus();
+}
+
+function closeEditDialog() {
+  elements.editDialog.close();
+  elements.editForm.reset();
+  elements.editError.hidden = true;
+  elements.editError.textContent = "";
+  state.actionEstate = null;
+}
+
+async function editEstate(event) {
+  event.preventDefault();
+  const record = state.actionEstate;
+  if (!record) return;
+  const estate = recordValue(record);
+  const data = new FormData(elements.editForm);
+  elements.editConfirmButton.disabled = true;
+  elements.editError.hidden = true;
+  try {
+    const updated = await api(`/v1/estates/${estate.estate_id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        expected_revision: record.revision,
+        name: data.get("name"),
+        description: data.get("description"),
+        artifact_name_template: data.get("artifact_name_template"),
+        generate_evaluations: data.has("generate_evaluations"),
+      }),
+    });
+    state.estates = state.estates.map((item) =>
+      recordValue(item).estate_id === estate.estate_id
+        ? {
+            ...updated,
+            document_count: item.document_count,
+            assessed_document_count: item.assessed_document_count,
+            assessment_status: item.assessment_status,
+          }
+        : item,
+    );
+    closeEditDialog();
+    renderEstates();
+    document
+      .querySelector(
+        `[data-estate-menu-toggle="${CSS.escape(recordValue(updated).estate_id)}"]`,
+      )
+      ?.focus();
+    announce(`${recordValue(updated).name} updated`);
+  } catch (error) {
+    elements.editError.textContent = error.message;
+    elements.editError.hidden = false;
+  } finally {
+    elements.editConfirmButton.disabled = false;
+  }
+}
+
+function selectedActionEstate() {
+  return state.actionEstate || state.estate;
+}
+
+function openDeleteDialog(estateId) {
+  if (estateId) {
+    state.actionEstate = estateRecord(estateId);
+  }
+  const estate = recordValue(selectedActionEstate());
+  if (!estate) return;
+  closeEstateMenus();
   elements.deleteEstateName.textContent = estate.name;
   elements.deleteForm.reset();
   elements.deleteConfirmButton.disabled = true;
@@ -1214,17 +1374,21 @@ function closeDeleteDialog() {
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   elements.deleteError.textContent = "";
+  state.actionEstate = null;
 }
 
 function updateDeleteConfirmation() {
-  const estate = recordValue(state.estate);
+  const estate = recordValue(selectedActionEstate());
+  if (!estate) return;
   elements.deleteConfirmButton.disabled =
     elements.deleteConfirmation.value !== estate.name;
 }
 
 async function deleteEstate(event) {
   event.preventDefault();
-  const estate = recordValue(state.estate);
+  const record = selectedActionEstate();
+  const estate = recordValue(record);
+  if (!record || !estate) return;
   if (elements.deleteConfirmation.value !== estate.name) {
     updateDeleteConfirmation();
     return;
@@ -1233,10 +1397,10 @@ async function deleteEstate(event) {
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   try {
-    if (!isArchived()) {
-      state.estate = await api(`/v1/estates/${estate.estate_id}/archive`, {
+    if (estate.status !== "archived") {
+      await api(`/v1/estates/${estate.estate_id}/archive`, {
         method: "POST",
-        body: JSON.stringify({ expected_revision: state.estate.revision }),
+        body: JSON.stringify({ expected_revision: record.revision }),
       });
     }
     await api(`/v1/estates/${estate.estate_id}/purge`, {
@@ -1562,6 +1726,9 @@ async function purgeEstate(event) {
 }
 
 document.addEventListener("click", async (event) => {
+  if (!event.target.closest(".estate-actions")) {
+    closeEstateMenus();
+  }
   const target = event.target.closest("button, a");
   if (!target) return;
   if (target.dataset.action === "home") {
@@ -1573,6 +1740,14 @@ document.addEventListener("click", async (event) => {
     elements.createDialog.showModal();
   } else if (target.dataset.action === "close-create") {
     elements.createDialog.close();
+  } else if (target.dataset.action === "close-edit") {
+    closeEditDialog();
+  } else if (target.dataset.estateMenuToggle) {
+    toggleEstateMenu(target.dataset.estateMenuToggle);
+  } else if (target.dataset.estateEdit) {
+    openEditDialog(target.dataset.estateEdit);
+  } else if (target.dataset.estateDelete) {
+    openDeleteDialog(target.dataset.estateDelete);
   } else if (target.dataset.action === "open-delete") {
     openDeleteDialog();
   } else if (target.dataset.action === "close-delete") {
@@ -1601,7 +1776,53 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.openEstateMenuId) {
+    event.preventDefault();
+    closeEstateMenus({ restoreFocus: true });
+    return;
+  }
+  const trigger = event.target.closest("[data-estate-menu-toggle]");
+  if (trigger && event.key === "ArrowDown") {
+    event.preventDefault();
+    const estateId = trigger.dataset.estateMenuToggle;
+    if (state.openEstateMenuId === estateId) {
+      document
+        .querySelector(`[data-estate-menu="${CSS.escape(estateId)}"]`)
+        ?.querySelector('[role="menuitem"]:not(:disabled)')
+        ?.focus();
+    } else {
+      toggleEstateMenu(estateId, { focusFirst: true });
+    }
+    return;
+  }
+
+  const menu = event.target.closest("[data-estate-menu]");
+  if (!menu) return;
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const items = [...menu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+  if (items.length === 0) return;
+  const current = items.indexOf(document.activeElement);
+  let next = 0;
+  if (event.key === "End") {
+    next = items.length - 1;
+  } else if (event.key === "ArrowUp") {
+    next = current <= 0 ? items.length - 1 : current - 1;
+  } else if (event.key === "ArrowDown") {
+    next = current === items.length - 1 ? 0 : current + 1;
+  }
+  items[next].focus();
+});
+
+document.addEventListener("focusin", (event) => {
+  if (state.openEstateMenuId && !event.target.closest(".estate-actions")) {
+    closeEstateMenus();
+  }
+});
+
 elements.createForm.addEventListener("submit", createEstate);
+elements.editForm.addEventListener("submit", editEstate);
 elements.deleteForm.addEventListener("submit", deleteEstate);
 elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
 elements.sourceForm.addEventListener("submit", addSource);
