@@ -75,7 +75,10 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert "Additional issue detected" in script
     assert 'metric("Results found", results)' in script
     assert 'id="documentDialog"' in markup
-    assert "checks completed" in script
+    assert "checks run" in script
+    assert "findings-disclosure" in script
+    assert 'setAttribute("role", "progressbar")' in script
+    assert 'class="assessment-note"' in markup
     assert "result-evidence" in styles
     assert ".result-item.high" in styles
     assert "font-family: inherit" in styles

@@ -215,14 +215,26 @@ function resultItem({ label, detail, icon, tone, evidence = [], review_required 
   symbol.setAttribute("aria-hidden", "true");
   const copy = document.createElement("div");
   copy.className = "result-copy";
-  copy.append(text("strong", label), text("small", detail));
+  const heading = document.createElement("div");
+  heading.className = "result-heading";
+  heading.append(text("strong", label));
+  if (tone !== "clear") {
+    heading.append(
+      text(
+        "span",
+        tone === "high" ? "High priority" : tone === "warning" ? "Review" : "Advisory",
+        `result-severity ${tone}`,
+      ),
+    );
+  }
+  copy.append(heading, text("p", detail, "result-detail"));
   if (review_required) {
-    copy.append(text("span", "Review required", "review-required"));
+    copy.append(text("span", "Content owner review required", "review-required"));
   }
   if (evidence.length > 0) {
     const details = document.createElement("details");
     details.className = "result-evidence";
-    details.append(text("summary", `View evidence (${evidence.length})`));
+    details.append(text("summary", `Evidence (${evidence.length})`));
     evidence.forEach((entry) => {
       const figure = document.createElement("figure");
       figure.append(text("blockquote", entry.quote), text("figcaption", entry.location));
@@ -267,11 +279,12 @@ function classifyResults(report = {}) {
 }
 
 function documentResults(report) {
+  const classified = classifyResults(report);
   const results = document.createElement("ul");
   results.className = "result-list";
   results.setAttribute("aria-label", "Content quality results");
-  results.append(...classifyResults(report).map(resultItem));
-  if (results.children.length === 0) {
+  results.append(...classified.map(resultItem));
+  if (classified.length === 0) {
     results.append(
       resultItem({
         label: "No content issues detected",
@@ -280,8 +293,34 @@ function documentResults(report) {
         tone: "clear",
       }),
     );
+    return results;
   }
-  return results;
+
+  const highPriority = classified.filter((finding) => finding.tone === "high").length;
+  const disclosure = document.createElement("details");
+  disclosure.className = "findings-disclosure";
+  const summary = document.createElement("summary");
+  const summaryCopy = document.createElement("span");
+  summaryCopy.className = "findings-summary-copy";
+  summaryCopy.append(
+    text(
+      "strong",
+      `${classified.length} finding${classified.length === 1 ? "" : "s"}`,
+    ),
+    text(
+      "small",
+      highPriority > 0
+        ? `${highPriority} high priority · Review evidence`
+        : "Review evidence and proposed changes",
+    ),
+  );
+  summary.append(
+    text("span", highPriority > 0 ? "!" : "i", `findings-status ${highPriority ? "high" : ""}`),
+    summaryCopy,
+    text("span", "›", "findings-chevron"),
+  );
+  disclosure.append(summary, results);
+  return disclosure;
 }
 
 function formatDate(value) {
@@ -579,6 +618,7 @@ function renderDocuments() {
         const report = state.reports.get(documentValue.document_id);
         const row = document.createElement("tr");
         const selectCell = document.createElement("td");
+        selectCell.className = "select-cell";
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.dataset.documentId = documentValue.document_id;
@@ -587,19 +627,39 @@ function renderDocuments() {
         checkbox.setAttribute("aria-label", `Select ${documentValue.title}`);
         selectCell.append(checkbox);
         const documentCell = document.createElement("td");
+        documentCell.className = "document-cell";
         documentCell.append(
           text("strong", documentValue.title),
           text("p", `${documentValue.media_type} · ${formatDate(documentValue.modified_at)}`),
         );
-        const viewDocument = text("button", "View document", "text-button");
+        const viewDocument = text("button", "View source", "text-button");
         viewDocument.type = "button";
         viewDocument.dataset.viewDocument = documentValue.document_id;
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
         documentCell.append(viewDocument);
         const scoreCell = document.createElement("td");
-        scoreCell.append(text("span", report ? `${report.readiness_score}` : "—", "score"));
+        scoreCell.className = "score-cell";
+        if (report) {
+          const score = document.createElement("div");
+          score.className = "readiness-score";
+          const value = text("strong", `${report.readiness_score}`, "score");
+          value.append(text("span", "/100"));
+          const progress = document.createElement("span");
+          progress.className = "readiness-progress";
+          progress.setAttribute("role", "progressbar");
+          progress.setAttribute("aria-label", `${documentValue.title} readiness`);
+          progress.setAttribute("aria-valuemin", "0");
+          progress.setAttribute("aria-valuemax", "100");
+          progress.setAttribute("aria-valuenow", `${report.readiness_score}`);
+          progress.style.setProperty("--readiness", `${report.readiness_score}%`);
+          score.append(value, progress);
+          scoreCell.append(score);
+        } else {
+          scoreCell.append(text("span", "—", "score"));
+        }
         const effortCell = document.createElement("td");
+        effortCell.className = "effort-cell";
         effortCell.append(
           text(
             "span",
@@ -613,7 +673,7 @@ function renderDocuments() {
           findingsCell.append(
             text(
               "p",
-              `${report.checks_completed?.length ?? 7} checks completed`,
+              `${report.checks_completed?.length ?? 7} checks run`,
               "checks-completed",
             ),
             documentResults(report),

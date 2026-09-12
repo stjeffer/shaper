@@ -80,11 +80,14 @@ behavior for unreadable files.
 
 ## Content-focused Results
 
-The Assess table presents findings as expandable infographic cards under
-**Results**. Each card has a label, explanation, severity, and review-required
-status. Expanding a card reveals the exact source quote and normalized section or
-line location. The same information remains available as a labelled semantic
-list for assistive technology.
+The Assess table presents each document as a compact Fluent-style review surface.
+Readiness uses a labelled progress indicator, and Results summarize the finding
+count and high-priority count before the user expands them. Each finding includes
+a label, explanation, severity, and content-owner review status. Expanding its
+evidence reveals the exact source quote and normalized section or line location.
+The responsive layout becomes document cards on narrow screens while retaining
+the semantic table, labelled progress indicators, and finding lists for assistive
+technology.
 
 | Result | Detection basis | Why it matters for AI use |
 |---|---|---|
