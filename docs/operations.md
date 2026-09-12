@@ -7,8 +7,10 @@ ms.topic: how-to
 ## Health and monitoring
 
 `/health/live` proves that the ASGI process can answer requests.
-`/health/ready` also probes SQLite and ClamAV. Container Apps removes the
-revision from traffic when readiness fails and restarts it when liveness fails.
+`/health/ready` also probes the workflow state store, Knowledge Estate store,
+malware scanner, and compile worker. In the hosted production composition, the
+estate store is PostgreSQL. Container Apps removes the revision from traffic
+when readiness fails and restarts it when liveness fails.
 
 Query Log Analytics for startup errors, job transitions, scanner failures,
 quota rejections, model usage, review decisions, and release publication.
@@ -16,19 +18,40 @@ Operational telemetry may correlate request, job, source, agent-run, candidate,
 and release identifiers. Source bodies, credentials, and tokens are rejected or
 redacted before rendering.
 
+For document assessment, monitor discovery completion, failed document counts,
+finding counts by stable code, high-priority finding counts, and evidence
+coverage. Do not treat the internal readiness or effort heuristics as accuracy,
+confidence, or service-level metrics. A changing finding count can mean that
+content changed, checks changed, or extraction quality changed; investigate the
+finding code and evidence rather than interpreting the count alone.
+
+New discovery reports should include `agent_impact` for every structured
+finding. A missing value on a historical report is compatible and uses a
+presentation fallback. A missing value on a newly generated report indicates
+contract drift and should be investigated before relying on the assessment.
+
 ## State and recovery
 
-The Azure Files mount contains:
+PostgreSQL is the authoritative store for Knowledge Estate registrations,
+versions, reports, grants, proposals, decisions, transformations, reviews,
+compile jobs, and review records.
 
-* `shaper.db` for jobs, checkpoints, records, and outbox state
-* `uploads/` for quarantined, scanned upload assets
-* `publication/current.json` for the active immutable release pointer
-* `publication/releases/` for immutable release artifacts and manifests
+The hosted process also creates a process-local in-memory SQLite store for
+legacy compilation checkpoints and candidates. It is not a durable recovery
+source.
 
-Before recovery, copy the share or take a storage snapshot. Validate SQLite,
-verify the active manifest and unit hashes, then restart the Container App
-revision. A missing or invalid current release fails projection loading rather
-than silently serving unverified evidence.
+The deployment provisions and mounts an Azure Files share at `/mnt/state`, but
+the current Container App does not direct `SHAPER_UPLOAD_ROOT` or
+`SHAPER_RELEASE_ROOT` to that mount. Quarantined uploads, the active release
+pointer, and compiled release artifacts are therefore replica-local. A restart
+or revision change can require the source to be uploaded again and the release
+to be rebuilt.
+
+Before recovery, snapshot PostgreSQL and validate the estate schema and report
+records. Restart the Container App revision, re-upload any required source
+assets, and rebuild or republish the active release. Verify its manifest and
+unit hashes before restoring traffic. A missing or invalid current release
+fails projection loading rather than silently serving unverified evidence.
 
 ## Retention
 
@@ -62,7 +85,9 @@ managed identity.
 4. Obtain evaluation-owner and domain-reviewer approval for baseline changes.
 5. Deploy a new Container Apps revision with the deployment script.
 6. Verify health, MCP initialization, authorization, current release, and logs.
-7. Retain the prior revision until the observation window completes.
+7. Run one Knowledge Estate discovery and verify that findings expose agent
+   impact and evidence without a readiness score.
+8. Retain the prior revision until the observation window completes.
 
 The regression gate permits no deterministic pass-rate decrease, at most a
 5-percentage-point model-assisted pass-rate decrease, and at most a 20-percent

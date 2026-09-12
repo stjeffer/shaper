@@ -19,42 +19,54 @@ const RESULT_PRESENTATION = Object.freeze({
   poor_metadata: {
     label: "Limited metadata",
     detail: "Core topic and content metadata is incomplete.",
+    agentImpact:
+      "Weak metadata gives retrieval systems less context for filtering and ranking the right passage.",
     icon: "◇",
     tone: "info",
   },
   structure_gap: {
     label: "Weak structure",
     detail: "Headings or focused content sections are missing.",
+    agentImpact:
+      "Weak section boundaries make it harder to create focused chunks and retrieve the right passage.",
     icon: "▤",
     tone: "info",
   },
   stale: {
     label: "Freshness risk",
     detail: "The source is beyond the three-year review threshold.",
+    agentImpact: "Outdated guidance can cause an agent to return obsolete rules as current.",
     icon: "◷",
     tone: "warning",
   },
   long_paragraph: {
     label: "Long paragraph",
     detail: "A passage exceeds 150 words and may reduce retrieval precision.",
+    agentImpact: "Oversized passages mix ideas and can reduce chunk and retrieval precision.",
     icon: "↔",
     tone: "warning",
   },
   cross_policy_reference: {
     label: "Document reference",
     detail: "A reference to another governed source needs explicit context.",
+    agentImpact:
+      "A reference without local context can leave the agent with an incomplete rule.",
     icon: "↗",
     tone: "warning",
   },
   faq_gap: {
     label: "No question coverage",
     detail: "No FAQ or question-shaped content was detected.",
+    agentImpact:
+      "Missing question-shaped content can reduce direct matches for common user requests.",
     icon: "?",
     tone: "info",
   },
   procedure_gap: {
     label: "Implicit procedure",
     detail: "Procedural language is not organized into explicit steps.",
+    agentImpact:
+      "Implicit steps make it harder for an agent to extract and present a reliable sequence.",
     icon: "1·",
     tone: "warning",
   },
@@ -208,7 +220,14 @@ function text(tag, value, className) {
   return node;
 }
 
-function resultItem({ label, detail, tone, evidence = [], review_required = false }) {
+function resultItem({
+  label,
+  detail,
+  agentImpact,
+  tone,
+  evidence = [],
+  review_required = false,
+}) {
   const item = document.createElement("li");
   item.className = `result-item ${tone}`;
   const copy = document.createElement("div");
@@ -226,6 +245,15 @@ function resultItem({ label, detail, tone, evidence = [], review_required = fals
     );
   }
   copy.append(heading, text("p", detail, "result-detail"));
+  if (agentImpact) {
+    const impact = document.createElement("p");
+    impact.className = "result-impact";
+    impact.append(
+      text("span", "Agent impact:", "result-impact-label"),
+      document.createTextNode(` ${agentImpact}`),
+    );
+    copy.append(impact);
+  }
   if (review_required) {
     copy.append(text("span", "Content owner review required", "review-required"));
   }
@@ -244,13 +272,17 @@ function resultItem({ label, detail, tone, evidence = [], review_required = fals
   return item;
 }
 
-function classifyResults(report = {}) {
+function classifyFindings(report = {}) {
   if (report.findings?.length) {
     return report.findings.map((finding) => {
       const presentation = RESULT_PRESENTATION[finding.code] ?? {};
       return {
         label: finding.label,
         detail: finding.explanation,
+        agentImpact:
+          finding.agent_impact ??
+          presentation.agentImpact ??
+          "This issue can make agent answers less reliable or complete.",
         icon: presentation.icon ?? "!",
         tone: presentation.tone ?? finding.severity ?? "warning",
         evidence: finding.evidence ?? [],
@@ -269,6 +301,8 @@ function classifyResults(report = {}) {
     classified.push({
       label: "Additional issue detected",
       detail: "This assessment includes a result this version cannot display yet.",
+      agentImpact:
+        "The effect on agent responses is unknown until this result type is supported.",
       icon: "!",
       tone: "unknown",
     });
@@ -276,11 +310,11 @@ function classifyResults(report = {}) {
   return classified;
 }
 
-function documentResults(report) {
-  const classified = classifyResults(report);
+function documentFindings(report) {
+  const classified = classifyFindings(report);
   const results = document.createElement("ul");
   results.className = "result-list";
-  results.setAttribute("aria-label", "Content quality results");
+  results.setAttribute("aria-label", "Content quality findings");
   results.append(...classified.map(resultItem));
   if (classified.length === 0) {
     results.append(
@@ -308,8 +342,8 @@ function documentResults(report) {
     text(
       "small",
       highPriority > 0
-        ? `${highPriority} high priority · Review evidence`
-        : "Review evidence and proposed changes",
+        ? `${highPriority} high priority · Review agent impact and evidence`
+        : "Review agent impact and evidence",
     ),
   );
   summary.append(summaryCopy, text("span", "›", "findings-chevron"));
@@ -356,7 +390,7 @@ async function waitForRun(runId) {
     announce(`Workflow ${status.replaceAll("_", " ")}`);
     if (["completed", "partial"].includes(status)) return record;
     if (["failed", "cancelled"].includes(status)) {
-      throw new Error(`Workflow ended with status ${status}`);
+      throw new Error(recordValue(record).error || `Workflow ended with status ${status}`);
     }
     await sleep(1000);
   }
@@ -632,35 +666,6 @@ function renderDocuments() {
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
         documentCell.append(viewDocument);
-        const scoreCell = document.createElement("td");
-        scoreCell.className = "score-cell";
-        if (report) {
-          const score = document.createElement("div");
-          score.className = "readiness-score";
-          const value = text("strong", `${report.readiness_score}`, "score");
-          value.append(text("span", "/100"));
-          const progress = document.createElement("span");
-          progress.className = "readiness-progress";
-          progress.setAttribute("role", "progressbar");
-          progress.setAttribute("aria-label", `${documentValue.title} readiness`);
-          progress.setAttribute("aria-valuemin", "0");
-          progress.setAttribute("aria-valuemax", "100");
-          progress.setAttribute("aria-valuenow", `${report.readiness_score}`);
-          progress.style.setProperty("--readiness", `${report.readiness_score}%`);
-          score.append(value, progress);
-          scoreCell.append(score);
-        } else {
-          scoreCell.append(text("span", "—", "score"));
-        }
-        const effortCell = document.createElement("td");
-        effortCell.className = "effort-cell";
-        effortCell.append(
-          text(
-            "span",
-            report ? report.effort_band : "Not assessed",
-            `effort ${report?.effort_band ?? ""}`,
-          ),
-        );
         const findingsCell = document.createElement("td");
         findingsCell.className = "results-cell";
         if (report) {
@@ -670,12 +675,12 @@ function renderDocuments() {
               `${report.checks_completed?.length ?? 7} checks run`,
               "checks-completed",
             ),
-            documentResults(report),
+            documentFindings(report),
           );
         } else {
           findingsCell.append(text("span", "Run discovery to assess this source version.", "pending-result"));
         }
-        row.append(selectCell, documentCell, scoreCell, effortCell, findingsCell);
+        row.append(selectCell, documentCell, findingsCell);
         return row;
       }),
   );
@@ -689,19 +694,13 @@ function renderDiscoverySummary() {
   const reports = [...state.reports.values()];
   elements.discoverySummary.hidden = reports.length === 0;
   if (reports.length === 0) return;
-  const average = Math.round(
-    reports.reduce((total, report) => total + report.readiness_score, 0) /
-      reports.length,
-  );
-  const highEffort = reports.filter((report) => report.effort_band === "high").length;
-  const results = reports.reduce(
-    (total, report) => total + classifyResults(report).length,
+  const findings = reports.reduce(
+    (total, report) => total + classifyFindings(report).length,
     0,
   );
   elements.discoverySummary.replaceChildren(
-    metric("Estate readiness", `${average}/100`),
-    metric("High-effort documents", highEffort),
-    metric("Results found", results),
+    metric("Documents assessed", reports.length),
+    metric("Findings found", findings),
   );
 }
 
@@ -753,14 +752,6 @@ function renderProposals() {
         }),
       );
       const estimate = proposal.token_estimate;
-      const tokenGrid = document.createElement("div");
-      tokenGrid.className = "token-grid";
-      tokenGrid.append(
-        tokenMetric("Input range", `${estimate.input_min}–${estimate.input_max}`),
-        tokenMetric("Output range", `${estimate.output_min}–${estimate.output_max}`),
-        tokenMetric("Expected total", estimate.expected_total),
-        tokenMetric("Enforced maximum", estimate.enforced_maximum),
-      );
       const actions = document.createElement("div");
       actions.className = "proposal-actions";
       const approve = text("button", "Approve transformation", "button primary");
@@ -778,13 +769,7 @@ function renderProposals() {
         heading,
         text("p", proposal.rationale),
         changes,
-        tokenGrid,
-        text(
-          "p",
-          `Output: ${proposal.expected_artifact} · Estimate confidence ${Math.round(
-            estimate.confidence * 100,
-          )}%`,
-        ),
+        tokenEstimateGraphic(estimate, proposal.expected_artifact),
         actions,
       );
       return card;
@@ -793,6 +778,97 @@ function renderProposals() {
   elements.proposalEmpty.hidden = state.proposals.length !== 0;
   updateApprovals();
   updateWorkflowProgress();
+}
+
+function tokenEstimateGraphic(estimate, filename) {
+  const section = document.createElement("section");
+  section.className = "token-estimate";
+  const heading = text("h4", "Estimated token use");
+  const headingId = `token-estimate-${crypto.randomUUID()}`;
+  heading.id = headingId;
+  section.setAttribute("aria-labelledby", headingId);
+  const inputEstimate = (estimate.input_min + estimate.input_max) / 2;
+  const outputEstimate = (estimate.output_min + estimate.output_max) / 2;
+  const componentTotal = inputEstimate + outputEstimate;
+  const expectedInput =
+    componentTotal === 0 ? 0 : estimate.expected_total * (inputEstimate / componentTotal);
+  const expectedOutput = Math.max(0, estimate.expected_total - expectedInput);
+  const remaining = Math.max(0, estimate.enforced_maximum - estimate.expected_total);
+  const percentage = (value) =>
+    `${Math.min(100, (100 * value) / estimate.enforced_maximum).toFixed(2)}%`;
+  const chart = document.createElement("div");
+  chart.className = "token-estimate-chart";
+  chart.setAttribute("role", "img");
+  chart.setAttribute(
+    "aria-label",
+    `Expected total ${estimate.expected_total} tokens: input ${estimate.input_min} to ` +
+      `${estimate.input_max}, output ${estimate.output_min} to ${estimate.output_max}, ` +
+      `${remaining} contingency tokens cover one repair attempt and safety margin ` +
+      `before the ${estimate.enforced_maximum} token maximum.`,
+  );
+  const inputSegment = document.createElement("span");
+  inputSegment.className = "token-segment input";
+  inputSegment.style.width = percentage(expectedInput);
+  const outputSegment = document.createElement("span");
+  outputSegment.className = "token-segment output";
+  outputSegment.style.width = percentage(expectedOutput);
+  const remainingSegment = document.createElement("span");
+  remainingSegment.className = "token-segment remaining";
+  remainingSegment.style.width = percentage(remaining);
+  chart.append(inputSegment, outputSegment, remainingSegment);
+  const legend = document.createElement("ul");
+  legend.className = "token-estimate-legend";
+  legend.append(
+    tokenLegend(
+      "input",
+      "Input",
+      `${estimate.input_min.toLocaleString()}–${estimate.input_max.toLocaleString()}`,
+      "Content read",
+    ),
+    tokenLegend(
+      "output",
+      "Output",
+      `${estimate.output_min.toLocaleString()}–${estimate.output_max.toLocaleString()}`,
+      "Content written",
+    ),
+    tokenLegend(
+      "remaining",
+      "Contingency",
+      remaining.toLocaleString(),
+      "One repair and safety margin",
+    ),
+  );
+  const footer = document.createElement("footer");
+  footer.className = "token-estimate-footer";
+  footer.append(
+    text("strong", `Expected total: ${estimate.expected_total.toLocaleString()} tokens`),
+    text("span", `Chart maximum: ${estimate.enforced_maximum.toLocaleString()} tokens`),
+    text("span", `Confidence: ${Math.round(estimate.confidence * 100)}%`),
+    text("span", `Planned output: ${filename}`),
+  );
+  section.append(
+    heading,
+    text(
+      "p",
+      "Tokens are pieces of text the model reads and writes. This estimate is checked before reshaping starts.",
+      "token-estimate-intro",
+    ),
+    chart,
+    legend,
+    footer,
+  );
+  return section;
+}
+
+function tokenLegend(tone, label, value, detail) {
+  const item = document.createElement("li");
+  item.append(
+    text("span", "", `token-legend-swatch ${tone}`),
+    text("strong", label),
+    text("span", `${value} tokens`),
+    text("small", detail),
+  );
+  return item;
 }
 
 function tokenMetric(label, value) {
@@ -809,6 +885,48 @@ function updateApprovals() {
     approved.length === 1 ? "" : "s"
   }`;
   elements.transformButton.disabled = approved.length === 0;
+}
+
+function comparisonPanel(title, description, content) {
+  const panel = document.createElement("section");
+  panel.className = "comparison-panel";
+  const heading = text("h4", title);
+  const headingId = `comparison-${crypto.randomUUID()}`;
+  heading.id = headingId;
+  panel.setAttribute("aria-labelledby", headingId);
+  panel.append(heading, text("p", description, "comparison-description"), content);
+  return panel;
+}
+
+async function loadArtifactComparison(artifact, sourceContent, outputPreview, outputStatus) {
+  const estateId = recordValue(state.estate).estate_id;
+  const sourcePath =
+    `/v1/estates/${estateId}/documents/${encodeURIComponent(artifact.document_id)}/content` +
+    `?source_version=${encodeURIComponent(artifact.source_version)}`;
+  const outputPath = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/preview`;
+
+  sourceContent.setAttribute("aria-busy", "true");
+  outputPreview.setAttribute("aria-busy", "true");
+
+  try {
+    sourceContent.textContent = await apiText(sourcePath);
+  } catch (error) {
+    sourceContent.textContent = `Original content could not be loaded. ${error.message}`;
+    sourceContent.classList.add("comparison-error");
+  } finally {
+    sourceContent.setAttribute("aria-busy", "false");
+  }
+
+  try {
+    outputPreview.srcdoc = await apiText(outputPath);
+    outputPreview.hidden = false;
+    outputStatus.remove();
+  } catch (error) {
+    outputStatus.textContent = `Reshaped content could not be loaded. ${error.message}`;
+    outputStatus.classList.add("comparison-error");
+  } finally {
+    outputPreview.setAttribute("aria-busy", "false");
+  }
 }
 
 function renderArtifacts() {
@@ -851,9 +969,39 @@ function renderArtifacts() {
         view.rel = "noopener";
         actions.append(view);
       }
+      const sourceContent = text("pre", "Loading original content…", "comparison-source");
+      sourceContent.tabIndex = 0;
+      const outputStatus = text("p", "Loading reshaped content…", "comparison-status");
+      outputStatus.setAttribute("role", "status");
+      const outputPreview = document.createElement("iframe");
+      outputPreview.className = "comparison-preview";
+      outputPreview.title = `After reshaping: ${artifact.filename}`;
+      outputPreview.setAttribute("sandbox", "");
+      outputPreview.hidden = true;
+      const comparison = document.createElement("div");
+      comparison.className = "artifact-comparison";
+      comparison.setAttribute("aria-label", `Before and after comparison for ${artifact.filename}`);
+      comparison.append(
+        comparisonPanel(
+          "Before reshaping",
+          "Original normalized source used for this transformation.",
+          sourceContent,
+        ),
+        comparisonPanel(
+          "After reshaping",
+          "Generated agent-ready HTML awaiting or reflecting human review.",
+          (() => {
+            const outputContent = document.createElement("div");
+            outputContent.className = "comparison-output";
+            outputContent.append(outputStatus, outputPreview);
+            return outputContent;
+          })(),
+        ),
+      );
       card.append(
         heading,
         text("p", `Source version ${artifact.source_version.slice(0, 12)}…`),
+        comparison,
         ...(evaluation
           ? [
               evaluationGrid,
@@ -867,6 +1015,7 @@ function renderArtifacts() {
           : []),
         actions,
       );
+      void loadArtifactComparison(artifact, sourceContent, outputPreview, outputStatus);
       return card;
     }),
   );

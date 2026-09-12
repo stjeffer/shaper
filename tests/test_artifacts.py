@@ -11,6 +11,7 @@ import pytest
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
 from shaper.application.ports import ModelResult
 from shaper.application.review import ReviewService
+from shaper.application.token_estimation import ESTIMATOR_VERSION
 from shaper.application.validation import DeterministicValidator
 from shaper.domain import (
     CollectionRole,
@@ -70,6 +71,7 @@ def _setup(
     *,
     approved: bool,
     generate_evaluations: bool = True,
+    estimator_version: str = ESTIMATOR_VERSION,
 ) -> tuple[SQLiteStore, SQLiteEstateRepository, TransformationProposal]:
     store = SQLiteStore(path)
     store.connect()
@@ -109,7 +111,7 @@ def _setup(
     estimate = TokenEstimate(
         estimate_id="1" * 64,
         model_deployment="gpt-5-mini",
-        estimator_version="1.0",
+        estimator_version=estimator_version,
         input_min=100,
         input_max=120,
         output_min=30,
@@ -178,8 +180,42 @@ def test_given_declined_proposal_when_transformation_starts_then_model_is_not_ca
 
         # Assert
         assert run.value.status.value == "failed"
+        assert run.value.error == ("document-1: Transformation requires a current exact approval")
         assert model.calls == 0
         assert not repository.list_artifacts("estate-1")
+    finally:
+        store.close()
+
+
+def test_given_outdated_estimate_when_transformation_starts_then_new_approval_is_required(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        estimator_version="1.0",
+    )
+    model = GroundedModel()
+    service = EstateTransformationService(
+        repository,
+        model=model,
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "one",
+    )
+    try:
+        # Act
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        # Assert
+        assert run.value.status.value == "failed"
+        assert run.value.error is not None
+        assert "Token estimate v1.0 is outdated" in run.value.error
+        assert "request recommendations again" in run.value.error
+        assert model.calls == 0
     finally:
         store.close()
 
@@ -204,6 +240,7 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         # Act
         run = service.start((proposal.recommendation_id,), principal=_principal())
         artifact = repository.list_artifacts("estate-1")[0]
+        preview = service.preview(artifact.artifact_id, principal=_principal())
         review, published = service.approve(
             artifact.artifact_id,
             principal=_principal(),
@@ -221,6 +258,7 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert artifact.evaluation is not None
         assert artifact.evaluation.passed
         assert artifact.evaluation.overall_score == 100
+        assert preview == content
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
     finally:

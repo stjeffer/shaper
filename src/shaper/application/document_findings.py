@@ -50,6 +50,97 @@ BASELINE_CHECK_CODES = (
     "procedure_gap",
 )
 
+_AGENT_IMPACTS = {
+    "poor_metadata": (
+        "Weak metadata gives retrieval systems less context for filtering and ranking "
+        "the right passage."
+    ),
+    "structure_gap": (
+        "Weak section boundaries make it harder to create focused chunks and retrieve "
+        "the right passage."
+    ),
+    "stale": "Outdated guidance can cause an agent to return obsolete rules as current.",
+    "long_paragraph": (
+        "Oversized passages mix ideas and can reduce chunk and retrieval precision."
+    ),
+    "cross_policy_reference": (
+        "A reference without local context can leave the agent with an incomplete rule."
+    ),
+    "faq_gap": (
+        "Missing question-shaped content can reduce direct matches for common user requests."
+    ),
+    "procedure_gap": (
+        "Implicit steps make it harder for an agent to extract and present a reliable sequence."
+    ),
+    "external_dependency": (
+        "The agent may retrieve an incomplete rule when the dependent material is unavailable."
+    ),
+    "circular_reference": (
+        "The agent cannot resolve a complete rule when each section depends on the other."
+    ),
+    "missing_referenced_content": (
+        "The agent may omit required details or invent an answer to fill the missing context."
+    ),
+    "version_ambiguity": (
+        "The agent may present outdated guidance because it cannot identify the current version."
+    ),
+    "orphaned_amendment": (
+        "The agent may answer from the base document without applying a later change."
+    ),
+    "vague_quantifier": (
+        "The agent must either repeat an unhelpful vague answer or infer unsupported specifics."
+    ),
+    "discretion_clause": (
+        "The agent may overgeneralize a decision that requires case-specific human judgment."
+    ),
+    "undefined_term": (
+        "The agent may interpret the same term inconsistently across questions and answers."
+    ),
+    "unclear_responsibility": (
+        "The agent may describe an action without identifying who must perform or approve it."
+    ),
+    "conflicting_numeric_value": (
+        "Retrieval can surface different values, causing inconsistent or incorrect answers."
+    ),
+    "conflicting_authority": (
+        "The agent may select the wrong governing rule when source precedence is unclear."
+    ),
+    "terminology_drift": (
+        "Inconsistent terms can weaken retrieval matches or cause the agent to conflate concepts."
+    ),
+    "missing_definitions": (
+        "The agent may guess the meaning of policy terms instead of using governed definitions."
+    ),
+    "missing_enumeration": (
+        "The agent cannot give a complete location-specific answer without the missing breakdown."
+    ),
+    "dangling_program": (
+        "The agent may present an expired or inactive program as currently available."
+    ),
+    "unclear_source_of_truth": (
+        "The agent may rely on an outdated or non-authoritative communication."
+    ),
+    "undocumented_verbal_policy": (
+        "The governing clarification is unavailable to the agent and cannot ground an answer."
+    ),
+    "restricted_companion": (
+        "The agent may not have access to required context and can return an incomplete answer."
+    ),
+    "inconsistent_heading_hierarchy": (
+        "Incorrect section boundaries can split related rules or merge unrelated content."
+    ),
+    "inaccessible_embedded_content": (
+        "Information trapped in an image or object may be invisible to the ingestion pipeline."
+    ),
+    "repeated_variation": (
+        "Retrieval may surface different versions of the rule and produce inconsistent answers."
+    ),
+    "noncanonical_duplicate": (
+        "The agent may retrieve an outdated duplicate because no authoritative source "
+        "is identified."
+    ),
+}
+
 _REFERENCE = re.compile(
     r"\b(?:see|refer to|in accordance with|pursuant to|per)\s+(?:the\s+)?"
     r"(?P<target>(?:appendix|section|table)\s+[A-Z0-9.-]+|"
@@ -475,6 +566,7 @@ def baseline_document_findings(
                 code=code,
                 label=label,
                 explanation=explanation,
+                agent_impact=_AGENT_IMPACTS[code],
                 severity=severity,
                 evidence=tuple(
                     DocumentFindingEvidence(
@@ -533,6 +625,7 @@ def _from_evidence(
         code=code,
         label=label,
         explanation=explanation,
+        agent_impact=_AGENT_IMPACTS[code],
         severity=severity,
         evidence=tuple(evidence[:4]),
     )
@@ -559,6 +652,7 @@ def _document_level_finding(
         code=code,
         label=label,
         explanation=explanation,
+        agent_impact=_AGENT_IMPACTS[code],
         severity=severity,
         evidence=evidence,
     )

@@ -11,7 +11,7 @@ The deployment uses these Azure resources:
 * Azure Container Apps for the authenticated HTTP and MCP service
 * A ClamAV sidecar reachable only inside the Container App replica
 * Azure Database for PostgreSQL 16 for durable workflow and review state
-* Azure Files for uploads and immutable release artifacts
+* A provisioned Azure Files share mounted at `/mnt/state`
 * Azure Container Registry with admin access disabled
 * A user-assigned managed identity with `AcrPull`
 * Log Analytics for container and platform logs
@@ -19,13 +19,23 @@ The deployment uses these Azure resources:
   Container App
 
 The application and scanner share one replica. The application listens on port
-8000, exposes HTTPS through Container Apps ingress, and mounts persistent state
-at `/mnt/state`.
+8000, exposes HTTPS through Container Apps ingress, and mounts the Azure Files
+share at `/mnt/state`.
+
+See the
+[current Azure development deployment diagram](architecture.md#current-azure-development-deployment)
+for the runtime nodes, container instances, managed services, and request paths.
 
 PostgreSQL stores estate state, compile jobs, collection grants, decisions,
 token usage, and output review. A process-local SQLite store supports only
 legacy compilation checkpoints and candidates; it is not authoritative estate
 state and cannot create a cross-revision file lock.
+
+The container image sets `SHAPER_UPLOAD_ROOT` to `/mnt/state/uploads` and
+`SHAPER_RELEASE_ROOT` to `/mnt/state/publication`. Uploads and legacy compiled
+release files therefore use the mounted Azure Files share and survive revision
+changes. Knowledge Estate records, including generated artifact bytes, remain
+authoritative in PostgreSQL.
 
 The current service exposes compile, review, publish, query, and MCP capabilities
 together with authenticated `POST /v1/assessments` and
@@ -40,11 +50,17 @@ token usage, artifact review, archive, and purge. Container Apps authentication
 redirects browser users to Entra. Bearer-authenticated MCP remains excluded from
 interactive ingress handling and is validated by the application.
 
-The assessment accepts canonical document profiles and returns immutable
-readiness metrics, evidence coverage, findings, topic clusters, and ranked
-interventions. Transformation results are proposals only. The current
-development topology does not crawl an enterprise estate, run recurring
-governance schedules, or execute estate-wide source changes.
+The platform assessment endpoint accepts canonical document profiles and returns
+immutable dimensions, evidence coverage, findings, topic clusters, and ranked
+interventions. Knowledge Estate discovery produces per-document reports with
+completed checks, evidence coverage, and structured findings.
+Each new finding includes a plain-language explanation of its likely effect on
+retrieval or agent answers plus bounded source evidence. The workspace presents
+those findings instead of a score out of 100.
+
+Transformation results are proposals only. The current development topology
+does not crawl an enterprise estate, run recurring governance schedules, or
+execute estate-wide source changes.
 
 ## Production target architecture
 
@@ -144,6 +160,37 @@ sign-in; all session and estate APIs remain protected. The bootstrap principal
 receives an administrator grant for the configured collection; subsequent
 access is resolved exclusively from persistent collection grants.
 
+## Deploy the findings-led assessment update
+
+The findings-led assessment ships in the application image. Deploy it through
+the standard revision workflow above; no separate front-end deployment is
+required because the Container App serves the workspace assets.
+
+The `agent_impact` field is an additive, optional field in persisted
+`DocumentFinding` JSON. Existing reports remain readable and require no
+relational database migration. New discovery runs populate the field. Historical
+reports use the browser's code-keyed impact fallback until they are regenerated.
+
+After the revision becomes ready:
+
+1. Open the authenticated workspace at `/concept/`.
+2. Run discovery for an estate with at least one known content issue.
+3. Confirm the Assess table contains **Document** and **Findings**, with no
+   readiness-score or reshaping-effort column.
+4. Expand a finding and confirm it shows the detected condition, **Agent
+   impact**, review status, and source evidence.
+5. Select a document and request recommendations.
+6. Confirm the proposal rationale describes the number and likely impact of
+   content findings without a score out of 100.
+
+Forward compatibility is automatic: the newer revision reads reports that do
+not contain `agent_impact`. The reverse direction is not automatic because
+domain contracts reject unknown fields. Before rolling back to a revision that
+predates `agent_impact`, stop new discovery work and either retain the newer
+revision for report reads or restore the estate store to a compatible
+pre-deployment snapshot. Reports created by an older revision remain valid in
+the newer application.
+
 ## Roll back
 
 List revisions and identify the last healthy revision:
@@ -175,10 +222,11 @@ az containerapp ingress traffic set \
   --revision-weight PREVIOUS_REVISION=100
 ```
 
-Rollback changes compute only. The prior revision reuses the persistent Azure
-Files state. The service is unavailable between deactivation and successful
-activation. Verify `/health/ready`, initialize `/mcp/`, and inspect the active
-release pointer after activating the prior revision.
+Rollback changes compute while retaining PostgreSQL estate and workflow state.
+Replica-local uploads and compiled releases are not guaranteed to be available
+to the prior revision. The service is unavailable between deactivation and
+successful activation. Verify `/health/ready`, initialize `/mcp/`, and recreate
+or republish any required release after activating the prior revision.
 
 ## Deployment boundaries
 

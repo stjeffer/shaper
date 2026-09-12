@@ -244,6 +244,7 @@ def test_given_long_paragraph_and_policy_reference_when_reported_then_effort_is_
     assert report.effort_points > 30
     assert report.reasons
     assert all(finding.evidence for finding in report.findings)
+    assert all(finding.agent_impact for finding in report.findings)
 
 
 @pytest.mark.parametrize(
@@ -359,6 +360,7 @@ def test_given_requested_document_risk_when_checked_then_evidence_is_reported(
     finding = next(item for item in findings if item.code == expected_code)
     assert finding.review_required
     assert finding.evidence
+    assert finding.agent_impact
 
 
 def test_given_ownerless_document_when_reported_then_reshaping_evidence_is_unchanged() -> None:
