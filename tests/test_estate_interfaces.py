@@ -260,3 +260,55 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert "Employees must request annual leave" in content_response.text
     finally:
         store.close()
+
+
+def test_given_active_estate_when_archived_and_purged_then_lifecycle_is_enforced(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    client, store = _client(tmp_path / "estate-lifecycle-http.db")
+    headers = {"Authorization": "Bearer " + "valid"}
+    try:
+        created = client.post(
+            "/v1/estates",
+            headers=headers,
+            json={
+                "collection_id": "collection-1",
+                "name": "Retention estate",
+                "description": "",
+                "artifact_name_template": "shaper_{source_stem}.html",
+            },
+        ).json()
+        estate_id = created["value"]["estate_id"]
+
+        # Act
+        archived = client.post(
+            f"/v1/estates/{estate_id}/archive",
+            headers=headers,
+            json={"expected_revision": created["revision"]},
+        )
+        rejected_mutation = client.post(
+            f"/v1/estates/{estate_id}/sources",
+            headers=headers,
+            json={
+                "kind": "url",
+                "display_name": "Blocked source",
+                "locator": "https://example.com/blocked",
+            },
+        )
+        purged = client.post(
+            f"/v1/estates/{estate_id}/purge",
+            headers=headers,
+            json={"confirmation": "PURGE Retention estate", "reason": "Retention expired"},
+        )
+        missing = client.get(f"/v1/estates/{estate_id}", headers=headers)
+
+        # Assert
+        assert archived.status_code == 200
+        assert archived.json()["value"]["status"] == "archived"
+        assert rejected_mutation.status_code == 409
+        assert purged.status_code == 200
+        assert purged.json()["purged"] is True
+        assert missing.status_code == 404
+    finally:
+        store.close()

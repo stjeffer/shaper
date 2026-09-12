@@ -22,10 +22,10 @@ Implementation is active. The approved outcome preserves the five-agent architec
 
 ## Active Work
 
-### Expose Durable APIs and Live Product Experience
+### Reconcile Durable APIs, Live Product Experience, and Deployment Proof
 
-* Active phase or task: P06-T01
-* Intended result: Expose the persistent workflow through complete protected resources and a substantially redesigned live UI.
+* Active phase or task: P06-T01 through P07-T03
+* Intended result: Verify the landed persistence, protected resources, browser identity, live UI, infrastructure, documentation, and deployment evidence against every remaining plan marker.
 * Current blockers: None
 
 ## Completed Work

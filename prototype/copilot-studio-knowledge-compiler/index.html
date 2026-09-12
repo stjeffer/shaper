@@ -44,7 +44,7 @@
 
       <main id="workspace" class="workspace" tabindex="-1">
         <div id="status" class="sr-only" role="status" aria-live="polite"></div>
-        <div id="alert" class="alert" role="alert" hidden></div>
+        <div id="alert" class="alert" role="alert" tabindex="-1" hidden></div>
 
         <section id="loadingView" class="state-card" aria-labelledby="loadingTitle">
           <span class="spinner" aria-hidden="true"></span>
@@ -157,6 +157,23 @@
               <span id="sourceCount" class="count">0 sources</span>
             </div>
             <div id="sourceList" class="item-list"></div>
+            <section class="lifecycle-card" aria-labelledby="lifecycleTitle">
+              <div>
+                <h3 id="lifecycleTitle">Estate lifecycle</h3>
+                <p id="lifecycleDescription">
+                  Archive this estate to make its evidence read-only, or permanently purge
+                  its content after archive.
+                </p>
+              </div>
+              <div class="lifecycle-actions">
+                <button id="archiveButton" class="button danger" type="button">
+                  Archive estate
+                </button>
+                <button id="purgeButton" class="button danger" type="button" disabled>
+                  Purge archived estate
+                </button>
+              </div>
+            </section>
           </section>
 
           <section class="panel" data-panel="discover" hidden aria-labelledby="discoverTitle">
@@ -275,6 +292,39 @@
         <div class="dialog-actions">
           <button class="button quiet" type="button" data-action="close-create">Cancel</button>
           <button class="button primary" type="submit">Create estate</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="purgeDialog" aria-labelledby="purgeTitle">
+      <form id="purgeForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">PERMANENT DELETION</p>
+            <h2 id="purgeTitle">Purge archived estate</h2>
+          </div>
+          <button class="icon-button" type="button" data-action="close-purge" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <p>
+          This permanently removes the estate content and retains only an audit tombstone.
+          This action cannot be undone.
+        </p>
+        <label for="purgeConfirmation">
+          Type <strong id="purgePhrase"></strong> to confirm
+        </label>
+        <input
+          id="purgeConfirmation"
+          name="confirmation"
+          required
+          autocomplete="off"
+        />
+        <label for="purgeReason">Reason</label>
+        <textarea id="purgeReason" name="reason" required maxlength="1000" rows="3"></textarea>
+        <div class="dialog-actions">
+          <button class="button quiet" type="button" data-action="close-purge">Cancel</button>
+          <button class="button danger" type="submit">Permanently purge estate</button>
         </div>
       </form>
     </dialog>
