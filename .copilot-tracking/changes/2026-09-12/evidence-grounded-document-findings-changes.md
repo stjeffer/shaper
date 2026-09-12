@@ -65,6 +65,16 @@
   changed normalized source content from a monospace code font to the interface
   font.
 
+### Align Assess with Fluent 2
+
+* Replaced the dense finding-card wall with compact, nested disclosures and
+  calm text-based severity labels.
+* Added labelled readiness progress indicators, restrained summary metrics, and
+  an explanatory review note.
+* Converted document rows into responsive cards at narrow widths while
+  retaining the semantic table structure.
+* Removed alarm-style exclamation icons from finding summaries and rows.
+
 ### Deploy and verify
 
 * Committed the feature as `7bbaba0`.
@@ -78,6 +88,10 @@
   `crshaperdevi5e45vhjjbud6.azurecr.io/shaper:20260912-0057364`, digest
   `sha256:fd4f476fc0cd5007dddab30d8aaee9bc2d0865ceb5ff161095b34c31b2ce9dea`,
   on healthy revision `ca-shaper-dev--r0057364` with 100 percent traffic.
+* Deployed the Fluent redesign as image
+  `crshaperdevi5e45vhjjbud6.azurecr.io/shaper:20260912-d67d2f6`, digest
+  `sha256:ec32cf25333cd7c32bbf8e5ddc7569695baf7108347a3fba0f553bffbac80ced`,
+  on healthy revision `ca-shaper-dev--rd67d2f6` with 100 percent traffic.
 
 ## Validation
 
@@ -89,6 +103,8 @@
 * `node --check prototype/copilot-studio-knowledge-compiler/app.js`: passed
 * `git diff --check`: passed
 * Rendered browser workflow: passed
+* Keyboard disclosure and nested evidence interaction: passed
+* 320-pixel reflow, text spacing, focus visibility, and forced colors: passed
 * Azure liveness and readiness: passed
 
 ## Remaining Work
