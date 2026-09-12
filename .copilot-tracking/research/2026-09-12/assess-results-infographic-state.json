@@ -43,8 +43,8 @@
   ],
   "blockers": [],
   "next_action": {
-    "phase": "Follow-up",
-    "action": "Select a ranked follow-up, stop the automatic session, or switch to manual mode."
+    "phase": "Research",
+    "action": "Start selected child task filter-legacy-result-count."
   },
   "prioritized_follow_ups": [
     {

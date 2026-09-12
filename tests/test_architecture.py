@@ -67,6 +67,7 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     # Assert
     assert '<th scope="col">Results</th>' in markup
     assert "documentResults(report.finding_codes)" in script
+    assert "classifyResults(report.finding_codes).length" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
     assert "Long paragraph" in script

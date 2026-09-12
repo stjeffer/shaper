@@ -189,28 +189,29 @@ function resultItem({ label, detail, icon, tone }) {
   return item;
 }
 
-function documentResults(codes = []) {
-  const results = document.createElement("ul");
-  results.className = "result-list";
-  results.setAttribute("aria-label", "Content quality results");
-  const supported = codes
+function classifyResults(codes = []) {
+  const classified = codes
     .map((code) => RESULT_PRESENTATION[code])
     .filter((result) => result !== undefined);
   const hasUnknown = codes.some(
     (code) => !RESULT_PRESENTATION[code] && !ACCOUNTABILITY_ONLY_FINDINGS.has(code),
   );
-
-  results.append(...supported.map(resultItem));
   if (hasUnknown) {
-    results.append(
-      resultItem({
-        label: "Additional issue detected",
-        detail: "This assessment includes a result this version cannot display yet.",
-        icon: "!",
-        tone: "unknown",
-      }),
-    );
+    classified.push({
+      label: "Additional issue detected",
+      detail: "This assessment includes a result this version cannot display yet.",
+      icon: "!",
+      tone: "unknown",
+    });
   }
+  return classified;
+}
+
+function documentResults(codes = []) {
+  const results = document.createElement("ul");
+  results.className = "result-list";
+  results.setAttribute("aria-label", "Content quality results");
+  results.append(...classifyResults(codes).map(resultItem));
   if (results.children.length === 0) {
     results.append(
       resultItem({
@@ -504,7 +505,7 @@ function renderDiscoverySummary() {
   );
   const highEffort = reports.filter((report) => report.effort_band === "high").length;
   const results = reports.reduce(
-    (total, report) => total + report.finding_codes.length,
+    (total, report) => total + classifyResults(report.finding_codes).length,
     0,
   );
   elements.discoverySummary.replaceChildren(
