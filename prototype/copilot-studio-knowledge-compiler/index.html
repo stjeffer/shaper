@@ -255,8 +255,9 @@
                 <h2 id="discoverTitle" tabindex="-1">Document readiness</h2>
                 <p>
                   Deterministic checks inspect structure, references, ambiguity, conflicts,
-                  completeness, provenance, and retrieval quality. Small documents may
-                  complete quickly.
+                  completeness, provenance, and retrieval quality. Discovery assesses every
+                  inventoried document; select documents before or after discovery to request
+                  recommendations.
                 </p>
               </div>
               <button id="discoverButton" class="button primary" type="button">
@@ -291,7 +292,7 @@
               <p>Add files or connect an authorized content source before discovery.</p>
             </div>
             <div class="sticky-actions">
-              <span id="selectionSummary">0 documents selected</span>
+              <span id="selectionSummary">0 documents selected for recommendations</span>
               <button id="recommendButton" class="button primary" type="button" disabled>
                 Get recommendations
               </button>
@@ -568,6 +569,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-estate-short-date"></script>
+    <script src="app.js?v=20260912-discovery-selection"></script>
   </body>
 </html>

@@ -842,7 +842,7 @@ function renderDocuments() {
         checkbox.type = "checkbox";
         checkbox.dataset.documentId = documentValue.document_id;
         checkbox.checked = state.selectedDocuments.has(documentValue.document_id);
-        checkbox.disabled = !report;
+        checkbox.disabled = isArchived();
         checkbox.setAttribute("aria-label", `Select ${documentValue.title}`);
         selectCell.append(checkbox);
         const documentCell = document.createElement("td");
@@ -906,7 +906,7 @@ function updateSelection() {
   const count = state.selectedDocuments.size;
   elements.selectionSummary.textContent = `${count} document${
     count === 1 ? "" : "s"
-  } selected`;
+  } selected for recommendations`;
   elements.recommendButton.disabled = count === 0 || !state.discoveryRunId;
 }
 

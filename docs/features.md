@@ -85,6 +85,9 @@ synchronization has occurred.
 Discovery creates a durable workflow run and a readiness report for each current
 document version. The browser follows the run until it reaches `completed`,
 `partial`, `failed`, or `cancelled`, then retrieves the matching reports.
+Discovery runs for estates containing one document as well as larger estates.
+Document checkboxes remain available before discovery; they select which
+assessed documents proceed to recommendations rather than limiting discovery.
 
 Each report contains:
 
