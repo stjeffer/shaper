@@ -838,7 +838,10 @@ function sourceDisplayDetail(source) {
     zip: "Uploaded ZIP bundle",
   };
   const label = labels[source.kind] ?? "Registered source";
-  return ["sharepoint", "url"].includes(source.kind)
+  const isPublicLocation =
+    ["sharepoint", "url"].includes(source.kind) &&
+    !source.locator?.toLocaleLowerCase().startsWith("asset:");
+  return isPublicLocation
     ? `${label} · ${source.locator}`
     : label;
 }
