@@ -78,6 +78,9 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert "Additional issue detected" in script
     assert 'metric("Findings found", findings)' in script
     assert "Agent impact:" in script
+    assert '"Transformation approved"' in script
+    assert "Approved. This document is ready to transform." in script
+    assert "const decision = recordValue(response)" in script
     assert "report.readiness_score" not in script
     assert 'id="documentDialog"' in markup
     assert "checks run" in script
@@ -89,6 +92,15 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert "/documents/` +" in script
     assert "result-list" in styles
     assert "result-impact" in styles
+    assert 'id="assessmentChecksView"' in markup
+    assert 'data-action="assessment-checks"' in markup
+    assert "The 29 checks Shaper runs" in markup
+    assert "assessment_status" in script
+    assert "document_count" in script
+    assert 'api("/v1/assessment-checks")' in script
+    assert "renderAssessmentChecks" in script
+    assert "assessment-check-card" in styles
+    assert "assessment-check-impact" in styles
 
 
 def test_given_generated_artifact_when_rendered_then_before_and_after_panels_are_present() -> None:

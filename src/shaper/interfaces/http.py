@@ -25,6 +25,7 @@ from shaper.application.decisions import (
     TransformationDecisionService,
 )
 from shaper.application.demo import DemoAnalysisResult, DemoAnalysisService
+from shaper.application.document_findings import ASSESSMENT_CHECKS
 from shaper.application.estates import (
     EstateArchivedError,
     EstateDiscoveryService,
@@ -35,6 +36,7 @@ from shaper.application.estates import (
     EstateSourceService,
     InventoryInput,
     VersionedRecord,
+    summarize_estate_assessment,
 )
 from shaper.application.jobs import (
     CompileJobService,
@@ -383,13 +385,36 @@ def create_app(services: HttpServices) -> FastAPI:
                 "hasGrant": bool(actor.collection_roles),
             }
 
+        @app.get("/v1/assessment-checks")
+        def list_assessment_checks(
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            del actor
+            return {
+                "items": [asdict(check) for check in ASSESSMENT_CHECKS],
+                "total": len(ASSESSMENT_CHECKS),
+                "method": "deterministic",
+            }
+
         @app.get("/v1/estates")
         def list_estates(
             collection_id: str,
             actor: Principal = Depends(principal),
         ) -> dict[str, object]:
             records = estate_service.list(collection_id, principal=actor)
-            return {"items": [_versioned_payload(record) for record in records]}
+            items = []
+            for record in records:
+                payload = _versioned_payload(record)
+                payload.update(
+                    asdict(
+                        summarize_estate_assessment(
+                            estate_repository,
+                            record.value.estate_id,
+                        )
+                    )
+                )
+                items.append(payload)
+            return {"items": items}
 
         @app.post("/v1/estates", status_code=status.HTTP_201_CREATED)
         def create_estate(

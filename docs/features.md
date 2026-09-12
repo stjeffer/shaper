@@ -39,6 +39,27 @@ The authenticated workspace at `/concept/` presents four task-oriented stages.
 The URL records the active estate and stage, so a user can return to the same
 workspace context.
 
+### Estate overview and assessment catalogue
+
+The start screen reports each estate's current, non-deleted document count and
+current-version assessment coverage:
+
+* **No documents** means the estate has no current documents to assess.
+* **Not assessed** means no current document version has a matching report.
+* **Partially assessed** means some, but not all, current document versions have
+  matching reports.
+* **Assessed** means every current document version has a matching report.
+
+Uploading or synchronizing a new source version therefore returns the affected
+estate to a partially assessed or not assessed state until discovery evaluates
+that version. Historical reports do not make changed content appear current.
+
+The **Assessment checks** screen lists all 29 deterministic checks by category.
+Each entry explains what the check looks for and its likely impact on retrieval
+or agent answers. The browser loads this catalogue from the authenticated
+`GET /v1/assessment-checks` contract, keeping the explanation aligned with the
+implemented check set.
+
 ### Sources
 
 Users can:
@@ -154,6 +175,10 @@ The recommendation stage:
 * Requires a fresh recommendation and approval when the estimator version changes
 * Enforces the configured maximum before model use
 * Records an append-only approve or decline decision
+
+After approval, the proposal card changes to an explicit **Transformation
+approved** state, shows that the document is ready to transform, and disables
+duplicate approval. The transformation action becomes available immediately.
 
 No recommendation grants authority to modify a source document. Approval applies
 to the exact proposal and source version that the user reviewed.

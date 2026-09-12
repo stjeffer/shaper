@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from io import BytesIO
 from typing import Generic, Protocol, TypeVar
 from uuid import uuid4
@@ -209,6 +210,62 @@ class EstateRepository(EstateLifecycleRepository, Protocol):
 
     def purge_estate(self, estate_id: str, tombstone: PurgeTombstone) -> None:
         """Delete content-bearing records and retain only a tombstone."""
+
+
+class EstateAssessmentStatus(StrEnum):
+    """Current-version assessment coverage for one estate."""
+
+    NO_DOCUMENTS = "no_documents"
+    NOT_ASSESSED = "not_assessed"
+    PARTIALLY_ASSESSED = "partially_assessed"
+    ASSESSED = "assessed"
+
+
+@dataclass(frozen=True)
+class EstateAssessmentSummary:
+    """Assessment coverage for current, non-deleted estate documents."""
+
+    document_count: int
+    assessed_document_count: int
+    assessment_status: EstateAssessmentStatus
+
+
+def summarize_estate_assessment(
+    repository: EstateRepository,
+    estate_id: str,
+) -> EstateAssessmentSummary:
+    """Summarize reports that match each document's current source version."""
+    documents = tuple(
+        record.value for record in repository.list_documents(estate_id) if not record.value.deleted
+    )
+    if not documents:
+        return EstateAssessmentSummary(0, 0, EstateAssessmentStatus.NO_DOCUMENTS)
+
+    current_versions = {document.document_id: document.source_version for document in documents}
+    assessed_document_ids: set[str] = set()
+    for run_record in repository.list_runs(estate_id):
+        run = run_record.value
+        if run.kind is not WorkflowKind.DISCOVER or run.status not in {
+            WorkflowStatus.COMPLETED,
+            WorkflowStatus.PARTIAL,
+        }:
+            continue
+        for report in repository.list_reports(run.run_id):
+            if current_versions.get(report.document_id) == report.source_version:
+                assessed_document_ids.add(report.document_id)
+
+    assessed_count = len(assessed_document_ids)
+    if assessed_count == 0:
+        assessment_status = EstateAssessmentStatus.NOT_ASSESSED
+    elif assessed_count < len(documents):
+        assessment_status = EstateAssessmentStatus.PARTIALLY_ASSESSED
+    else:
+        assessment_status = EstateAssessmentStatus.ASSESSED
+    return EstateAssessmentSummary(
+        document_count=len(documents),
+        assessed_document_count=assessed_count,
+        assessment_status=assessment_status,
+    )
 
 
 class EstateService:

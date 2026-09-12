@@ -526,6 +526,14 @@ Internal deterministic metrics remain part of the document report for
 compatibility, report identity, evidence coverage, and effort estimation. They
 are implementation evidence, not a user-facing accuracy or confidence claim.
 
+The estate-list API derives assessment coverage from current, non-deleted
+document versions and completed or partial discovery reports. A report counts
+only when its `source_version` matches the document's current version, preventing
+historical evidence from making changed content appear assessed. The
+authenticated `GET /v1/assessment-checks` endpoint exposes the same 29-code
+catalogue used by the workspace to explain each check and its likely agent
+impact.
+
 Each `DocumentFinding` separates four concerns:
 
 * `explanation` states the source condition that the check detected

@@ -80,7 +80,11 @@ The implemented vertical slice includes:
 
 * Named, durable Knowledge Estates containing SharePoint or URL registrations,
   individual uploads, and bounded ZIP bundles
+* Estate-list document counts and current-version assessment coverage, with
+  explicit no-documents, not-assessed, partially-assessed, and assessed states
 * Immutable source versions with per-document findings and evidence coverage
+* A transparent catalogue explaining all 29 deterministic checks, what each
+  checks, and its likely impact on retrieval or agent answers
 * Selection-scoped recommendations with input/output token ranges, an expected
   total, and an enforced maximum before model use
 * An estate-level option to generate versioned citation-coverage, structure,

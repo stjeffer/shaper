@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-findings3" />
+    <link rel="stylesheet" href="styles.css?v=20260912-assessment-catalog" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -25,6 +25,15 @@
           title="New estate"
         >
           <span class="nav-icon" aria-hidden="true">+</span>
+        </button>
+        <button
+          class="nav-item"
+          type="button"
+          data-action="assessment-checks"
+          aria-label="Assessment checks"
+          title="Assessment checks"
+        >
+          <span class="nav-icon" aria-hidden="true">✓</span>
         </button>
         <div class="sidebar-spacer"></div>
         <span id="environment" class="environment" title="Live service"
@@ -57,6 +66,48 @@
           </div>
         </section>
 
+        <section
+          id="assessmentChecksView"
+          class="assessment-checks-view"
+          hidden
+          aria-labelledby="assessmentChecksTitle"
+        >
+          <button class="back-link" type="button" data-action="home">
+            <span aria-hidden="true">←</span> Knowledge estates
+          </button>
+          <div class="page-heading assessment-checks-heading">
+            <div>
+              <p class="eyebrow">TRANSPARENT ASSESSMENT</p>
+              <h1 id="assessmentChecksTitle" tabindex="-1">The 29 checks Shaper runs</h1>
+              <p>
+                Every check looks for a specific source-content condition, explains why
+                it can affect retrieval or agent answers, and produces reviewable evidence
+                instead of a subjective score.
+              </p>
+            </div>
+            <div class="assessment-checks-summary" aria-label="Assessment method summary">
+              <strong>29</strong>
+              <span>deterministic checks</span>
+              <small>7 baseline + 22 content-integrity checks</small>
+            </div>
+          </div>
+          <div class="assessment-principles" aria-label="How assessment works">
+            <article>
+              <strong>Deterministic</strong>
+              <span>The same source condition is checked in the same way.</span>
+            </article>
+            <article>
+              <strong>Evidence-led</strong>
+              <span>Findings point reviewers to the source location that triggered them.</span>
+            </article>
+            <article>
+              <strong>Human governed</strong>
+              <span>Checks identify review candidates; they do not prove policy meaning.</span>
+            </article>
+          </div>
+          <div id="assessmentCheckGroups" class="assessment-check-groups"></div>
+        </section>
+
         <section id="estateListView" hidden aria-labelledby="estateListTitle">
           <div class="page-heading portfolio-hero">
             <div>
@@ -66,7 +117,7 @@
             <div class="portfolio-metrics sr-only" aria-label="Knowledge estate summary">
               <div><strong id="estateTotal">0</strong><span>Total estates</span></div>
               <div><strong id="estateActive">0</strong><span>Active</span></div>
-              <div><strong id="estateEvaluated">0</strong><span>With evaluations</span></div>
+              <div><strong id="estateAssessed">0</strong><span>Fully assessed</span></div>
             </div>
           </div>
           <div class="list-toolbar">
@@ -77,8 +128,9 @@
           <div class="estate-list-shell">
             <div class="estate-list-header" aria-hidden="true">
               <span>Name</span>
-              <span>Status</span>
-              <span>Evaluations</span>
+              <span>Documents</span>
+              <span>Assessment</span>
+              <span>Lifecycle</span>
               <span>Last modified</span>
             </div>
             <div id="estateList" class="estate-grid" aria-live="polite"></div>
@@ -460,6 +512,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-findings3"></script>
+    <script src="app.js?v=20260912-assessment-catalog"></script>
   </body>
 </html>

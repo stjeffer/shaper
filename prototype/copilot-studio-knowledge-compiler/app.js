@@ -13,6 +13,7 @@ const state = {
   decisions: new Map(),
   artifacts: [],
   selectedDocuments: new Set(),
+  assessmentChecks: null,
 };
 
 const RESULT_PRESENTATION = Object.freeze({
@@ -80,6 +81,8 @@ const elements = {
   alert: document.querySelector("#alert"),
   loading: document.querySelector("#loadingView"),
   noAccess: document.querySelector("#noAccessView"),
+  assessmentChecksView: document.querySelector("#assessmentChecksView"),
+  assessmentCheckGroups: document.querySelector("#assessmentCheckGroups"),
   estateListView: document.querySelector("#estateListView"),
   estateView: document.querySelector("#estateView"),
   estateList: document.querySelector("#estateList"),
@@ -87,7 +90,7 @@ const elements = {
   estateListCount: document.querySelector("#estateListCount"),
   estateTotal: document.querySelector("#estateTotal"),
   estateActive: document.querySelector("#estateActive"),
-  estateEvaluated: document.querySelector("#estateEvaluated"),
+  estateAssessed: document.querySelector("#estateAssessed"),
   createDialog: document.querySelector("#createDialog"),
   createForm: document.querySelector("#createForm"),
   deleteDialog: document.querySelector("#deleteDialog"),
@@ -209,6 +212,7 @@ function setBusy(container, busy, message = "Working…") {
 function showView(view) {
   elements.loading.hidden = view !== "loading";
   elements.noAccess.hidden = view !== "no-access";
+  elements.assessmentChecksView.hidden = view !== "assessment-checks";
   elements.estateListView.hidden = view !== "list";
   elements.estateView.hidden = view !== "estate";
 }
@@ -426,6 +430,10 @@ async function loadEstates(restoreRoute = false) {
   );
   state.estates = payload.items;
   renderEstates();
+  if (restoreRoute && window.location.hash === "#assessment-checks") {
+    await openAssessmentChecks();
+    return;
+  }
   const route = restoreRoute ? requestedEstateRoute() : null;
   if (
     route &&
@@ -448,8 +456,8 @@ function renderEstates() {
   elements.estateActive.textContent = estates.filter(
     (estate) => estate.status === "active",
   ).length;
-  elements.estateEvaluated.textContent = estates.filter(
-    (estate) => estate.generate_evaluations,
+  elements.estateAssessed.textContent = state.estates.filter(
+    (record) => record.assessment_status === "assessed",
   ).length;
   elements.estateList.replaceChildren(
     ...state.estates.map((record) => {
@@ -459,7 +467,8 @@ function renderEstates() {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.estateId = estate.estate_id;
-      const badge = text("span", estate.status, `badge ${estate.status}`);
+      const lifecycle = text("span", estate.status, `badge ${estate.status}`);
+      lifecycle.dataset.label = "Lifecycle";
       const nameCell = document.createElement("div");
       nameCell.className = "estate-name";
       const nameCopy = document.createElement("div");
@@ -469,11 +478,21 @@ function renderEstates() {
       );
       nameCell.append(text("span", "K", "estate-row-icon"), nameCopy);
       const footer = document.createElement("footer");
+      footer.dataset.label = "Last modified";
       footer.append(text("span", formatDate(estate.updated_at)));
+      const documentCount = text(
+        "span",
+        `${record.document_count}`,
+        "estate-document-count",
+      );
+      documentCount.dataset.label = "Documents";
+      const assessment = assessmentStatus(record);
+      assessment.dataset.label = "Assessment";
       button.append(
         nameCell,
-        badge,
-        text("span", estate.generate_evaluations ? "On" : "Off", "evaluation-state"),
+        documentCount,
+        assessment,
+        lifecycle,
         footer,
         text("span", "›", "card-link"),
       );
@@ -483,6 +502,87 @@ function renderEstates() {
   );
   elements.estateEmpty.hidden = estates.length !== 0;
   elements.estateList.closest(".estate-list-shell").hidden = estates.length === 0;
+}
+
+function assessmentStatus(record) {
+  const labels = {
+    no_documents: "No documents",
+    not_assessed: "Not assessed",
+    partially_assessed: "Partially assessed",
+    assessed: "Assessed",
+  };
+  const label = labels[record.assessment_status] ?? "Assessment unavailable";
+  const coverage =
+    record.document_count > 0
+      ? ` · ${record.assessed_document_count} of ${record.document_count}`
+      : "";
+  return text(
+    "span",
+    `${label}${coverage}`,
+    `assessment-status ${record.assessment_status ?? "unknown"}`,
+  );
+}
+
+async function openAssessmentChecks() {
+  clearAlert();
+  showView("assessment-checks");
+  setBusy(elements.assessmentChecksView, true, "Loading assessment checks…");
+  try {
+    if (!state.assessmentChecks) {
+      const payload = await api("/v1/assessment-checks");
+      state.assessmentChecks = payload.items;
+    }
+    renderAssessmentChecks();
+    history.replaceState(null, "", "#assessment-checks");
+    document.querySelector("#assessmentChecksTitle").focus?.();
+  } catch (error) {
+    showAlert(error.message);
+  } finally {
+    setBusy(elements.assessmentChecksView, false);
+  }
+}
+
+function renderAssessmentChecks() {
+  const groups = new Map();
+  state.assessmentChecks.forEach((check) => {
+    const group = groups.get(check.category) ?? [];
+    group.push(check);
+    groups.set(check.category, group);
+  });
+  elements.assessmentCheckGroups.replaceChildren(
+    ...[...groups.entries()].map(([category, checks]) => {
+      const section = document.createElement("section");
+      section.className = "assessment-check-group";
+      section.append(
+        text("h2", category),
+        text(
+          "p",
+          `${checks.length} deterministic check${checks.length === 1 ? "" : "s"}`,
+          "assessment-check-count",
+        ),
+      );
+      const list = document.createElement("div");
+      list.className = "assessment-check-list";
+      checks.forEach((check) => {
+        const article = document.createElement("article");
+        article.className = "assessment-check-card";
+        const impact = document.createElement("p");
+        impact.className = "assessment-check-impact";
+        impact.append(
+          text("strong", "Likely agent impact"),
+          document.createTextNode(` ${check.agent_impact}`),
+        );
+        article.append(
+          text("h3", check.label),
+          text("p", check.what_it_checks),
+          impact,
+        );
+        list.append(article);
+      });
+      section.append(list);
+      return section;
+    }),
+  );
 }
 
 async function openEstate(estateId, targetTab = "sources") {
@@ -504,7 +604,10 @@ async function openEstate(estateId, targetTab = "sources") {
     state.documents = documents.items;
     state.runs = runs.items;
     state.decisions = new Map(
-      decisions.items.map((decision) => [decision.document_id, decision]),
+      decisions.items.map((item) => {
+        const decision = recordValue(item);
+        return [decision.document_id, decision];
+      }),
     );
     state.artifacts = artifacts.items;
     state.selectedDocuments.clear();
@@ -734,13 +837,15 @@ function renderProposals() {
       card.dataset.proposalId = proposal.recommendation_id;
       const heading = document.createElement("div");
       heading.className = "proposal-heading";
+      const decisionLabel =
+        decision?.outcome === "approve"
+          ? "Approved"
+          : decision?.outcome === "decline"
+            ? "Declined"
+            : "Awaiting decision";
       heading.append(
         text("h3", documentValue?.title || proposal.expected_artifact),
-        text(
-          "span",
-          decision?.outcome || "Awaiting decision",
-          `decision-badge ${decision?.outcome || ""}`,
-        ),
+        text("span", decisionLabel, `decision-badge ${decision?.outcome || ""}`),
       );
       const changes = document.createElement("ul");
       changes.className = "changes";
@@ -754,14 +859,22 @@ function renderProposals() {
       const estimate = proposal.token_estimate;
       const actions = document.createElement("div");
       actions.className = "proposal-actions";
-      const approve = text("button", "Approve transformation", "button primary");
+      const approve = text(
+        "button",
+        decision?.outcome === "approve" ? "Transformation approved" : "Approve transformation",
+        "button primary",
+      );
       approve.type = "button";
-      approve.disabled = isArchived();
+      approve.disabled = isArchived() || decision?.outcome === "approve";
       approve.dataset.decision = "approve";
       approve.dataset.proposalId = proposal.recommendation_id;
-      const decline = text("button", "Decline", "button danger");
+      const decline = text(
+        "button",
+        decision?.outcome === "decline" ? "Transformation declined" : "Decline",
+        "button danger",
+      );
       decline.type = "button";
-      decline.disabled = isArchived();
+      decline.disabled = isArchived() || decision?.outcome === "decline";
       decline.dataset.decision = "decline";
       decline.dataset.proposalId = proposal.recommendation_id;
       actions.append(approve, decline);
@@ -770,6 +883,15 @@ function renderProposals() {
         text("p", proposal.rationale),
         changes,
         tokenEstimateGraphic(estimate, proposal.expected_artifact),
+        ...(decision?.outcome === "approve"
+          ? [
+              text(
+                "p",
+                "Approved. This document is ready to transform.",
+                "decision-confirmation",
+              ),
+            ]
+          : []),
         actions,
       );
       return card;
@@ -1254,14 +1376,17 @@ async function decide(proposalId, outcome) {
   const proposal = state.proposals.find(
     (item) => item.recommendation_id === proposalId,
   );
-  if (!proposal) return;
+  if (!proposal) {
+    showAlert("The selected transformation proposal is no longer available. Refresh the estate.");
+    return;
+  }
   const current = state.decisions.get(proposal.document_id);
   const card = document
     .querySelector(`[data-proposal-id="${CSS.escape(proposalId)}"]`)
     ?.closest(".proposal-card");
   if (card) setBusy(card, true, "Recording decision…");
   try {
-    const decision = await api(`/v1/proposals/${proposalId}/decision`, {
+    const response = await api(`/v1/proposals/${proposalId}/decision`, {
       method: "PUT",
       body: JSON.stringify({
         outcome,
@@ -1272,6 +1397,7 @@ async function decide(proposalId, outcome) {
         expected_current_decision_id: current?.decision_id ?? null,
       }),
     });
+    const decision = recordValue(response);
     state.decisions.set(proposal.document_id, decision);
     renderProposals();
     announce(`Transformation ${outcome === "approve" ? "approved" : "declined"}`);
@@ -1441,6 +1567,8 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.action === "home") {
     event.preventDefault();
     await loadEstates();
+  } else if (target.dataset.action === "assessment-checks") {
+    await openAssessmentChecks();
   } else if (target.dataset.action === "open-create") {
     elements.createDialog.showModal();
   } else if (target.dataset.action === "close-create") {
