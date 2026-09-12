@@ -79,6 +79,10 @@ Users can:
 * Review the current document inventory
 * Choose whether transformed artifacts include evaluation reports
 
+Document rows show only a concise format label such as **PDF**, **DOCX**,
+**Markdown**, or **Text**. Raw MIME types and modification timestamps remain
+available as source metadata but do not clutter the inventory.
+
 SharePoint registrations record whether synchronization should use the signed-in
 user's delegated access or an organization-managed application connection.
 Application credentials are configured by an administrator outside the browser;

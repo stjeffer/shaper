@@ -229,6 +229,9 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app
     assert "formatShortDate(estate.updated_at)" in browser_app
+    assert "function fileFormatLabel(documentValue)" in browser_app
+    assert "text(\"p\", fileFormatLabel(documentValue))" in browser_app
+    assert "documentValue.media_type} ·" not in browser_app
     assert 'partially_assessed: "Assessed"' in browser_app
     assert '"Partially assessed"' not in browser_app
     assert "checkbox.disabled = isArchived()" in browser_app

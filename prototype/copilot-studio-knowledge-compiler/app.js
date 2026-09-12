@@ -613,12 +613,22 @@ function documentFindings(report) {
   return disclosure;
 }
 
-function formatDate(value) {
-  if (!value) return "Not available";
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+function fileFormatLabel(documentValue) {
+  const extension = documentValue.filename?.split(".").at(-1)?.toLocaleLowerCase();
+  const labels = {
+    docx: "DOCX",
+    md: "Markdown",
+    pdf: "PDF",
+    txt: "Text",
+  };
+  if (labels[extension]) return labels[extension];
+  const mediaTypeLabels = {
+    "application/pdf": "PDF",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+    "text/markdown": "Markdown",
+    "text/plain": "Text",
+  };
+  return mediaTypeLabels[documentValue.media_type] ?? "File";
 }
 
 function formatShortDate(value) {
@@ -1246,7 +1256,7 @@ function renderDocuments() {
         documentCell.className = "document-cell";
         documentCell.append(
           text("strong", documentValue.title),
-          text("p", `${documentValue.media_type} · ${formatDate(documentValue.modified_at)}`),
+          text("p", fileFormatLabel(documentValue)),
         );
         const viewDocument = text("button", "Review extracted text", "text-button");
         viewDocument.type = "button";
