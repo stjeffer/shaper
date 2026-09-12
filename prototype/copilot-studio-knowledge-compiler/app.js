@@ -373,6 +373,13 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function formatShortDate(value) {
+  if (!value) return "Not available";
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "short",
+  }).format(new Date(value));
+}
+
 function recordValue(record) {
   return record?.value ?? record;
 }
@@ -491,7 +498,7 @@ function renderEstates() {
       nameCell.append(text("span", "K", "estate-row-icon"), nameCopy);
       const footer = document.createElement("footer");
       footer.dataset.label = "Last modified";
-      footer.append(text("span", formatDate(estate.updated_at)));
+      footer.append(text("span", formatShortDate(estate.updated_at)));
       const documentCount = text(
         "span",
         `${record.document_count}`,

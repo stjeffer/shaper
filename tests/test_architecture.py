@@ -191,6 +191,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'id="deleteConfirmation"' in html
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app
+    assert "formatShortDate(estate.updated_at)" in browser_app
     assert "await loadEstates(true)" in browser_app
     assert 'menu.setAttribute("role", "menu")' in browser_app
     assert 'editButton.setAttribute("role", "menuitem")' in browser_app
