@@ -59,7 +59,7 @@
   "blockers": [],
   "next_action": {
     "phase": "Implement",
-    "action": "Obtain product-owner visual validation of revision ca-shaper-dev--0000035, then resume remaining P07 post-authentication workflow proof."
+    "action": "Reconcile landed P06-P07 work, run full validation, and prepare the implementation for Review."
   },
   "prioritized_follow_ups": [
     {

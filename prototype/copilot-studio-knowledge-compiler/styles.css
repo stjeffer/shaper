@@ -887,6 +887,32 @@ input[type="file"] {
   gap: 12px;
 }
 
+.lifecycle-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 30px;
+  padding: 20px;
+  background: var(--red-soft);
+  border: 1px solid #efb8c1;
+  border-radius: 11px;
+}
+
+.lifecycle-card p {
+  max-width: 680px;
+  margin: 7px 0 0;
+  color: #6f2633;
+  line-height: 1.5;
+}
+
+.lifecycle-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
 .item-row,
 .proposal-card,
 .artifact-card {
@@ -2077,7 +2103,8 @@ h2 {
 
   .page-heading,
   .panel-heading,
-  .collection-heading {
+  .collection-heading,
+  .lifecycle-card {
     align-items: stretch;
     flex-direction: column;
   }

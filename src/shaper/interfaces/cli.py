@@ -70,7 +70,7 @@ from shaper.interfaces.http import HttpServices
 from shaper.interfaces.mcp_server import McpAuth, McpServices, create_mcp_server
 from shaper.logging import configure_logging
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
 
 
 @app.command()

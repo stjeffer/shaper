@@ -79,11 +79,31 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
 
 def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -> None:
     dockerfile = (REPOSITORY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    cli = (REPOSITORY_ROOT / "src/shaper/interfaces/cli.py").read_text(encoding="utf-8")
 
     assert "COPY --from=builder --chown=shaper:shaper /app/src ./src" in dockerfile
     assert 'ENTRYPOINT ["shaper"]' in dockerfile
     assert 'CMD ["--host", "0.0.0.0", "--port", "8000"]' in dockerfile
     assert 'CMD ["serve"' not in dockerfile
+    assert "pretty_exceptions_show_locals=False" in cli
+
+
+def test_given_live_estate_workspace_when_inspected_then_lifecycle_actions_are_wired() -> None:
+    # Arrange
+    html = (REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/index.html").read_text(
+        encoding="utf-8"
+    )
+    javascript = (REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js").read_text(
+        encoding="utf-8"
+    )
+
+    # Assert
+    assert 'id="archiveButton"' in html
+    assert 'id="purgeDialog"' in html
+    assert "/archive" in javascript
+    assert "/purge" in javascript
+    assert "waitForRun" in javascript
+    assert 'setAttribute("aria-busy"' in javascript
 
 
 def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_present() -> None:

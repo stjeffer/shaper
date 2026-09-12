@@ -103,6 +103,11 @@ const elements = {
   transformButton: document.querySelector("#transformButton"),
   artifactList: document.querySelector("#artifactList"),
   artifactEmpty: document.querySelector("#artifactEmpty"),
+  archiveButton: document.querySelector("#archiveButton"),
+  purgeButton: document.querySelector("#purgeButton"),
+  purgeDialog: document.querySelector("#purgeDialog"),
+  purgeForm: document.querySelector("#purgeForm"),
+  purgePhrase: document.querySelector("#purgePhrase"),
 };
 
 function announce(message) {
@@ -164,6 +169,7 @@ async function api(path, options = {}) {
 
 function setBusy(container, busy, message = "Working…") {
   container.querySelector(".busy-overlay")?.remove();
+  container.setAttribute("aria-busy", `${busy}`);
   if (!busy) return;
   const overlay = document.querySelector("#busyTemplate").content.cloneNode(true);
   overlay.querySelector("strong").textContent = message;
@@ -250,6 +256,32 @@ function requestedEstateRoute() {
   );
   if (!match) return null;
   return { estateId: decodeURIComponent(match[1]), tab: match[2] };
+}
+
+function isArchived() {
+  return recordValue(state.estate)?.status === "archived";
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForRun(runId) {
+  const estateId = recordValue(state.estate).estate_id;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const payload = await api(`/v1/estates/${estateId}/runs`);
+    state.runs = payload.items;
+    const record = state.runs.find((item) => recordValue(item).run_id === runId);
+    if (!record) throw new Error(`Workflow run ${runId} is unavailable`);
+    const status = recordValue(record).status;
+    announce(`Workflow ${status.replaceAll("_", " ")}`);
+    if (["completed", "partial"].includes(status)) return record;
+    if (["failed", "cancelled"].includes(status)) {
+      throw new Error(`Workflow ended with status ${status}`);
+    }
+    await sleep(1000);
+  }
+  throw new Error("Workflow is still running. Refresh the estate to check its status.");
 }
 
 async function initialize() {
@@ -418,6 +450,7 @@ function renderEstate() {
   renderProposals();
   renderArtifacts();
   updateWorkflowProgress();
+  renderLifecycle();
 }
 
 function updateWorkflowProgress() {
@@ -435,6 +468,26 @@ function updateWorkflowProgress() {
       `${button.textContent.trim()}${complete ? ", complete" : ""}`,
     );
   });
+}
+
+function renderLifecycle() {
+  const archived = isArchived();
+  elements.archiveButton.disabled = archived;
+  elements.purgeButton.disabled = !archived;
+  document.querySelector("#lifecycleDescription").textContent = archived
+    ? "This estate is read-only. Permanently purge its content only when retention policy permits."
+    : "Archive this estate to make its evidence read-only. Purge becomes available after archive.";
+  if (archived) {
+    for (const control of [
+      ...elements.sourceForm.elements,
+      ...elements.uploadForm.elements,
+      elements.discoverButton,
+      elements.recommendButton,
+      elements.transformButton,
+    ]) {
+      control.disabled = true;
+    }
+  }
 }
 
 function renderSources() {
@@ -566,6 +619,7 @@ function renderProposals() {
       const decision = state.decisions.get(proposal.document_id);
       const card = document.createElement("article");
       card.className = "proposal-card";
+      card.dataset.proposalId = proposal.recommendation_id;
       const heading = document.createElement("div");
       heading.className = "proposal-heading";
       heading.append(
@@ -598,10 +652,12 @@ function renderProposals() {
       actions.className = "proposal-actions";
       const approve = text("button", "Approve transformation", "button primary");
       approve.type = "button";
+      approve.disabled = isArchived();
       approve.dataset.decision = "approve";
       approve.dataset.proposalId = proposal.recommendation_id;
       const decline = text("button", "Decline", "button danger");
       decline.type = "button";
+      decline.disabled = isArchived();
       decline.dataset.decision = "decline";
       decline.dataset.proposalId = proposal.recommendation_id;
       actions.append(approve, decline);
@@ -673,6 +729,7 @@ function renderArtifacts() {
         approve.type = "button";
         approve.dataset.approveArtifact = artifact.artifact_id;
         approve.dataset.artifactRevision = record.revision;
+        approve.disabled = isArchived();
         actions.append(approve);
       } else {
         const view = text("a", "Open approved HTML", "button secondary");
@@ -875,12 +932,17 @@ async function runDiscovery() {
       { method: "POST", body: JSON.stringify({}) },
     );
     state.discoveryRunId = recordValue(result.run).run_id;
-    state.reports = new Map(
-      result.reports.map((report) => [report.document_id, report]),
+    await waitForRun(state.discoveryRunId);
+    const reports = await api(
+      `/v1/estates/${recordValue(state.estate).estate_id}/discovery-reports?run_id=${encodeURIComponent(
+        state.discoveryRunId,
+      )}`,
     );
-    state.runs.push(result.run);
+    state.reports = new Map(
+      reports.items.map((report) => [report.document_id, report]),
+    );
     renderDocuments();
-    announce(`Discovery completed for ${result.reports.length} documents`);
+    announce(`Discovery completed for ${reports.items.length} documents`);
   } catch (error) {
     showAlert(error.message);
   } finally {
@@ -904,8 +966,12 @@ async function requestRecommendations() {
       },
     );
     state.proposalRunId = recordValue(result.run).run_id;
-    state.proposals = result.proposals;
-    state.runs.push(result.run);
+    await waitForRun(state.proposalRunId);
+    state.proposals = await api(
+      `/v1/estates/${recordValue(state.estate).estate_id}/proposals?run_id=${encodeURIComponent(
+        state.proposalRunId,
+      )}`,
+    ).then((payload) => payload.items);
     renderProposals();
     switchTab("recommend");
   } catch (error) {
@@ -984,6 +1050,7 @@ async function transformApproved() {
         body: JSON.stringify({ ids: approvedIds }),
       },
     );
+    await waitForRun(recordValue(result.run).run_id);
     state.artifacts = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/artifacts`,
     ).then((payload) => payload.items);
@@ -1024,6 +1091,63 @@ async function approveArtifact(artifactId, revision) {
   }
 }
 
+async function archiveEstate() {
+  const estate = recordValue(state.estate);
+  if (
+    !window.confirm(
+      `Archive "${estate.name}"? The estate will become read-only and cannot be restored.`,
+    )
+  ) {
+    return;
+  }
+  clearAlert();
+  setBusy(elements.estateView, true, "Archiving estate…");
+  try {
+    state.estate = await api(`/v1/estates/${estate.estate_id}/archive`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: state.estate.revision }),
+    });
+    renderEstate();
+    announce("Knowledge estate archived and is now read-only");
+  } catch (error) {
+    showAlert(error.message);
+  } finally {
+    setBusy(elements.estateView, false);
+  }
+}
+
+function openPurgeDialog() {
+  const estate = recordValue(state.estate);
+  elements.purgePhrase.textContent = `PURGE ${estate.name}`;
+  elements.purgeForm.reset();
+  elements.purgeDialog.showModal();
+}
+
+async function purgeEstate(event) {
+  event.preventDefault();
+  clearAlert();
+  const estate = recordValue(state.estate);
+  const data = new FormData(elements.purgeForm);
+  setBusy(elements.purgeDialog, true, "Permanently purging estate…");
+  try {
+    await api(`/v1/estates/${estate.estate_id}/purge`, {
+      method: "POST",
+      body: JSON.stringify({
+        confirmation: data.get("confirmation"),
+        reason: data.get("reason"),
+      }),
+    });
+    elements.purgeDialog.close();
+    state.estate = null;
+    announce("Knowledge estate purged");
+    await loadEstates();
+  } catch (error) {
+    showAlert(error.message);
+  } finally {
+    setBusy(elements.purgeDialog, false);
+  }
+}
+
 document.addEventListener("click", async (event) => {
   const target = event.target.closest("button, a");
   if (!target) return;
@@ -1038,6 +1162,8 @@ document.addEventListener("click", async (event) => {
     openDeleteDialog();
   } else if (target.dataset.action === "close-delete") {
     closeDeleteDialog();
+  } else if (target.dataset.action === "close-purge") {
+    elements.purgeDialog.close();
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {
@@ -1060,6 +1186,9 @@ elements.uploadForm.addEventListener("submit", uploadFiles);
 elements.discoverButton.addEventListener("click", runDiscovery);
 elements.recommendButton.addEventListener("click", requestRecommendations);
 elements.transformButton.addEventListener("click", transformApproved);
+elements.archiveButton.addEventListener("click", archiveEstate);
+elements.purgeButton.addEventListener("click", openPurgeDialog);
+elements.purgeForm.addEventListener("submit", purgeEstate);
 elements.files.addEventListener("change", () => {
   const count = elements.files.files.length;
   elements.fileSummary.textContent =

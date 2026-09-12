@@ -32,6 +32,11 @@ Implementation is active. The approved outcome preserves the five-agent architec
 
 * Active phase or task: P07-T01
 * Intended result: Reconcile production PostgreSQL identity with the plan's passwordless target and complete the authenticated estate-workspace browser journey.
+
+### Reconcile Durable APIs, Live Product Experience, and Deployment Proof
+
+* Active phase or task: P06-T01 through P07-T03
+* Intended result: Verify the landed persistence, protected resources, browser identity, live UI, infrastructure, documentation, and deployment evidence against every remaining plan marker.
 * Current blockers: None
 
 ## Completed Work
