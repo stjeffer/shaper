@@ -104,6 +104,10 @@ def test_given_live_estate_workspace_when_inspected_then_lifecycle_actions_are_w
     assert "/purge" in javascript
     assert "waitForRun" in javascript
     assert 'setAttribute("aria-busy"' in javascript
+    assert "if (!isArchived())" in javascript
+    assert javascript.index("function openDeleteDialog()") > javascript.index(
+        "async function createEstate"
+    )
 
 
 def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_present() -> None:

@@ -811,59 +811,65 @@ async function createEstate(event) {
   } catch (error) {
     showAlert(error.message);
   }
+}
 
-  function openDeleteDialog() {
-    const estate = recordValue(state.estate);
-    elements.deleteEstateName.textContent = estate.name;
-    elements.deleteForm.reset();
-    elements.deleteConfirmButton.disabled = true;
-    elements.deleteError.hidden = true;
-    elements.deleteError.textContent = "";
-    elements.deleteDialog.showModal();
-    elements.deleteConfirmation.focus();
+function openDeleteDialog() {
+  const estate = recordValue(state.estate);
+  elements.deleteEstateName.textContent = estate.name;
+  elements.deleteForm.reset();
+  elements.deleteConfirmButton.disabled = true;
+  elements.deleteError.hidden = true;
+  elements.deleteError.textContent = "";
+  elements.deleteDialog.showModal();
+  elements.deleteConfirmation.focus();
+}
+
+function closeDeleteDialog() {
+  elements.deleteDialog.close();
+  elements.deleteForm.reset();
+  elements.deleteConfirmButton.disabled = true;
+  elements.deleteError.hidden = true;
+  elements.deleteError.textContent = "";
+}
+
+function updateDeleteConfirmation() {
+  const estate = recordValue(state.estate);
+  elements.deleteConfirmButton.disabled =
+    elements.deleteConfirmation.value !== estate.name;
+}
+
+async function deleteEstate(event) {
+  event.preventDefault();
+  const estate = recordValue(state.estate);
+  if (elements.deleteConfirmation.value !== estate.name) {
+    updateDeleteConfirmation();
+    return;
   }
 
-  function closeDeleteDialog() {
-    elements.deleteDialog.close();
-    elements.deleteForm.reset();
-    elements.deleteConfirmButton.disabled = true;
-    elements.deleteError.hidden = true;
-    elements.deleteError.textContent = "";
-  }
-
-  function updateDeleteConfirmation() {
-    const estate = recordValue(state.estate);
-    elements.deleteConfirmButton.disabled =
-      elements.deleteConfirmation.value !== estate.name;
-  }
-
-  async function deleteEstate(event) {
-    event.preventDefault();
-    const estate = recordValue(state.estate);
-    if (elements.deleteConfirmation.value !== estate.name) {
-      updateDeleteConfirmation();
-      return;
-    }
-
-    elements.deleteConfirmButton.disabled = true;
-    elements.deleteError.hidden = true;
-    try {
-      await api(`/v1/estates/${estate.estate_id}/purge`, {
+  elements.deleteConfirmButton.disabled = true;
+  elements.deleteError.hidden = true;
+  try {
+    if (!isArchived()) {
+      state.estate = await api(`/v1/estates/${estate.estate_id}/archive`, {
         method: "POST",
-        body: JSON.stringify({
-          confirmation: `PURGE ${estate.name}`,
-          reason: "Deleted through the knowledge estate workspace.",
-        }),
+        body: JSON.stringify({ expected_revision: state.estate.revision }),
       });
-      closeDeleteDialog();
-      state.estate = null;
-      await loadEstates();
-      announce(`${estate.name} deleted`);
-    } catch (error) {
-      elements.deleteError.textContent = error.message;
-      elements.deleteError.hidden = false;
-      updateDeleteConfirmation();
     }
+    await api(`/v1/estates/${estate.estate_id}/purge`, {
+      method: "POST",
+      body: JSON.stringify({
+        confirmation: `PURGE ${estate.name}`,
+        reason: "Deleted through the knowledge estate workspace.",
+      }),
+    });
+    closeDeleteDialog();
+    state.estate = null;
+    await loadEstates();
+    announce(`${estate.name} deleted`);
+  } catch (error) {
+    elements.deleteError.textContent = error.message;
+    elements.deleteError.hidden = false;
+    updateDeleteConfirmation();
   }
 }
 

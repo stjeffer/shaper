@@ -128,7 +128,9 @@ SharePoint is a source and delivery surface, not the product boundary.
 See [deployment guidance](docs/deployment.md) for the current and target Azure
 topologies and [operations guidance](docs/operations.md) for monitoring,
 recovery, and retention. See [platform architecture](docs/architecture.md) for
-the C4 model and specialist-agent responsibility boundaries.
+the C4 model and specialist-agent responsibility boundaries. See the
+[feature guide](docs/features.md) for the current Knowledge Estate workflow,
+content-focused Results, approval boundaries, and lifecycle controls.
 
 ## Local development
 
