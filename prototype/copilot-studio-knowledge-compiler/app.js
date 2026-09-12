@@ -208,11 +208,9 @@ function text(tag, value, className) {
   return node;
 }
 
-function resultItem({ label, detail, icon, tone, evidence = [], review_required = false }) {
+function resultItem({ label, detail, tone, evidence = [], review_required = false }) {
   const item = document.createElement("li");
   item.className = `result-item ${tone}`;
-  const symbol = text("span", icon, "result-icon");
-  symbol.setAttribute("aria-hidden", "true");
   const copy = document.createElement("div");
   copy.className = "result-copy";
   const heading = document.createElement("div");
@@ -242,7 +240,7 @@ function resultItem({ label, detail, icon, tone, evidence = [], review_required 
     });
     copy.append(details);
   }
-  item.append(symbol, copy);
+  item.append(copy);
   return item;
 }
 
@@ -314,11 +312,7 @@ function documentResults(report) {
         : "Review evidence and proposed changes",
     ),
   );
-  summary.append(
-    text("span", highPriority > 0 ? "!" : "i", `findings-status ${highPriority ? "high" : ""}`),
-    summaryCopy,
-    text("span", "›", "findings-chevron"),
-  );
+  summary.append(summaryCopy, text("span", "›", "findings-chevron"));
   disclosure.append(summary, results);
   return disclosure;
 }

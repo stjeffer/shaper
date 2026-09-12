@@ -1141,32 +1141,6 @@ td input[type="checkbox"] {
   border-left-color: #107c10;
 }
 
-.result-icon {
-  display: grid;
-  width: 23px;
-  height: 23px;
-  place-items: center;
-  color: var(--blue);
-  background: #fff;
-  border: 1px solid currentcolor;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.result-item.warning .result-icon {
-  color: var(--amber);
-}
-
-.result-item.high .result-icon,
-.result-item.unknown .result-icon {
-  color: var(--red);
-}
-
-.result-item.clear .result-icon {
-  color: #107c10;
-}
-
 .result-copy {
   display: grid;
   min-width: 0;
@@ -2334,7 +2308,7 @@ h2 {
   padding: 8px 12px;
   cursor: pointer;
   list-style: none;
-  grid-template-columns: 24px minmax(0, 1fr) 20px;
+  grid-template-columns: minmax(0, 1fr) 20px;
 }
 
 .findings-disclosure > summary::-webkit-details-marker {
@@ -2348,25 +2322,6 @@ h2 {
 .findings-disclosure > summary:focus-visible {
   outline: 2px solid var(--color-brand-background);
   outline-offset: -2px;
-}
-
-.findings-status {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  color: var(--color-status-warning-foreground);
-  background: var(--color-status-warning-background);
-  border: 1px solid #f4d6a3;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.findings-status.high {
-  color: var(--color-status-danger-foreground);
-  background: var(--color-status-danger-background);
-  border-color: #eec4c8;
 }
 
 .findings-summary-copy {
@@ -2401,20 +2356,19 @@ h2 {
 .result-list {
   display: grid;
   gap: 0;
-  padding: 0 12px 8px 46px;
+  padding: 0 12px 8px;
   grid-template-columns: 1fr;
 }
 
 .result-item {
   display: grid;
-  gap: 10px;
   padding: 12px 0;
   color: var(--color-neutral-foreground-2);
   background: transparent;
   border: 0;
   border-top: 1px solid var(--color-neutral-stroke-2);
   border-radius: 0;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .result-item.warning,
@@ -2423,26 +2377,6 @@ h2 {
 .result-item.clear {
   background: transparent;
   border-color: var(--color-neutral-stroke-2);
-}
-
-.result-icon {
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-  color: var(--color-neutral-foreground-3);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  font-size: 13px;
-}
-
-.result-item.warning .result-icon {
-  color: var(--color-status-warning-foreground);
-}
-
-.result-item.high .result-icon,
-.result-item.unknown .result-icon {
-  color: var(--color-status-danger-foreground);
 }
 
 .result-heading {
@@ -2918,7 +2852,7 @@ h2 {
   }
 
   .result-list {
-    padding: 0 10px 8px 42px;
+    padding: 0 10px 8px;
   }
 
   .sticky-actions,
