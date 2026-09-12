@@ -64,6 +64,30 @@ def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -
     assert 'CMD ["serve"' not in dockerfile
 
 
+def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_present() -> None:
+    html = (
+        REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/index.html"
+    ).read_text(encoding="utf-8")
+    browser_app = (
+        REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js"
+    ).read_text(encoding="utf-8")
+
+    for tab in ("Sources", "Assess", "Approve", "Outputs"):
+        assert f"<strong>{tab}</strong>" in html
+    assert "Governed process" not in html
+    assert 'id="estateSearch"' not in html
+    assert 'class="nav-item"' in html
+    assert 'data-action="open-create"' in html
+    assert 'aria-label="New estate"' in html
+    assert 'data-action="open-delete"' in html
+    assert 'id="deleteConfirmation"' in html
+    assert 'id="deleteConfirmButton"' in html
+    assert "function requestedEstateRoute()" in browser_app
+    assert "await loadEstates(true)" in browser_app
+    assert "`/v1/estates/${estate.estate_id}/purge`" in browser_app
+    assert "elements.deleteConfirmation.value !== estate.name" in browser_app
+
+
 def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent() -> None:
     architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
     readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")

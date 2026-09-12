@@ -47,14 +47,19 @@
     },
     {
       "decision": "The estate interface uses Microsoft Fluent 2 visual conventions, an outcome-led portfolio, and an explicit governed workflow rather than unavailable global destinations and equal-weight administration panels.",
+      "status": "superseded",
+      "evidence": "User feedback on 2026-09-11 established that revision ca-shaper-dev--0000031 does not yet resemble Copilot Studio closely enough."
+    },
+    {
+      "decision": "The hosted workspace must use a compact Microsoft Copilot Studio-like Fluent application shell, task-named tabs, consistent web typography, flat work surfaces, non-obscuring busy states, and durable estate-stage deep links.",
       "status": "implemented",
-      "evidence": "Revision ca-shaper-dev--0000031; compact 24 px semibold application titles; responsive browser rendering with realistic estate data; no duplicate IDs or unnamed controls in the rendered portfolio."
+      "evidence": "Revision ca-shaper-dev--0000035 matches the seventh reference with a compact Sources workspace and branded select/upload controls; it is healthy at 100% traffic and seven targeted tests pass."
     }
   ],
   "blockers": [],
   "next_action": {
     "phase": "Implement",
-    "action": "Validate the post-authentication estate workspace, then complete P07 passwordless PostgreSQL identity."
+    "action": "Obtain product-owner visual validation of revision ca-shaper-dev--0000035, then resume remaining P07 post-authentication workflow proof."
   },
   "prioritized_follow_ups": [
     {

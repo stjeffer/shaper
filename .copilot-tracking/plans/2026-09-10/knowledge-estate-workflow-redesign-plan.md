@@ -54,6 +54,7 @@ For current user input, see [User Decisions and Requirements](#user-decisions-an
 * Transformations must create new artifacts and never overwrite source content.
 * The estate owns the output naming rule. The default is `shaper_{source_stem}.html`.
 * The resulting workflow must be live, testable, and deployed to Azure rather than represented by static connected states.
+* The hosted interface must use a compact Microsoft Copilot Studio-like application shell and Fluent web typography, navigation, tabs, controls, and work surfaces rather than a bespoke dashboard treatment.
 
 ## Goals
 
@@ -357,7 +358,7 @@ For current user input, see [User Decisions and Requirements](#user-decisions-an
 #### [x] P06-T03: Replace the Demo-First UI with Live Estate Screens
 
 * Requirement and evidence: FR-15, FR-16; research C14-C16
-* Expected result: Public static assets host a signed-out shell while all estate data and actions require a session; durable run polling shows truthful loading, authorization, empty, partial, failure, retry, and completion states.
+* Expected result: Public static assets host a signed-out shell while all estate data and actions require a session; the authenticated workspace uses a compact Copilot Studio-like application shell with task-named tabs and durable deep links; durable run polling shows truthful loading, authorization, empty, partial, failure, retry, and completion states.
 * Detail section: P06-T03 in .copilot-tracking/details/2026-09-10/knowledge-estate-workflow-redesign-phase-details.md
 
 <!-- rpi:task id=P06-T04 -->

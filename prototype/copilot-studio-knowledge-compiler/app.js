@@ -25,11 +25,18 @@ const elements = {
   estateView: document.querySelector("#estateView"),
   estateList: document.querySelector("#estateList"),
   estateEmpty: document.querySelector("#estateEmpty"),
+  estateListCount: document.querySelector("#estateListCount"),
   estateTotal: document.querySelector("#estateTotal"),
   estateActive: document.querySelector("#estateActive"),
   estateEvaluated: document.querySelector("#estateEvaluated"),
   createDialog: document.querySelector("#createDialog"),
   createForm: document.querySelector("#createForm"),
+  deleteDialog: document.querySelector("#deleteDialog"),
+  deleteForm: document.querySelector("#deleteForm"),
+  deleteEstateName: document.querySelector("#deleteEstateName"),
+  deleteConfirmation: document.querySelector("#deleteConfirmation"),
+  deleteConfirmButton: document.querySelector("#deleteConfirmButton"),
+  deleteError: document.querySelector("#deleteError"),
   sourceForm: document.querySelector("#sourceForm"),
   uploadForm: document.querySelector("#uploadForm"),
   files: document.querySelector("#files"),
@@ -142,6 +149,14 @@ function recordValue(record) {
   return record?.value ?? record;
 }
 
+function requestedEstateRoute() {
+  const match = /^#estate\/([^/]+)\/(sources|discover|recommend|transform)$/.exec(
+    window.location.hash,
+  );
+  if (!match) return null;
+  return { estateId: decodeURIComponent(match[1]), tab: match[2] };
+}
+
 async function initialize() {
   clearAlert();
   showView("loading");
@@ -156,7 +171,7 @@ async function initialize() {
       return;
     }
     state.collectionId = collections[0];
-    await loadEstates();
+    await loadEstates(true);
   } catch (error) {
     showView("loading");
     elements.loading.querySelector("h1").textContent = "Shaper could not open";
@@ -165,12 +180,20 @@ async function initialize() {
   }
 }
 
-async function loadEstates() {
+async function loadEstates(restoreRoute = false) {
   const payload = await api(
     `/v1/estates?collection_id=${encodeURIComponent(state.collectionId)}`,
   );
   state.estates = payload.items;
   renderEstates();
+  const route = restoreRoute ? requestedEstateRoute() : null;
+  if (
+    route &&
+    state.estates.some((record) => recordValue(record).estate_id === route.estateId)
+  ) {
+    await openEstate(route.estateId, route.tab);
+    return;
+  }
   showView("list");
   history.replaceState(null, "", "#estates");
   elements.estateListView.querySelector("h1").focus?.();
@@ -179,6 +202,9 @@ async function loadEstates() {
 function renderEstates() {
   const estates = state.estates.map(recordValue);
   elements.estateTotal.textContent = estates.length;
+  elements.estateListCount.textContent = `${estates.length} item${
+    estates.length === 1 ? "" : "s"
+  }`;
   elements.estateActive.textContent = estates.filter(
     (estate) => estate.status === "active",
   ).length;
@@ -194,34 +220,29 @@ function renderEstates() {
       button.type = "button";
       button.dataset.estateId = estate.estate_id;
       const badge = text("span", estate.status, `badge ${estate.status}`);
-      const cardTop = document.createElement("div");
-      cardTop.className = "estate-card-top";
-      cardTop.append(badge, text("span", "Open estate →", "card-link"));
-      const heading = text("h2", estate.name);
-      const description = text(
-        "p",
-        estate.description || "No estate description has been added.",
+      const nameCell = document.createElement("div");
+      nameCell.className = "estate-name";
+      const nameCopy = document.createElement("div");
+      nameCopy.append(
+        text("h2", estate.name),
+        text("p", estate.description || "No estate description has been added."),
       );
-      const configuration = document.createElement("div");
-      configuration.className = "estate-configuration";
-      configuration.append(
-        text(
-          "span",
-          estate.generate_evaluations ? "Evaluations enabled" : "Evaluations off",
-        ),
-        text("span", `Revision ${record.revision}`),
-      );
+      nameCell.append(text("span", "K", "estate-row-icon"), nameCopy);
       const footer = document.createElement("footer");
-      footer.append(
-        text("span", "Last updated"),
-        text("strong", formatDate(estate.updated_at)),
+      footer.append(text("span", formatDate(estate.updated_at)));
+      button.append(
+        nameCell,
+        badge,
+        text("span", estate.generate_evaluations ? "On" : "Off", "evaluation-state"),
+        footer,
+        text("span", "›", "card-link"),
       );
-      button.append(cardTop, heading, description, configuration, footer);
       article.append(button);
       return article;
     }),
   );
-  elements.estateEmpty.hidden = state.estates.length !== 0;
+  elements.estateEmpty.hidden = estates.length !== 0;
+  elements.estateList.closest(".estate-list-shell").hidden = estates.length === 0;
 }
 
 async function openEstate(estateId, targetTab = "sources") {
@@ -312,9 +333,12 @@ function updateWorkflowProgress() {
     transform: state.artifacts.length > 0,
   };
   document.querySelectorAll(".workflow [data-tab]").forEach((button) => {
-    button.closest("li").dataset.complete = completion[button.dataset.tab]
-      ? "true"
-      : "false";
+    const complete = completion[button.dataset.tab];
+    button.dataset.complete = complete ? "true" : "false";
+    button.setAttribute(
+      "aria-label",
+      `${button.textContent.trim()}${complete ? ", complete" : ""}`,
+    );
   });
 }
 
@@ -588,7 +612,7 @@ function switchTab(name, focus = true) {
   });
   document.querySelectorAll("[data-tab]").forEach((button) => {
     if (button.dataset.tab === name) {
-      button.setAttribute("aria-current", "step");
+      button.setAttribute("aria-current", "page");
     } else {
       button.removeAttribute("aria-current");
     }
@@ -631,6 +655,60 @@ async function createEstate(event) {
     await openEstate(recordValue(record).estate_id);
   } catch (error) {
     showAlert(error.message);
+  }
+
+  function openDeleteDialog() {
+    const estate = recordValue(state.estate);
+    elements.deleteEstateName.textContent = estate.name;
+    elements.deleteForm.reset();
+    elements.deleteConfirmButton.disabled = true;
+    elements.deleteError.hidden = true;
+    elements.deleteError.textContent = "";
+    elements.deleteDialog.showModal();
+    elements.deleteConfirmation.focus();
+  }
+
+  function closeDeleteDialog() {
+    elements.deleteDialog.close();
+    elements.deleteForm.reset();
+    elements.deleteConfirmButton.disabled = true;
+    elements.deleteError.hidden = true;
+    elements.deleteError.textContent = "";
+  }
+
+  function updateDeleteConfirmation() {
+    const estate = recordValue(state.estate);
+    elements.deleteConfirmButton.disabled =
+      elements.deleteConfirmation.value !== estate.name;
+  }
+
+  async function deleteEstate(event) {
+    event.preventDefault();
+    const estate = recordValue(state.estate);
+    if (elements.deleteConfirmation.value !== estate.name) {
+      updateDeleteConfirmation();
+      return;
+    }
+
+    elements.deleteConfirmButton.disabled = true;
+    elements.deleteError.hidden = true;
+    try {
+      await api(`/v1/estates/${estate.estate_id}/purge`, {
+        method: "POST",
+        body: JSON.stringify({
+          confirmation: `PURGE ${estate.name}`,
+          reason: "Deleted through the knowledge estate workspace.",
+        }),
+      });
+      closeDeleteDialog();
+      state.estate = null;
+      await loadEstates();
+      announce(`${estate.name} deleted`);
+    } catch (error) {
+      elements.deleteError.textContent = error.message;
+      elements.deleteError.hidden = false;
+      updateDeleteConfirmation();
+    }
   }
 }
 
@@ -858,6 +936,10 @@ document.addEventListener("click", async (event) => {
     elements.createDialog.showModal();
   } else if (target.dataset.action === "close-create") {
     elements.createDialog.close();
+  } else if (target.dataset.action === "open-delete") {
+    openDeleteDialog();
+  } else if (target.dataset.action === "close-delete") {
+    closeDeleteDialog();
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {
@@ -873,6 +955,8 @@ document.addEventListener("click", async (event) => {
 });
 
 elements.createForm.addEventListener("submit", createEstate);
+elements.deleteForm.addEventListener("submit", deleteEstate);
+elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
 elements.sourceForm.addEventListener("submit", addSource);
 elements.uploadForm.addEventListener("submit", uploadFiles);
 elements.discoverButton.addEventListener("click", runDiscovery);

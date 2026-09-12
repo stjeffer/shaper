@@ -22,6 +22,12 @@ Implementation is active. The approved outcome preserves the five-agent architec
 
 ## Active Work
 
+### Align the Hosted Workspace with Copilot Studio
+
+* Active phase or task: P06-T03 remediation within the full-plan implementation
+* Intended result: Match the supplied Copilot Studio shell and modal references with an icon rail, rounded application frame, task-named tabs, list/table surfaces, large-radius dialog, consistent Fluent inputs, non-obscuring busy states, and durable estate-stage deep links.
+* Current blockers: None
+
 ### Deploy and Prove the Azure Workflow
 
 * Active phase or task: P07-T01
@@ -89,14 +95,59 @@ Implementation is active. The approved outcome preserves the five-agent architec
 ### Deploy the Evaluation Option, Authentication Flow, and Redesigned Workspace
 
 * Related phase or task: P07-T03 deployment evidence
-* Deployment: Revision `ca-shaper-dev--0000031`, image digest `sha256:0d91cab6f1a2705a36ebddceb097342bdf0e7a2576e6e846270041c0af2c0e29`
+* Deployment: Revision `ca-shaper-dev--0000034`, image digest `sha256:fff80671139a4cce3bd3db32fc9f36121b65ab5360327938a76f3607932a6abf`
 * Evidence: Revision is Healthy, RunningAtMaxScale, and receives 100% traffic; `/health/ready` reports every dependency ready. Anonymous `/concept/` returns the data-free shell, `/v1/session` remains protected, and a browser reaches the Microsoft Entra sign-in page through the explicit UI bootstrap.
 * Authentication correction: The Entra application now enables ID-token issuance because Container Apps authentication requests the hybrid `code id_token` response type. Deployment automation preserves this setting, preventing the post-sign-in 401 caused by the incomplete application registration.
 * Redirect-loop correction: The UI no longer probes the unavailable token-store-backed `/.auth/me` endpoint. It checks `/v1/session`, prevents `fetch` from following browser-only authentication redirects across origins, and converts the resulting 401 or opaque redirect into one top-level Entra navigation.
-* Workspace redesign: Replaced the generic administration shell with a Microsoft Fluent 2-style estate portfolio using Segoe UI, Microsoft blue, neutral surfaces, compact controls, restrained elevation, meaningful portfolio measures, scannable configuration cards, simplified governed-process navigation, and active/completed workflow stages. Page and estate titles now use a compact 24 px semibold application hierarchy rather than a large marketing-style treatment. Shaper retains its own product identity rather than using a protected Microsoft corporate logo. The design remains responsive and preserves named controls, landmark structure, visible focus, reduced motion, loading, access, empty, error, and approval states.
+* Workspace redesign: Matched the user-supplied Copilot Studio screenshots with an 88 px icon rail, rounded application frame, Segoe web type ramp, purple primary actions, segmented task tabs, rounded list/table containers, light-gray work cards, and a large 32 px-radius modal with spacious header, 48 px inputs, structured options, and separated footer actions. The estate flow now uses task names (Sources, Assess, Approve, Outputs), direct estate-stage URLs survive initialization, and busy feedback no longer fades the full workspace. Shaper retains its own product identity rather than copying protected Microsoft artwork. The design remains responsive and preserves named controls, autofocus, landmark structure, visible focus, reduced motion, loading, access, empty, error, and approval states.
 * Remaining acceptance boundary: PostgreSQL currently uses a protected password secret rather than the plan's passwordless application identity, and the post-authentication estate workspace requires user validation.
 
 ## Implementation-Time Plan and Detail Updates
+
+### Copilot Studio Appearance Requirement
+
+* Affected plan area or markers: User Decisions and Requirements, P06-T03, P07-T03
+* What changed: The hosted interface now explicitly targets a similar information hierarchy and interaction vocabulary to Microsoft Copilot Studio rather than only applying general Fluent colors and type.
+* Why: The user confirmed that general Microsoft styling is insufficient and the product must look the same as, or similar to, Copilot Studio.
+* Triggering evidence: User feedback and supplied live-workspace screenshot on 2026-09-11
+* User answer or decision: Use a Copilot Studio-like application shell and appearance.
+* Reconciliation performed: Updated the current requirement, P06-T03 expected result and detail boundary, and browser validation expectation while preserving the approved workflow and no-new-framework boundary.
+* Planning and critique state: Implementation-ready; the existing critique remains historical and is not repeated.
+
+### Copilot Studio Modal and Input Reference
+
+* Affected plan area or markers: P06-T03 remediation
+* What changed: The user added a fifth visual reference showing Copilot Studio's large centered modal, rounded container, muted backdrop, spacious header and body, large-radius input fields, close action, and separated footer.
+* Why: The deployed create-estate form still used the earlier compact generic dialog treatment.
+* Triggering evidence: `docs/Screenshots/Screenshot 2026-09-11 at 14.25.23.png`
+* User answer or decision: Update the modal and input form to match the supplied screenshot.
+* Reconciliation performed: Scoped the correction to the existing create-estate dialog without changing its domain fields, validation, or submit behavior.
+* Planning and critique state: Implementation-ready; no new planning decision or critique is required.
+
+### Copilot Studio Rail Action and Publish-Button Reference
+
+* Affected plan area or markers: P06-T03 remediation
+* What changed: The user identified the inactive rail control, removed the need for portfolio search, and supplied a close crop of Copilot Studio's Publish button.
+* Why: A current-page navigation link appears inert on the estate list, the small estate collection does not need search, and the solid-purple New estate action does not match the reference's pale lavender pill treatment.
+* Triggering evidence: User feedback and `docs/Screenshots/Screenshot 2026-09-11 at 14.40.19.png`
+* User answer or decision: Make the rail action functional, remove search, and copy the supplied Publish-button branding for New estate.
+* Reconciliation performed: Scoped the correction to the portfolio rail and creation entry point without changing estate creation behavior. A subsequent user adjustment also reduced the estate-list header, row, icon, and column dimensions.
+* Planning and critique state: Implementation-ready; no new planning decision or critique is required.
+
+### Compact Estate Source Workspace
+
+* Affected plan area or markers: P06-T03 remediation
+* What changed: The user supplied the rendered estate Sources screen and requested less vertical scrolling plus non-boilerplate dropdown and upload controls.
+* Why: Large top spacing, stage spacing, card padding, fields, and upload target push Registered sources below the fold; the native select chrome and generic drop target do not match the supplied Copilot Studio references.
+* Triggering evidence: User feedback and `docs/Screenshots/Screenshot 2026-09-11 at 14.54.04.png`
+* User answer or decision: Compact the estate workspace and restyle the select and upload controls.
+* Reconciliation performed: Scoped the change to density and control presentation; source kinds, accepted file types, validation, and submission behavior remain unchanged.
+* Planning and critique state: Implementation-ready; no new planning decision or critique is required.
+* Implementation: Reduced workspace, estate-heading, workflow, panel, card, field, and section spacing; added a custom select chevron; and replaced the generic upload glyph with a compact Shaper-branded upload treatment.
+* Responsive evidence: At 1600 by 900 pixels, Registered sources begins at 657 pixels and the complete source-entry panel is visible; at 390 pixels, the two cards reflow to one column with body width equal to viewport width.
+* Validation: Seven targeted architecture tests passed; JavaScript syntax, state JSON, and `git diff --check` passed; browser inspection confirmed an accessible named combobox and file input.
+* Deployment: Revision `ca-shaper-dev--0000035`, image digest `sha256:b80efb41555d59d1e063ac149fa42412086776b4f59fd650617913ba094f37a4`.
+* Live evidence: Revision is Healthy, RunningAtMaxScale, and receives 100% traffic; readiness dependencies report ready, live HTML references `20260911-ui9`, and anonymous direct-route startup reaches one Entra sign-in flow.
 
 ### UI Scope Confirmation
 
@@ -126,7 +177,7 @@ Implementation is active. The approved outcome preserves the five-agent architec
 | Ruff and strict mypy | P04-P05 | Passed | Changed recommendation and transformation files pass. |
 | Full pytest and coverage | P01-P07 | Passed | 148 tests passed; total coverage 78.52% exceeds 75%. |
 | Static and build validation | P06-P07 | Passed | Ruff, formatting, strict mypy, schema, JavaScript syntax, shell syntax, Bicep build, and diff checks passed. |
-| Azure revision | P07-T03 | Partial | Revision 0000031 is healthy with 100% traffic and RunningAtMaxScale. The compact Fluent-styled public shell, single session probe, protected API boundary, Entra redirect, active client credential, callback URI, and ID-token issuance pass; the post-authentication estate journey awaits user validation. |
+| Azure revision | P07-T03 | Partial | Revision 0000035 is healthy with 100% traffic and RunningAtMaxScale. The compact screenshot-aligned Sources workspace, branded select/upload controls, shell and modal, functional rail creation action, Publish-branded New estate action, compact estate rows, direct-stage routing, single session probe, protected API boundary, Entra redirect, active client credential, callback URI, and ID-token issuance pass; final product-owner visual validation and the complete post-authentication estate journey remain open. |
 
 ## Pre-Review Reconciliation
 

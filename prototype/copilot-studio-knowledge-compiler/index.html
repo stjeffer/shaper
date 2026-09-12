@@ -8,47 +8,29 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260911-ui4" />
+    <link rel="stylesheet" href="styles.css?v=20260911-ui10" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
-    <header class="topbar">
-      <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
-        <span class="brand-mark" aria-hidden="true">S</span>
-        <span class="brand-copy">
-          <strong>Shaper</strong>
-          <small>Knowledge transformation</small>
-        </span>
-      </a>
-      <div class="identity">
-        <span id="environment" class="environment"><span></span> Live service</span>
-        <span id="avatar" class="avatar" aria-hidden="true">--</span>
-      </div>
-    </header>
-
     <div class="app-shell">
       <nav class="sidebar" aria-label="Primary navigation">
-        <p class="nav-label">Workspace</p>
-        <a class="nav-item active" href="#estates" data-action="home" aria-current="page">
-          <span class="nav-icon" aria-hidden="true">⌂</span>
-          <span>
-            <strong>Knowledge estates</strong>
-            <small>Sources, evidence, outputs</small>
-          </span>
+        <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
+          <span class="brand-mark" aria-hidden="true">S</span>
         </a>
-        <div class="process-card">
-          <p class="nav-label">Governed process</p>
-          <ol>
-            <li><span>1</span> Define sources</li>
-            <li><span>2</span> Assess readiness</li>
-            <li><span>3</span> Approve changes</li>
-            <li><span>4</span> Publish knowledge</li>
-          </ol>
-          <p>Five specialist agents work inside one controlled workflow.</p>
-        </div>
-        <p class="platform-note">
-          Source content stays unchanged until you explicitly approve a transformation.
-        </p>
+        <button
+          class="nav-item"
+          type="button"
+          data-action="open-create"
+          aria-label="New estate"
+          title="New estate"
+        >
+          <span class="nav-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="sidebar-spacer"></div>
+        <span id="environment" class="environment" title="Live service"
+          ><span></span><span class="sr-only">Live service</span></span
+        >
+        <span id="avatar" class="avatar" aria-hidden="true">--</span>
       </nav>
 
       <main id="workspace" class="workspace" tabindex="-1">
@@ -78,30 +60,29 @@
         <section id="estateListView" hidden aria-labelledby="estateListTitle">
           <div class="page-heading portfolio-hero">
             <div>
-              <p class="eyebrow">SHAPER</p>
               <h1 id="estateListTitle">Knowledge estates</h1>
-              <p>
-                Organize source content, assess readiness, and publish governed knowledge for
-                your agents.
-              </p>
+              <p id="estateListCount">0 items</p>
             </div>
-            <button class="button primary" type="button" data-action="open-create">
-              <span aria-hidden="true">+</span> New estate
-            </button>
-            <div class="portfolio-metrics" aria-label="Knowledge estate summary">
+            <div class="portfolio-metrics sr-only" aria-label="Knowledge estate summary">
               <div><strong id="estateTotal">0</strong><span>Total estates</span></div>
               <div><strong id="estateActive">0</strong><span>Active</span></div>
               <div><strong id="estateEvaluated">0</strong><span>With evaluations</span></div>
             </div>
           </div>
-          <div class="collection-heading">
-            <div>
-              <p class="eyebrow">ESTATES</p>
-              <h2>All knowledge estates</h2>
-            </div>
-            <p>Select an estate to continue shaping its content.</p>
+          <div class="list-toolbar">
+            <button class="button primary" type="button" data-action="open-create">
+              New estate
+            </button>
           </div>
-          <div id="estateList" class="estate-grid" aria-live="polite"></div>
+          <div class="estate-list-shell">
+            <div class="estate-list-header" aria-hidden="true">
+              <span>Name</span>
+              <span>Status</span>
+              <span>Evaluations</span>
+              <span>Last modified</span>
+            </div>
+            <div id="estateList" class="estate-grid" aria-live="polite"></div>
+          </div>
           <div id="estateEmpty" class="empty-state" hidden>
             <span aria-hidden="true">◇</span>
             <h2>No knowledge estates yet</h2>
@@ -117,44 +98,40 @@
             <span aria-hidden="true">←</span> All knowledge estates
           </button>
           <div class="page-heading estate-heading">
-            <div>
-              <p class="eyebrow">ESTATE WORKSPACE</p>
-              <h1 id="estateTitle">Estate</h1>
-              <p id="estateDescription"></p>
+            <div class="entity-title">
+              <span class="entity-icon" aria-hidden="true">K</span>
+              <div>
+                <h1 id="estateTitle">Estate</h1>
+                <p id="estateDescription"></p>
+              </div>
             </div>
             <div class="estate-state">
+              <button class="button danger" type="button" data-action="open-delete">
+                Delete estate
+              </button>
               <span>Lifecycle</span>
               <strong id="estateStatus" class="badge">Active</strong>
             </div>
           </div>
 
-          <ol class="workflow" aria-label="Knowledge transformation workflow">
-            <li>
-              <button type="button" data-tab="sources" aria-current="step">
-                <span>1</span><strong>Define</strong><small>Add source content</small>
-              </button>
-            </li>
-            <li>
-              <button type="button" data-tab="discover">
-                <span>2</span><strong>Discover</strong><small>Assess readiness</small>
-              </button>
-            </li>
-            <li>
-              <button type="button" data-tab="recommend">
-                <span>3</span><strong>Recommend</strong><small>Approve changes</small>
-              </button>
-            </li>
-            <li>
-              <button type="button" data-tab="transform">
-                <span>4</span><strong>Transform</strong><small>Review outputs</small>
-              </button>
-            </li>
-          </ol>
+          <nav class="workflow" aria-label="Knowledge transformation workflow">
+            <button type="button" data-tab="sources" aria-current="page">
+              <span aria-hidden="true"></span><strong>Sources</strong>
+            </button>
+            <button type="button" data-tab="discover">
+              <span aria-hidden="true"></span><strong>Assess</strong>
+            </button>
+            <button type="button" data-tab="recommend">
+              <span aria-hidden="true"></span><strong>Approve</strong>
+            </button>
+            <button type="button" data-tab="transform">
+              <span aria-hidden="true"></span><strong>Outputs</strong>
+            </button>
+          </nav>
 
           <section class="panel" data-panel="sources" aria-labelledby="sourcesTitle">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">DEFINE</p>
                 <h2 id="sourcesTitle" tabindex="-1">Sources in this estate</h2>
                 <p>Add references or upload source content. Registered does not mean connected.</p>
               </div>
@@ -163,10 +140,13 @@
               <form id="sourceForm" class="form-card">
                 <h3>Add a location</h3>
                 <label for="sourceKind">Source type</label>
-                <select id="sourceKind" name="kind">
-                  <option value="sharepoint">SharePoint site or library</option>
-                  <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
-                </select>
+                <div class="select-field">
+                  <select id="sourceKind" name="kind">
+                    <option value="sharepoint">SharePoint site or library</option>
+                    <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
+                  </select>
+                  <span aria-hidden="true"></span>
+                </div>
                 <label for="sourceName">Display name</label>
                 <input id="sourceName" name="display_name" required maxlength="300" />
                 <label for="sourceUrl">URL</label>
@@ -177,7 +157,7 @@
                 <h3>Upload content</h3>
                 <p>Upload individual PDF, Word, Markdown, or text files, or a safe ZIP bundle.</p>
                 <label class="file-drop" for="files">
-                  <span aria-hidden="true">↑</span>
+                  <span aria-hidden="true"></span>
                   <strong>Choose files</strong>
                   <small id="fileSummary">No files selected</small>
                 </label>
@@ -202,7 +182,6 @@
           <section class="panel" data-panel="discover" hidden aria-labelledby="discoverTitle">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">READ-ONLY ASSESSMENT</p>
                 <h2 id="discoverTitle" tabindex="-1">Document readiness</h2>
                 <p>
                   The five-agent process scores each current source version and estimates
@@ -243,7 +222,6 @@
           <section class="panel" data-panel="recommend" hidden aria-labelledby="recommendTitle">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">HUMAN DECISION</p>
                 <h2 id="recommendTitle" tabindex="-1">Review proposed transformations</h2>
                 <p>
                   Token estimates are calculated before model use. Only explicitly approved
@@ -273,7 +251,6 @@
           <section class="panel" data-panel="transform" hidden aria-labelledby="transformTitle">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">GENERATED ASSETS</p>
                 <h2 id="transformTitle" tabindex="-1">Review agent-ready HTML</h2>
                 <p>
                   Generated outputs remain unavailable to consuming agents until a separate
@@ -295,39 +272,98 @@
       <form id="createForm" method="dialog">
         <div class="dialog-heading">
           <div>
-            <p class="eyebrow">NEW ESTATE</p>
             <h2 id="createTitle">Create a knowledge estate</h2>
+            <p>Group source content and prepare it as governed, agent-ready knowledge.</p>
           </div>
-          <button class="icon-button" value="cancel" aria-label="Close">×</button>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-create"
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
-        <label for="estateName">Name</label>
-        <input id="estateName" name="name" required maxlength="200" autofocus />
-        <label for="estateDescriptionInput">Description</label>
-        <textarea
-          id="estateDescriptionInput"
-          name="description"
-          maxlength="2000"
-          rows="3"
-        ></textarea>
-        <label for="artifactTemplate">Output naming convention</label>
-        <input
-          id="artifactTemplate"
-          name="artifact_name_template"
-          value="shaper_{source_stem}.html"
-          required
-          maxlength="200"
-        />
-        <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
-        <label class="checkbox-option" for="createEvaluations">
-          <input id="createEvaluations" name="generate_evaluations" type="checkbox" />
-          Create evaluations for reshaped content
-        </label>
-        <p class="hint">
-          Adds citation coverage, structure, and validation checks to every generated asset.
-        </p>
+        <div class="dialog-body">
+          <label for="estateName">Name</label>
+          <input
+            id="estateName"
+            name="name"
+            placeholder="Enter a knowledge estate name"
+            required
+            maxlength="200"
+            autofocus
+          />
+          <label for="estateDescriptionInput">Description</label>
+          <textarea
+            id="estateDescriptionInput"
+            name="description"
+            placeholder="Describe the content and intended agent use"
+            maxlength="2000"
+            rows="3"
+          ></textarea>
+          <label for="artifactTemplate">Output naming convention</label>
+          <input
+            id="artifactTemplate"
+            name="artifact_name_template"
+            value="shaper_{source_stem}.html"
+            required
+            maxlength="200"
+          />
+          <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
+          <label class="checkbox-option dialog-option" for="createEvaluations">
+            <input id="createEvaluations" name="generate_evaluations" type="checkbox" />
+            <span>
+              <strong>Create evaluations for reshaped content</strong>
+              <small
+                >Add citation coverage, structure, and validation checks to every generated
+                asset.</small
+              >
+            </span>
+          </label>
+        </div>
         <div class="dialog-actions">
           <button class="button quiet" type="button" data-action="close-create">Cancel</button>
           <button class="button primary" type="submit">Create estate</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deleteDialog" class="confirm-dialog" aria-labelledby="deleteTitle">
+      <form id="deleteForm">
+        <div class="dialog-heading">
+          <div>
+            <h2 id="deleteTitle">Delete knowledge estate?</h2>
+            <p>This permanently removes the estate, its sources, and generated content.</p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-delete"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="dialog-body">
+          <p class="destructive-warning">
+            This action cannot be undone. To confirm, enter
+            <strong id="deleteEstateName"></strong>.
+          </p>
+          <label for="deleteConfirmation">Knowledge estate name</label>
+          <input
+            id="deleteConfirmation"
+            name="confirmation"
+            autocomplete="off"
+            required
+          />
+          <p id="deleteError" class="dialog-error" role="alert" hidden></p>
+        </div>
+        <div class="dialog-actions">
+          <button class="button quiet" type="button" data-action="close-delete">Cancel</button>
+          <button id="deleteConfirmButton" class="button destructive" type="submit" disabled>
+            Delete estate
+          </button>
         </div>
       </form>
     </dialog>
@@ -339,6 +375,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260911-ui4"></script>
+    <script src="app.js?v=20260911-ui10"></script>
   </body>
 </html>

@@ -909,11 +909,11 @@ Knowledge Estates is a dead link and the current flow renders server-owned fixed
 
 #### Intent
 
-Implement screens for estate list, definition, sources, inventory and discovery, selection and recommendations, decisions, transformation progress, artifacts, archive, and purge. Poll server-owned durable run resources rather than simulating progress.
+Implement screens for estate list, definition, sources, inventory and discovery, selection and recommendations, decisions, transformation progress, artifacts, archive, and purge. Use a compact Copilot Studio-like Fluent application shell with task-named tabs and durable deep links. Poll server-owned durable run resources rather than simulating progress.
 
 #### Boundaries
 
-* Included: Public signed-out shell; existing static HTML, CSS, and JavaScript surface; same-origin protected API; truthful status; durable run polling; partial results; retry; responsive state
+* Included: Public signed-out shell; existing static HTML, CSS, and JavaScript surface; same-origin protected API; Copilot Studio-like Fluent web typography, navigation, tabs, command surfaces, and loading treatment; truthful status; durable run polling; partial results; retry; responsive state
 * Excluded: New frontend framework and simulated success
 
 #### Likely Targets
@@ -930,6 +930,7 @@ Implement screens for estate list, definition, sources, inventory and discovery,
 
 * Verify signed-out, no-grant, loading, empty, unauthorized, authorization-required, partial-source failure, validation failure, conflict, progress, budget-exhausted, re-estimate, archive, purge, success, and retry states.
 * Ensure selected-document count, token totals, and decision states come from live data.
+* Compare the rendered estate list and workspace hierarchy against current Copilot Studio and Fluent web patterns, and verify a direct estate-stage URL remains on that estate and stage after initialization.
 
 #### Completion Evidence
 
