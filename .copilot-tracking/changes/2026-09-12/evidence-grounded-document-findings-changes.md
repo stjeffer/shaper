@@ -61,6 +61,9 @@
   handler can invoke it.
 * Extended existing tests with exact detector-catalog equality plus missing,
   cross-estate, deleted, and stale-version retrieval assertions.
+* Reused the existing Result-card visual system for high-severity findings and
+  changed normalized source content from a monospace code font to the interface
+  font.
 
 ### Deploy and verify
 
@@ -71,6 +74,10 @@
 * Deployed healthy revision `ca-shaper-dev--r7bbaba0` with 100 percent traffic.
 * Verified liveness, readiness, `/concept/`, dialog loading and closure, keyboard
   focus return, evidence semantics, and a 375-pixel viewport.
+* Deployed the final visual alignment as image
+  `crshaperdevi5e45vhjjbud6.azurecr.io/shaper:20260912-0057364`, digest
+  `sha256:fd4f476fc0cd5007dddab30d8aaee9bc2d0865ceb5ff161095b34c31b2ce9dea`,
+  on healthy revision `ca-shaper-dev--r0057364` with 100 percent traffic.
 
 ## Validation
 

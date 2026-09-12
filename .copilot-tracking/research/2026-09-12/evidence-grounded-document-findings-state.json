@@ -49,6 +49,11 @@
       "decision": "Commit 7bbaba0 was deployed as healthy revision ca-shaper-dev--r7bbaba0 with 100 percent traffic.",
       "status": "confirmed",
       "evidence": "Azure Container Apps deployment verification"
+    },
+    {
+      "decision": "Finding cards were aligned with the existing UI and normalized source uses the interface font; commit 0057364 was deployed as healthy revision ca-shaper-dev--r0057364.",
+      "status": "confirmed",
+      "evidence": ".copilot-tracking/changes/2026-09-12/evidence-grounded-document-findings-changes.md"
     }
   ],
   "blockers": [],
