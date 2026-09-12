@@ -103,6 +103,7 @@ const elements = {
   editEvaluations: document.querySelector("#editEvaluations"),
   editConfirmButton: document.querySelector("#editConfirmButton"),
   editError: document.querySelector("#editError"),
+  sourceInputTabs: document.querySelector(".source-input-tabs"),
   deleteDialog: document.querySelector("#deleteDialog"),
   deleteForm: document.querySelector("#deleteForm"),
   deleteEstateName: document.querySelector("#deleteEstateName"),
@@ -824,6 +825,18 @@ function renderSources() {
     elements.sourceList.append(
       text("p", "No sources have been registered.", "empty-inline"),
     );
+  }
+
+  function switchSourceInputTab(name, focus = true) {
+    document.querySelectorAll("[data-source-input-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.sourceInputPanel !== name;
+    });
+    document.querySelectorAll("[data-source-input-tab]").forEach((button) => {
+      const selected = button.dataset.sourceInputTab === name;
+      button.setAttribute("aria-selected", `${selected}`);
+      button.tabIndex = selected ? 0 : -1;
+      if (selected && focus) button.focus();
+    });
   }
   updateWorkflowProgress();
 }
@@ -1749,6 +1762,8 @@ document.addEventListener("click", async (event) => {
     elements.createDialog.close();
   } else if (target.dataset.action === "close-edit") {
     closeEditDialog();
+  } else if (target.dataset.sourceInputTab) {
+    switchSourceInputTab(target.dataset.sourceInputTab, false);
   } else if (target.dataset.estateMenuToggle) {
     toggleEstateMenu(target.dataset.estateMenuToggle);
   } else if (target.dataset.estateEdit) {
@@ -1784,6 +1799,22 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  const sourceTab = event.target.closest("[data-source-input-tab]");
+  if (sourceTab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const tabs = [...elements.sourceInputTabs.querySelectorAll("[data-source-input-tab]")];
+    const current = tabs.indexOf(sourceTab);
+    let next = 0;
+    if (event.key === "End") {
+      next = tabs.length - 1;
+    } else if (event.key === "ArrowLeft") {
+      next = current <= 0 ? tabs.length - 1 : current - 1;
+    } else if (event.key === "ArrowRight") {
+      next = current === tabs.length - 1 ? 0 : current + 1;
+    }
+    switchSourceInputTab(tabs[next].dataset.sourceInputTab);
+    return;
+  }
   if (event.key === "Escape" && state.openEstateMenuId) {
     event.preventDefault();
     closeEstateMenus({ restoreFocus: true });

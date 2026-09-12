@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-estate-actions" />
+    <link rel="stylesheet" href="styles.css?v=20260912-source-tabs" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -189,8 +189,37 @@
                 <p>Add references or upload source content. Registered does not mean connected.</p>
               </div>
             </div>
-            <div class="split-layout">
-              <form id="sourceForm" class="form-card">
+            <div class="source-input-tabs" role="tablist" aria-label="Add content source">
+              <button
+                id="locationSourceTab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="locationSourcePanel"
+                data-source-input-tab="location"
+              >
+                URL or SharePoint
+              </button>
+              <button
+                id="uploadSourceTab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="uploadSourcePanel"
+                data-source-input-tab="upload"
+                tabindex="-1"
+              >
+                File upload
+              </button>
+            </div>
+            <div class="source-input-panels">
+              <form
+                id="sourceForm"
+                class="form-card source-input-panel"
+                role="tabpanel"
+                aria-labelledby="locationSourceTab"
+                data-source-input-panel="location"
+              >
                 <h3>Add a location</h3>
                 <label for="sourceKind">Source type</label>
                 <div class="select-field">
@@ -206,7 +235,15 @@
                 <input id="sourceUrl" name="locator" type="url" required maxlength="2048" />
                 <button class="button secondary" type="submit">Add location</button>
               </form>
-              <form id="uploadForm" class="form-card" enctype="multipart/form-data">
+              <form
+                id="uploadForm"
+                class="form-card source-input-panel"
+                enctype="multipart/form-data"
+                role="tabpanel"
+                aria-labelledby="uploadSourceTab"
+                data-source-input-panel="upload"
+                hidden
+              >
                 <h3>Upload content</h3>
                 <p>Upload individual PDF, Word, Markdown, or text files, or a safe ZIP bundle.</p>
                 <label class="file-drop" for="files">
@@ -569,6 +606,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-discovery-selection"></script>
+    <script src="app.js?v=20260912-source-tabs"></script>
   </body>
 </html>

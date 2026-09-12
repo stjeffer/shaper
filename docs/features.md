@@ -71,6 +71,7 @@ implemented check set.
 Users can:
 
 * Create a named estate with a description and output naming convention
+* Switch between accessible **URL or SharePoint** and **File upload** tabs
 * Register URL or SharePoint sources
 * Upload individual files or bounded ZIP bundles
 * Review the current document inventory

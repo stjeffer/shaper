@@ -188,6 +188,10 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'data-action="open-delete"' in html
     assert 'id="editDialog"' in html
     assert 'id="editForm"' in html
+    assert 'role="tablist" aria-label="Add content source"' in html
+    assert 'data-source-input-tab="location"' in html
+    assert 'data-source-input-tab="upload"' in html
+    assert 'data-source-input-panel="upload"' in html
     assert 'id="deleteConfirmation"' in html
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app
@@ -195,6 +199,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "checkbox.disabled = isArchived()" in browser_app
     assert "checkbox.disabled = !report" not in browser_app
     assert "selected for recommendations" in browser_app
+    assert "function switchSourceInputTab(name, focus = true)" in browser_app
     assert "await loadEstates(true)" in browser_app
     assert 'menu.setAttribute("role", "menu")' in browser_app
     assert 'editButton.setAttribute("role", "menuitem")' in browser_app

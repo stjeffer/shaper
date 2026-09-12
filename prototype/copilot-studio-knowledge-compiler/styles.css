@@ -808,6 +808,49 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.source-input-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 4px;
+  background: #f1f1f1;
+  border-radius: 12px 12px 0 0;
+}
+
+.source-input-tabs button {
+  min-height: 40px;
+  padding: 8px 16px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.source-input-tabs button:hover {
+  color: var(--ink);
+  background: #e7e7e7;
+}
+
+.source-input-tabs button[aria-selected="true"] {
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.source-input-panels {
+  margin-bottom: 28px;
+}
+
+.source-input-panel.form-card {
+  border-radius: 0 0 24px 24px;
+}
+
+.source-input-panel[hidden] {
+  display: none;
+}
+
 .form-card {
   display: grid;
   align-content: start;
