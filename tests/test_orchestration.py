@@ -7,7 +7,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from shaper.application.assessment import EstateAssessmentService
+from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
 from shaper.application.orchestration import (
     AgentReadinessAgent,
     AssessmentAgent,
@@ -20,7 +20,7 @@ from shaper.domain import (
     KnowledgeTransformationAnalysis,
     SpecialistAgentRole,
 )
-from tests.test_assessment import ASSESSED_AT, travel_estate
+from tests.test_assessment import ASSESSED_AT, profile, travel_estate
 
 
 def orchestrator(
@@ -62,19 +62,35 @@ def test_given_estate_when_analyzed_then_all_specialist_roles_share_evidence() -
     )
 
 
-def test_transformation_agent_returns_proposals_without_execution() -> None:
+def test_given_assessment_when_transformed_then_only_content_work_is_proposed() -> None:
+    # Arrange
+    agent = TransformationAgent()
+    legacy_owner_report = (
+        DocumentAssessmentService()
+        .report(
+            run_id="discover-1",
+            estate_id="estate-1",
+            source_version="0" * 64,
+            profile=profile("ownerless", owner=None),
+            assessed_at=ASSESSED_AT,
+        )
+        .model_copy(update={"finding_codes": ("missing_owner",)})
+    )
+
     # Act
     analysis = orchestrator().analyze(
         collection_id="policies",
         profiles=travel_estate(),
         assessed_at=ASSESSED_AT,
     )
+    legacy_actions = agent.recommend(legacy_owner_report)
 
     # Assert
     assert analysis.transformation.proposals
     assert analysis.transformation.proposal_only
     assert not analysis.transformation.execution_available
     assert all(item.approval_required for item in analysis.transformation.proposals)
+    assert legacy_actions == ("Create a canonical agent-ready HTML knowledge asset",)
 
 
 def test_given_current_mvp_when_governance_agent_runs_then_schedule_is_not_claimed() -> None:

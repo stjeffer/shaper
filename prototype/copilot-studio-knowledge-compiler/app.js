@@ -15,6 +15,53 @@ const state = {
   selectedDocuments: new Set(),
 };
 
+const RESULT_PRESENTATION = Object.freeze({
+  poor_metadata: {
+    label: "Limited metadata",
+    detail: "Core topic and content metadata is incomplete.",
+    icon: "◇",
+    tone: "info",
+  },
+  structure_gap: {
+    label: "Weak structure",
+    detail: "Headings or focused content sections are missing.",
+    icon: "▤",
+    tone: "info",
+  },
+  stale: {
+    label: "Freshness risk",
+    detail: "The source is beyond the three-year review threshold.",
+    icon: "◷",
+    tone: "warning",
+  },
+  long_paragraph: {
+    label: "Long paragraph",
+    detail: "A passage exceeds 150 words and may reduce retrieval precision.",
+    icon: "↔",
+    tone: "warning",
+  },
+  cross_policy_reference: {
+    label: "Document reference",
+    detail: "A reference to another governed source needs explicit context.",
+    icon: "↗",
+    tone: "warning",
+  },
+  faq_gap: {
+    label: "No question coverage",
+    detail: "No FAQ or question-shaped content was detected.",
+    icon: "?",
+    tone: "info",
+  },
+  procedure_gap: {
+    label: "Implicit procedure",
+    detail: "Procedural language is not organized into explicit steps.",
+    icon: "1·",
+    tone: "warning",
+  },
+});
+
+const ACCOUNTABILITY_ONLY_FINDINGS = new Set(["missing_owner"]);
+
 const elements = {
   workspace: document.querySelector("#workspace"),
   status: document.querySelector("#status"),
@@ -135,6 +182,54 @@ function text(tag, value, className) {
   node.textContent = value;
   if (className) node.className = className;
   return node;
+}
+
+function resultItem({ label, detail, icon, tone }) {
+  const item = document.createElement("li");
+  item.className = `result-item ${tone}`;
+  const symbol = text("span", icon, "result-icon");
+  symbol.setAttribute("aria-hidden", "true");
+  const copy = document.createElement("span");
+  copy.className = "result-copy";
+  copy.append(text("strong", label), text("small", detail));
+  item.append(symbol, copy);
+  return item;
+}
+
+function classifyResults(codes = []) {
+  const classified = codes
+    .map((code) => RESULT_PRESENTATION[code])
+    .filter((result) => result !== undefined);
+  const hasUnknown = codes.some(
+    (code) => !RESULT_PRESENTATION[code] && !ACCOUNTABILITY_ONLY_FINDINGS.has(code),
+  );
+  if (hasUnknown) {
+    classified.push({
+      label: "Additional issue detected",
+      detail: "This assessment includes a result this version cannot display yet.",
+      icon: "!",
+      tone: "unknown",
+    });
+  }
+  return classified;
+}
+
+function documentResults(codes = []) {
+  const results = document.createElement("ul");
+  results.className = "result-list";
+  results.setAttribute("aria-label", "Content quality results");
+  results.append(...classifyResults(codes).map(resultItem));
+  if (results.children.length === 0) {
+    results.append(
+      resultItem({
+        label: "No content issues detected",
+        detail: "No supported reshaping issues were found in this source version.",
+        icon: "✓",
+        tone: "clear",
+      }),
+    );
+  }
+  return results;
 }
 
 function formatDate(value) {
@@ -408,9 +503,12 @@ function renderDocuments() {
           ),
         );
         const findingsCell = document.createElement("td");
-        findingsCell.textContent = report
-          ? report.reasons.join(" ")
-          : "Run discovery to assess this source version.";
+        findingsCell.className = "results-cell";
+        if (report) {
+          findingsCell.append(documentResults(report.finding_codes));
+        } else {
+          findingsCell.append(text("span", "Run discovery to assess this source version.", "pending-result"));
+        }
         row.append(selectCell, documentCell, scoreCell, effortCell, findingsCell);
         return row;
       }),
@@ -430,14 +528,14 @@ function renderDiscoverySummary() {
       reports.length,
   );
   const highEffort = reports.filter((report) => report.effort_band === "high").length;
-  const findings = reports.reduce(
-    (total, report) => total + report.finding_codes.length,
+  const results = reports.reduce(
+    (total, report) => total + classifyResults(report.finding_codes).length,
     0,
   );
   elements.discoverySummary.replaceChildren(
     metric("Estate readiness", `${average}/100`),
     metric("High-effort documents", highEffort),
-    metric("Quality findings", findings),
+    metric("Results found", results),
   );
 }
 
