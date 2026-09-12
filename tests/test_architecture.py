@@ -199,7 +199,10 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "checkbox.disabled = isArchived()" in browser_app
     assert "checkbox.disabled = !report" not in browser_app
     assert "selected for recommendations" in browser_app
-    assert "function switchSourceInputTab(name, focus = true)" in browser_app
+    assert "\nfunction switchSourceInputTab(name, focus = true)" in browser_app
+    assert "\n  function switchSourceInputTab(name, focus = true)" not in browser_app
+    assert 'elements.sourceInputTabs.addEventListener("click"' in browser_app
+    assert 'elements.sourceInputTabs.addEventListener("keydown"' in browser_app
     assert "await loadEstates(true)" in browser_app
     assert 'menu.setAttribute("role", "menu")' in browser_app
     assert 'editButton.setAttribute("role", "menuitem")' in browser_app

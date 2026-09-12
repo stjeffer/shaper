@@ -702,6 +702,7 @@ async function openEstate(estateId, targetTab = "sources") {
     state.selectedDocuments.clear();
     await restoreWorkflowEvidence(estateId);
     renderEstate();
+    switchSourceInputTab("location", false);
     switchTab(targetTab, false);
     history.replaceState(null, "", `#estate/${estateId}/${targetTab}`);
   } catch (error) {
@@ -826,19 +827,19 @@ function renderSources() {
       text("p", "No sources have been registered.", "empty-inline"),
     );
   }
-
-  function switchSourceInputTab(name, focus = true) {
-    document.querySelectorAll("[data-source-input-panel]").forEach((panel) => {
-      panel.hidden = panel.dataset.sourceInputPanel !== name;
-    });
-    document.querySelectorAll("[data-source-input-tab]").forEach((button) => {
-      const selected = button.dataset.sourceInputTab === name;
-      button.setAttribute("aria-selected", `${selected}`);
-      button.tabIndex = selected ? 0 : -1;
-      if (selected && focus) button.focus();
-    });
-  }
   updateWorkflowProgress();
+}
+
+function switchSourceInputTab(name, focus = true) {
+  document.querySelectorAll("[data-source-input-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.sourceInputPanel !== name;
+  });
+  document.querySelectorAll("[data-source-input-tab]").forEach((button) => {
+    const selected = button.dataset.sourceInputTab === name;
+    button.setAttribute("aria-selected", `${selected}`);
+    button.tabIndex = selected ? 0 : -1;
+    if (selected && focus) button.focus();
+  });
 }
 
 function renderDocuments() {
@@ -1762,8 +1763,6 @@ document.addEventListener("click", async (event) => {
     elements.createDialog.close();
   } else if (target.dataset.action === "close-edit") {
     closeEditDialog();
-  } else if (target.dataset.sourceInputTab) {
-    switchSourceInputTab(target.dataset.sourceInputTab, false);
   } else if (target.dataset.estateMenuToggle) {
     toggleEstateMenu(target.dataset.estateMenuToggle);
   } else if (target.dataset.estateEdit) {
@@ -1799,22 +1798,6 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  const sourceTab = event.target.closest("[data-source-input-tab]");
-  if (sourceTab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
-    event.preventDefault();
-    const tabs = [...elements.sourceInputTabs.querySelectorAll("[data-source-input-tab]")];
-    const current = tabs.indexOf(sourceTab);
-    let next = 0;
-    if (event.key === "End") {
-      next = tabs.length - 1;
-    } else if (event.key === "ArrowLeft") {
-      next = current <= 0 ? tabs.length - 1 : current - 1;
-    } else if (event.key === "ArrowRight") {
-      next = current === tabs.length - 1 ? 0 : current + 1;
-    }
-    switchSourceInputTab(tabs[next].dataset.sourceInputTab);
-    return;
-  }
   if (event.key === "Escape" && state.openEstateMenuId) {
     event.preventDefault();
     closeEstateMenus({ restoreFocus: true });
@@ -1863,6 +1846,26 @@ elements.createForm.addEventListener("submit", createEstate);
 elements.editForm.addEventListener("submit", editEstate);
 elements.deleteForm.addEventListener("submit", deleteEstate);
 elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
+elements.sourceInputTabs.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-source-input-tab]");
+  if (tab) switchSourceInputTab(tab.dataset.sourceInputTab, false);
+});
+elements.sourceInputTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-source-input-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [...elements.sourceInputTabs.querySelectorAll("[data-source-input-tab]")];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchSourceInputTab(tabs[next].dataset.sourceInputTab);
+});
 elements.sourceForm.addEventListener("submit", addSource);
 elements.uploadForm.addEventListener("submit", uploadFiles);
 elements.discoverButton.addEventListener("click", runDiscovery);

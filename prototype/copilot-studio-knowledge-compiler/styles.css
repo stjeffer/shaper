@@ -809,34 +809,34 @@ h3 {
 }
 
 .source-input-tabs {
-  display: flex;
-  gap: 4px;
-  margin-top: 16px;
+  display: inline-flex;
+  gap: 0;
+  margin: 16px 0 12px;
   padding: 4px;
-  background: #f1f1f1;
-  border-radius: 12px 12px 0 0;
+  background: #f4f4f4;
+  border-radius: 18px;
 }
 
 .source-input-tabs button {
-  min-height: 40px;
-  padding: 8px 16px;
-  color: var(--muted);
+  min-height: 38px;
+  padding: 0 16px;
+  color: #424242;
   background: transparent;
-  border: 0;
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .source-input-tabs button:hover {
-  color: var(--ink);
-  background: #e7e7e7;
+  background: #ececec;
 }
 
 .source-input-tabs button[aria-selected="true"] {
-  color: var(--ink);
+  color: #242424;
   background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  border-color: #d7d7d7;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 12%);
 }
 
 .source-input-panels {
@@ -844,7 +844,7 @@ h3 {
 }
 
 .source-input-panel.form-card {
-  border-radius: 0 0 24px 24px;
+  border-radius: 24px;
 }
 
 .source-input-panel[hidden] {
