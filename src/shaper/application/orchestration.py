@@ -94,7 +94,6 @@ class TransformationAgent:
     def recommend(self, report: DocumentReadinessReport) -> tuple[str, ...]:
         """Map deterministic discovery evidence to bounded proposed changes."""
         actions = {
-            "missing_owner": "Add accountable ownership metadata",
             "poor_metadata": "Generate structured topic and content metadata",
             "structure_gap": "Create meaningful heading structure",
             "stale": "Flag statements that require freshness confirmation",

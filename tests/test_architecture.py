@@ -55,6 +55,27 @@ def test_given_postgres_deployment_when_inspected_then_compatibility_state_is_lo
     assert '"/.auth/me"' not in browser_app
 
 
+def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -> None:
+    # Arrange
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+
+    # Act
+    markup = (concept_root / "index.html").read_text(encoding="utf-8")
+    script = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    # Assert
+    assert '<th scope="col">Results</th>' in markup
+    assert "documentResults(report.finding_codes)" in script
+    assert '"missing_owner"' in script
+    assert "Add an accountable owner" not in script
+    assert "Long paragraph" in script
+    assert "Document reference" in script
+    assert "Additional issue detected" in script
+    assert 'metric("Results found", results)' in script
+    assert "result-list" in styles
+
+
 def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -> None:
     dockerfile = (REPOSITORY_ROOT / "Dockerfile").read_text(encoding="utf-8")
 

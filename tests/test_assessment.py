@@ -239,3 +239,29 @@ def test_given_long_paragraph_and_policy_reference_when_reported_then_effort_is_
     assert {"long_paragraph", "cross_policy_reference"}.issubset(report.finding_codes)
     assert report.effort_points > 30
     assert report.reasons
+
+
+def test_given_ownerless_document_when_reported_then_reshaping_evidence_is_unchanged() -> None:
+    # Arrange
+    service = DocumentAssessmentService()
+
+    # Act
+    owned = service.report(
+        run_id="discover-1",
+        estate_id="estate-1",
+        source_version="0" * 64,
+        profile=profile("owned"),
+        assessed_at=ASSESSED_AT,
+    )
+    ownerless = service.report(
+        run_id="discover-1",
+        estate_id="estate-1",
+        source_version="0" * 64,
+        profile=profile("ownerless", owner=None),
+        assessed_at=ASSESSED_AT,
+    )
+
+    # Assert
+    assert ownerless.model_dump(exclude={"report_id", "document_id"}) == owned.model_dump(
+        exclude={"report_id", "document_id"}
+    )

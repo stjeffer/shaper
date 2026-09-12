@@ -116,8 +116,6 @@ class DocumentAssessmentService:
         assessed_at: datetime,
     ) -> tuple[str, ...]:
         codes = []
-        if profile.owner is None:
-            codes.append(AssessmentFindingKind.MISSING_OWNER.value)
         if len(profile.metadata) < 2:
             codes.append(AssessmentFindingKind.POOR_METADATA.value)
         if _structure_score(profile) < 50:
@@ -137,7 +135,6 @@ class DocumentAssessmentService:
     @staticmethod
     def _reasons(codes: Sequence[str]) -> tuple[str, ...]:
         labels = {
-            AssessmentFindingKind.MISSING_OWNER.value: "Add an accountable owner.",
             AssessmentFindingKind.POOR_METADATA.value: "Add core topic and content metadata.",
             AssessmentFindingKind.STRUCTURE_GAP.value: "Introduce meaningful document structure.",
             AssessmentFindingKind.STALE.value: "Review the source for freshness.",
@@ -237,7 +234,7 @@ class EstateAssessmentService:
             _metric(
                 MetricName.METADATA_COMPLETENESS,
                 _mean(_metadata_score(profile) for profile in profiles),
-                "Measures owner and core metadata coverage.",
+                "Measures core topic and content metadata coverage.",
                 profiles,
             ),
             _metric(
@@ -423,9 +420,7 @@ def _readability_score(text: str) -> float | None:
 
 
 def _metadata_score(profile: KnowledgeDocumentProfile) -> float:
-    owner_score = 40 if profile.owner else 0
-    metadata_score = min(60, 15 * len(profile.metadata))
-    return owner_score + metadata_score
+    return min(100, 25 * len(profile.metadata))
 
 
 def _freshness_score(profile: KnowledgeDocumentProfile, assessed_at: datetime) -> float:
