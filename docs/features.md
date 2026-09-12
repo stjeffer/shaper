@@ -46,13 +46,14 @@ current-version assessment coverage:
 
 * **No documents** means the estate has no current documents to assess.
 * **Not assessed** means no current document version has a matching report.
-* **Partially assessed** means some, but not all, current document versions have
-  matching reports.
+* **Assessed** with a partial coverage count means some, but not all, current
+  document versions have matching reports.
 * **Assessed** means every current document version has a matching report.
 
-Uploading or synchronizing a new source version therefore returns the affected
-estate to a partially assessed or not assessed state until discovery evaluates
-that version. Historical reports do not make changed content appear current.
+Uploading or synchronizing a new source version therefore reduces the displayed
+assessment coverage, or returns the estate to **Not assessed**, until discovery
+evaluates that version. Historical reports do not make changed content appear
+current.
 
 Each estate row has an accessible **Actions** ellipsis menu. **Edit** updates the
 estate name, description, output naming convention, and evaluation preference

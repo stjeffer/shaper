@@ -841,7 +841,7 @@ function assessmentStatus(record) {
   const labels = {
     no_documents: "No documents",
     not_assessed: "Not assessed",
-    partially_assessed: "Partially assessed",
+    partially_assessed: "Assessed",
     assessed: "Assessed",
   };
   const label = labels[record.assessment_status] ?? "Assessment unavailable";
