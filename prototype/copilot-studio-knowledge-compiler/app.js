@@ -809,7 +809,7 @@ function renderSources() {
       copy.className = "item-copy";
       copy.append(
         text("h3", source.display_name),
-        text("p", `${source.kind} · ${source.locator}`),
+        text("p", sourceDisplayDetail(source)),
       );
       row.append(
         copy,
@@ -828,6 +828,19 @@ function renderSources() {
     );
   }
   updateWorkflowProgress();
+}
+
+function sourceDisplayDetail(source) {
+  const labels = {
+    sharepoint: "SharePoint",
+    url: "URL",
+    upload: "Uploaded file",
+    zip: "Uploaded ZIP bundle",
+  };
+  const label = labels[source.kind] ?? "Registered source";
+  return ["sharepoint", "url"].includes(source.kind)
+    ? `${label} · ${source.locator}`
+    : label;
 }
 
 function switchSourceInputTab(name, focus = true) {

@@ -79,7 +79,9 @@ Users can:
 
 On wider screens, source input occupies the left half of the Sources workspace
 and the registered-source list occupies the right half. The columns stack on
-narrow screens.
+narrow screens. Registered web locations display their user-facing URL.
+Uploaded files display a readable source type without exposing their internal
+opaque asset or blob-storage identifier.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph
