@@ -2,17 +2,30 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections.abc import Sequence
 
+from shaper.application.model import SHAPING_PROMPT
+from shaper.application.shaping import CandidatePayload
 from shaper.domain import TokenEstimate
 from shaper.domain.models import canonical_hash
 
-ESTIMATOR_VERSION = "1.0"
+ESTIMATOR_VERSION = "1.1"
+ESTIMATED_MODEL_CALLS = 2
 _WORD = re.compile(r"\w+|[^\w\s]", re.UNICODE)
-_PROMPT_OVERHEAD = 600
-_SCHEMA_OVERHEAD = 300
+_LEXICAL_MULTIPLIER = 1.5
+_CONTEXT_ENVELOPE_OVERHEAD = 800
+_SAFETY_FACTOR = 1.25
+
+
+def _lexical_tokens(value: str) -> int:
+    return max(1, math.ceil(len(_WORD.findall(value)) * _LEXICAL_MULTIPLIER))
+
+
+_PROMPT_OVERHEAD = _lexical_tokens(SHAPING_PROMPT)
+_SCHEMA_OVERHEAD = _lexical_tokens(json.dumps(CandidatePayload.model_json_schema(), sort_keys=True))
 
 
 class TokenEstimator:
@@ -35,8 +48,10 @@ class TokenEstimator:
             raise ValueError("Token estimation requires non-empty source text")
         if not proposed_changes:
             raise ValueError("Token estimation requires at least one proposed change")
-        source_tokens = max(1, math.ceil(len(_WORD.findall(text)) * 1.3))
-        input_expected = source_tokens + _PROMPT_OVERHEAD + _SCHEMA_OVERHEAD
+        source_tokens = _lexical_tokens(text)
+        input_expected = (
+            source_tokens + _PROMPT_OVERHEAD + _SCHEMA_OVERHEAD + _CONTEXT_ENVELOPE_OVERHEAD
+        )
         input_min = max(1, math.floor(input_expected * 0.85))
         input_max = math.ceil(input_expected * 1.2)
         output_factor = min(1.6, 0.55 + 0.12 * len(proposed_changes))
@@ -45,7 +60,7 @@ class TokenEstimator:
         output_max = math.ceil(output_expected * 1.4)
         expected_total = input_expected + output_expected
         upper_total = input_max + output_max
-        enforced_maximum = math.ceil(upper_total * 1.25)
+        enforced_maximum = math.ceil(upper_total * ESTIMATED_MODEL_CALLS * _SAFETY_FACTOR)
         if enforced_maximum > self._platform_maximum:
             raise TokenEstimateLimitError(
                 "Estimated transformation maximum exceeds the platform quota; "
@@ -53,9 +68,9 @@ class TokenEstimator:
             )
         assumptions = (
             "Source tokens use a deterministic lexical approximation.",
-            "Input includes fixed prompt and schema overhead.",
+            "Input includes the current shaping prompt, response schema, and context envelope.",
             "Output range scales with source size and proposed intervention count.",
-            "Maximum includes one bounded repair allowance.",
+            "Maximum reserves the initial response, one bounded repair, and a safety margin.",
         )
         identity = {
             "model_deployment": self._model_deployment,

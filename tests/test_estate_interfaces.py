@@ -245,6 +245,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert report["readiness_score"] >= 0
         assert len(report["checks_completed"]) == 29
         assert all(finding["evidence"] for finding in report["findings"])
+        assert all(finding["agent_impact"] for finding in report["findings"])
 
         recommendation_response = client.post(
             f"/v1/estates/{estate_id}/recommendation-runs",
@@ -254,6 +255,9 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert recommendation_response.status_code == 200
         proposal = recommendation_response.json()["proposals"][0]
         assert proposal["token_estimate"]["enforced_maximum"] > 0
+        assert "/100" not in proposal["rationale"]
+        assert "content finding" in proposal["rationale"]
+        assert "effort" not in proposal["rationale"]
 
         decision_response = client.put(
             f"/v1/proposals/{proposal['recommendation_id']}/decision",
@@ -282,6 +286,19 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         artifact_id = artifact["value"]["artifact_id"]
         assert artifact["value"]["filename"] == "shaper_leave-policy.html"
         assert artifact["value"]["evaluation"]["passed"]
+        preview_response = client.get(
+            f"/v1/artifacts/{artifact_id}/preview",
+            headers=headers,
+        )
+        assert preview_response.status_code == 200
+        assert "<!doctype html>" in preview_response.text
+        assert (
+            client.get(
+                f"/v1/artifacts/{artifact_id}/content",
+                headers=headers,
+            ).status_code
+            == 403
+        )
         evaluation_response = client.get(
             f"/v1/artifacts/{artifact_id}/evaluation",
             headers=headers,

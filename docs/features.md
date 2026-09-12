@@ -1,6 +1,6 @@
 ---
 title: Shaper feature guide
-description: Wiki-style guide to Knowledge Estates, assessment Results, governed transformations, and lifecycle controls
+description: Wiki-style guide to Knowledge Estates, assessment Findings, governed transformations, and lifecycle controls
 ms.date: 2026-09-12
 ms.topic: overview
 ---
@@ -13,8 +13,7 @@ recommendations, approval decisions, transformed artifacts, and workflow history
 
 The product reshapes content for retrieval and agent use. It is not an
 accountability or task-assignment system. Ownership can remain part of broader
-estate governance, but it does not affect a document's content-readiness score,
-reshaping effort, Results, or transformation actions.
+estate governance, but it does not affect Findings or transformation actions.
 
 ## Feature status
 
@@ -24,7 +23,7 @@ reshaping effort, Results, or transformation actions.
 | URL and SharePoint registration | Implemented | Registration only until a connector synchronizes content |
 | File and ZIP upload | Implemented | Bounded uploads with scanning and inventory controls |
 | Document assessment | Implemented | 29 deterministic, read-only checks per document |
-| Evidence-grounded Results | Implemented | Quoted content-quality findings that require human review |
+| Evidence-grounded Findings | Implemented | Content-quality findings with agent impact and quoted evidence |
 | Full-document review | Implemented | Authorized, version-pinned normalized source viewer |
 | Transformation recommendations | Implemented | Generated only for selected documents |
 | Human approval | Implemented | Required before transformation and publication |
@@ -32,7 +31,7 @@ reshaping effort, Results, or transformation actions.
 | Workflow progress | Implemented | Polls durable run state until a terminal status |
 | Archive and purge | Implemented | Archive is read-only; purge is permanent and confirmed |
 | SharePoint synchronization | Planned | Requires Microsoft Graph consent and connector configuration |
-| Score calibration | Planned | Requires representative, human-reviewed evaluation data |
+| Quantitative readiness calibration | Planned | Requires representative, human-reviewed evaluation data and is not shown in the Assess experience |
 
 ## Knowledge Estate workflow
 
@@ -62,15 +61,15 @@ document version. The browser follows the run until it reaches `completed`,
 
 Each report contains:
 
-* A readiness score from 0 to 100
 * Evidence coverage
-* Reshaping effort in low, medium, or high bands
 * The complete list of checks that ran
-* Typed content findings with bounded quotes and locations
+* Typed content findings with plain-language agent impact, bounded quotes, and
+  locations
 * The source version and assessment time
 
-The score is an uncalibrated deterministic heuristic. It is not an accuracy
-percentage, model confidence, or publication decision.
+Internal deterministic metrics support compatibility and bounded processing,
+but the Assess experience does not present readiness or reshaping effort as a
+score.
 
 Discovery uses two passes. It first collects every readable document profile,
 then assesses each document against the complete peer set. This allows
@@ -78,18 +77,18 @@ cross-document checks to identify unresolved references, conflicting numeric
 statements, and substantially duplicated content without changing partial-run
 behavior for unreadable files.
 
-## Content-focused Results
+## Content-focused Findings
 
 The Assess table presents each document as a compact Fluent-style review surface.
-Readiness uses a labelled progress indicator, and Results summarize the finding
-count and high-priority count before the user expands them. Each finding includes
-a label, explanation, severity, and content-owner review status. Expanding its
-evidence reveals the exact source quote and normalized section or line location.
-The responsive layout becomes document cards on narrow screens while retaining
-the semantic table, labelled progress indicators, and finding lists for assistive
+Findings summarize the count and high-priority count before the user expands
+them. Each finding includes a label, a plain-language description, an explicit
+explanation of the impact on agent responses, severity, and content-owner review
+status. Expanding its evidence reveals the exact source quote and normalized
+section or line location. The responsive layout becomes document cards on narrow
+screens while retaining the semantic table and finding lists for assistive
 technology.
 
-| Result | Detection basis | Why it matters for AI use |
+| Finding | Detection basis | Why it matters for AI use |
 |---|---|---|
 | Limited metadata | Fewer than two content metadata fields | Weakens filtering and retrieval context |
 | Weak structure | Missing or insufficient headings and focused sections | Makes passages harder to isolate |
@@ -99,7 +98,7 @@ technology.
 | No question coverage | No FAQ or question-shaped content is detected | Reduces direct answer coverage |
 | Implicit procedure | Procedural language lacks explicit numbered steps | Makes actions harder to extract and follow |
 
-Seven baseline checks produce these established Results. Twenty-two additional
+Seven baseline checks produce these established Findings. Twenty-two additional
 checks cover the document-quality risks below.
 
 | Risk group | Checks |
@@ -133,12 +132,12 @@ The interface also handles compatibility cases:
   signals, not content-shaping results
 * One or more unknown future codes produce one **Additional issue detected**
   card per document
-* The estate-level **Results found** total uses the same classification as each
-  row, preventing the summary from disagreeing with visible Results
+* The estate-level **Findings found** total uses the same classification as each
+  row, preventing the summary from disagreeing with visible Findings
 
 ## Recommend
 
-Recommendations are separate from assessment Results. Results describe what
+Recommendations are separate from assessment Findings. Findings describe what
 makes the current content less suitable for AI. Recommendations describe
 proposed content transformations for documents the user selects.
 
@@ -146,12 +145,22 @@ The recommendation stage:
 
 * Uses the selected document IDs and the active discovery run
 * Produces version-pinned proposals
-* Estimates input and output token ranges
+* Merges estimated input, output, and repair-and-safety contingency into one stacked bar
+* Defines tokens as pieces of text the model reads and writes
+* Uses the enforced maximum as the shared chart scale and processing guardrail
+* States the estimate confidence and planned output filename
+* Derives overhead from the active shaping prompt and response schema, then reserves
+  one bounded repair attempt rather than allowing an unapproved overrun
+* Requires a fresh recommendation and approval when the estimator version changes
 * Enforces the configured maximum before model use
 * Records an append-only approve or decline decision
 
 No recommendation grants authority to modify a source document. Approval applies
 to the exact proposal and source version that the user reviewed.
+
+See the
+[governed transformation diagram](architecture.md#governed-transformation-and-token-budget)
+for the estimate, approval, preflight, shaping, and artifact boundaries.
 
 ## Transform and review
 
@@ -161,12 +170,23 @@ semantic HTML with an estate-owned name such as
 
 When estate evaluations are enabled, each artifact receives versioned checks for
 citation coverage, structure, and validation. A second human review is required
-before artifact content can be retrieved.
+before publication approval.
+
+The Outputs view places the exact normalized source version and the generated
+agent-ready HTML in labelled **Before reshaping** and **After reshaping** panels.
+The panels appear side by side when space permits and stack on narrow screens.
+The generated preview is sandboxed, and each panel reports loading failures
+independently so reviewers can still inspect the available side of the
+comparison.
 
 This two-boundary model separates:
 
 1. Approval of the proposed content change
 2. Approval of the generated output
+
+The [assessment evidence diagram](architecture.md#assessment-evidence-architecture)
+shows how source evidence becomes findings before this transformation workflow
+begins.
 
 ## Workflow progress and recovery
 

@@ -1076,8 +1076,9 @@ class EstateRecommendationService:
                         report_id=report.report_id,
                         proposed_changes=changes,
                         rationale=(
-                            f"Discovery scored this document {report.readiness_score}/100 "
-                            f"with {report.effort_band.value} reshaping effort."
+                            f"Discovery found {len(report.findings)} content "
+                            f"{'finding' if len(report.findings) == 1 else 'findings'} "
+                            "that may affect agent responses."
                         ),
                         risk=(
                             "Generated content must remain grounded in this exact source version "

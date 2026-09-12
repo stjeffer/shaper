@@ -766,6 +766,19 @@ def create_app(services: HttpServices) -> FastAPI:
             payload: dict[str, object] = evaluation.model_dump(mode="json")
             return payload
 
+        @app.get("/v1/artifacts/{artifact_id}/preview")
+        def get_artifact_preview(
+            artifact_id: str,
+            actor: Principal = Depends(principal),
+        ) -> HTMLResponse:
+            content = transformation_service.preview(artifact_id, principal=actor)
+            return HTMLResponse(
+                content=content.decode("utf-8"),
+                headers={
+                    "Content-Security-Policy": ("default-src 'none'; style-src 'unsafe-inline'")
+                },
+            )
+
         @app.get("/v1/artifacts/{artifact_id}/content")
         def get_artifact_content(
             artifact_id: str,

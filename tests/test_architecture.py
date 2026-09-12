@@ -65,25 +65,64 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
     # Assert
-    assert '<th scope="col">Results</th>' in markup
-    assert "documentResults(report)" in script
-    assert "classifyResults(report).length" in script
+    assert '<th scope="col">Findings</th>' in markup
+    assert '<th scope="col">Readiness</th>' not in markup
+    assert "Reshaping effort" not in markup
+    assert "report.effort_band" not in script
+    assert "documentFindings(report)" in script
+    assert "classifyFindings(report).length" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
     assert "Long paragraph" in script
     assert "Document reference" in script
     assert "Additional issue detected" in script
-    assert 'metric("Results found", results)' in script
+    assert 'metric("Findings found", findings)' in script
+    assert "Agent impact:" in script
+    assert "report.readiness_score" not in script
     assert 'id="documentDialog"' in markup
     assert "checks run" in script
     assert "findings-disclosure" in script
-    assert 'setAttribute("role", "progressbar")' in script
     assert 'class="assessment-note"' in markup
     assert "result-evidence" in styles
     assert ".result-item.high" in styles
     assert "font-family: inherit" in styles
     assert "/documents/` +" in script
     assert "result-list" in styles
+    assert "result-impact" in styles
+
+
+def test_given_generated_artifact_when_rendered_then_before_and_after_panels_are_present() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    script = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert '"Before reshaping"' in script
+    assert '"After reshaping"' in script
+    assert "artifact.source_version" in script
+    assert "artifact.document_id" in script
+    assert "artifact.artifact_id" in script
+    assert "/preview" in script
+    assert "recordValue(record).error" in script
+    assert 'outputPreview.setAttribute("sandbox", "")' in script
+    assert "artifact-comparison" in styles
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in styles
+    assert ".comparison-preview[hidden]" in styles
+
+
+def test_given_transformation_estimate_when_rendered_then_usage_is_explained() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    script = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert '"Estimated token use"' in script
+    assert '"Content read"' in script
+    assert '"Content written"' in script
+    assert "Chart maximum:" in script
+    assert "estimate.enforced_maximum" in script
+    assert 'chart.setAttribute("role", "img")' in script
+    assert "token-estimate-chart" in styles
+    assert "token-segment" in styles
+    assert "token-estimate-legend" in styles
 
 
 def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -> None:
@@ -165,8 +204,12 @@ def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent(
 def test_given_c4_diagrams_when_inspected_then_renderer_conventions_are_present() -> None:
     architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
 
-    assert architecture.count("flowchart TB") == 3
-    assert architecture.count("subGraphTitleMargin:") == 3
+    assert architecture.count("flowchart LR") == 1
+    assert architecture.count("flowchart TB") == 6
+    assert architecture.count("subGraphTitleMargin:") == 5
     assert "direction LR" not in architecture
     assert "C4Context" not in architecture
     assert "C4Container" not in architecture
+    assert "ctr_malware_scanner_i" in architecture
+    assert "cmp_estate_recommendation_service" in architecture
+    assert "cmp_estate_transformation_service" in architecture

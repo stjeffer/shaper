@@ -324,6 +324,7 @@ class DocumentFinding(DomainModel):
     code: str = Field(min_length=1, max_length=100)
     label: str = Field(min_length=1, max_length=200)
     explanation: str = Field(min_length=1, max_length=1000)
+    agent_impact: str | None = Field(default=None, min_length=1, max_length=1000)
     severity: str = Field(pattern=r"^(info|warning|high)$")
     review_required: bool = True
     evidence: tuple[DocumentFindingEvidence, ...] = Field(default=(), max_length=4)

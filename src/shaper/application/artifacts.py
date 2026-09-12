@@ -20,6 +20,7 @@ from shaper.application.shaping import (
     ShapingCancelled,
     ShapingLoop,
 )
+from shaper.application.token_estimation import ESTIMATED_MODEL_CALLS, ESTIMATOR_VERSION
 from shaper.domain import (
     AnswerUnit,
     ArtifactStatus,
@@ -227,6 +228,7 @@ class EstateTransformationService:
         running = self._running(queued)
         completed = []
         failed = []
+        failure_messages = []
         for proposal in proposals:
             try:
                 self._transform(running.value.run_id, proposal, principal)
@@ -237,8 +239,9 @@ class EstateTransformationService:
                 ValueError,
                 ShapingBudgetExceeded,
                 ShapingCancelled,
-            ):
+            ) as error:
                 failed.append(proposal.document_id)
+                failure_messages.append(f"{proposal.document_id}: {error}")
         values = running.value.model_dump()
         values.update(
             {
@@ -254,7 +257,7 @@ class EstateTransformationService:
                 "lease_owner": None,
                 "lease_expires_at": None,
                 "updated_at": self._clock(),
-                "error": "No approved proposal could be transformed." if not completed else None,
+                "error": "; ".join(failure_messages)[:2000] if failed else None,
             }
         )
         return self._repository.save_run(
@@ -317,8 +320,22 @@ class EstateTransformationService:
         EstateService._authorize(estate.value, principal, CollectionRole.QUERY)
         if artifact.value.status is not ArtifactStatus.APPROVED:
             raise PermissionError("Artifact is not approved for publication")
+        return self._verified_content(artifact_id, artifact.value.content_hash)
+
+    def preview(self, artifact_id: str, *, principal: Principal) -> bytes:
+        """Return hash-verified artifact bytes to an authorized reviewer."""
+        artifact = self._repository.get_artifact(artifact_id)
+        if artifact is None:
+            raise KeyError(f"Knowledge artifact does not exist: {artifact_id}")
+        estate = self._repository.get_estate(artifact.value.estate_id)
+        if estate is None:
+            raise KeyError(f"Knowledge estate does not exist: {artifact.value.estate_id}")
+        EstateService._authorize(estate.value, principal, CollectionRole.REVIEW)
+        return self._verified_content(artifact_id, artifact.value.content_hash)
+
+    def _verified_content(self, artifact_id: str, expected_hash: str) -> bytes:
         content = self._repository.load_artifact_content(artifact_id)
-        if hashlib.sha256(content).hexdigest() != artifact.value.content_hash:
+        if hashlib.sha256(content).hexdigest() != expected_hash:
             raise ValueError("Artifact content hash does not match its manifest")
         return content
 
@@ -349,6 +366,11 @@ class EstateTransformationService:
         decision = self._repository.latest_decision(proposal.document_id)
         if decision is None or not decision.permits(proposal):
             raise PermissionError("Transformation requires a current exact approval")
+        if proposal.token_estimate.estimator_version != ESTIMATOR_VERSION:
+            raise ValueError(
+                f"Token estimate v{proposal.token_estimate.estimator_version} is outdated; "
+                "request recommendations again and approve the new estimate"
+            )
         document = self._repository.get_document(proposal.document_id)
         if (
             document is None
@@ -398,7 +420,10 @@ class EstateTransformationService:
                 ),
                 validator=self._validator,
                 checkpoints=_RepositoryCheckpoints(self._repository),
-                budget=ShapingBudget(maximum_tokens=proposal.token_estimate.enforced_maximum),
+                budget=ShapingBudget(
+                    maximum_model_calls=ESTIMATED_MODEL_CALLS,
+                    maximum_tokens=proposal.token_estimate.enforced_maximum,
+                ),
                 monotonic=self._monotonic,
             ).run(
                 run_id=f"{run_id}:{document.value.document_id}",
