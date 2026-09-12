@@ -19,6 +19,7 @@ const state = {
   transitioningFindingPresentation: false,
   assessmentChecks: null,
   assessmentCheckCategory: 0,
+  approvalReviewTab: "assessment",
   evaluationSuggestions: [],
   selectedEvaluationSuggestions: new Set(),
   evaluationSuggestionErrors: [],
@@ -138,6 +139,10 @@ const elements = {
   proposalStatus: document.querySelector("#proposalStatus"),
   proposalStatusTitle: document.querySelector("#proposalStatusTitle"),
   proposalStatusDetail: document.querySelector("#proposalStatusDetail"),
+  approvalReviewTabs: document.querySelector("#approvalReviewTabs"),
+  assessmentResultsPanel: document.querySelector("#assessmentResultsPanel"),
+  evaluationSetPanel: document.querySelector("#evaluationSetPanel"),
+  evaluationSetEmpty: document.querySelector("#evaluationSetEmpty"),
   evaluationOptions: document.querySelector("#evaluationOptions"),
   evaluationTarget: document.querySelector("#evaluationTarget"),
   evaluationTargetGuidance: document.querySelector("#evaluationTargetGuidance"),
@@ -294,10 +299,12 @@ async function loadEvaluationSuggestions() {
 function renderEvaluationOptions() {
   const hasPlans = state.proposals.length > 0;
   elements.evaluationOptions.hidden = !hasPlans;
+  elements.evaluationSetEmpty.hidden = hasPlans;
   if (!hasPlans) {
     elements.evaluationSuggestionList.replaceChildren();
     return;
   }
+
   const target = elements.evaluationTarget.value;
   elements.evaluationTargetGuidance.textContent =
     target === "foundry"
@@ -357,6 +364,18 @@ function renderEvaluationOptions() {
     selected === 1 ? "" : "s"
   } selected`;
   elements.downloadEvaluations.disabled = selected === 0;
+}
+
+function switchApprovalReviewTab(name, focus = true) {
+  state.approvalReviewTab = name;
+  elements.approvalReviewTabs.querySelectorAll("[data-approval-review-tab]").forEach((tab) => {
+    const selected = tab.dataset.approvalReviewTab === name;
+    tab.setAttribute("aria-selected", `${selected}`);
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected && focus) tab.focus();
+  });
+  elements.assessmentResultsPanel.hidden = name !== "assessment";
+  elements.evaluationSetPanel.hidden = name !== "evaluations";
 }
 
 function csvCell(value) {
@@ -1152,6 +1171,7 @@ async function openEstate(estateId, targetTab = "sources") {
     );
     state.artifacts = artifacts.items;
     state.selectedDocuments.clear();
+    switchApprovalReviewTab("assessment", false);
     await restoreWorkflowEvidence(estateId);
     renderEstate();
     switchSourceInputTab("location", false);
@@ -2205,6 +2225,7 @@ async function runDiscovery() {
 
 async function requestRecommendations() {
   clearAlert();
+  switchApprovalReviewTab("assessment", false);
   const selectedCount = state.selectedDocuments.size;
   state.proposals = [];
   setProposalStatus(
@@ -2622,6 +2643,28 @@ elements.sourceInputTabs.addEventListener("keydown", (event) => {
     next = current === tabs.length - 1 ? 0 : current + 1;
   }
   switchSourceInputTab(tabs[next].dataset.sourceInputTab);
+});
+elements.approvalReviewTabs.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-approval-review-tab]");
+  if (tab) switchApprovalReviewTab(tab.dataset.approvalReviewTab, false);
+});
+elements.approvalReviewTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-approval-review-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [
+    ...elements.approvalReviewTabs.querySelectorAll("[data-approval-review-tab]"),
+  ];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchApprovalReviewTab(tabs[next].dataset.approvalReviewTab);
 });
 elements.sourceForm.addEventListener("submit", addSource);
 elements.sourceKind.addEventListener("change", updateSourceCredentialOptions);

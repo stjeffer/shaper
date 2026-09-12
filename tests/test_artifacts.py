@@ -81,6 +81,21 @@ class SummaryModel:
         )
 
 
+class ThirdAttemptModel(GroundedModel):
+    """Return two malformed responses before a grounded candidate."""
+
+    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+        if self.calls < 2:
+            self.calls += 1
+            return ModelResult(
+                payload={"status": "invalid"},
+                response_id=f"response-invalid-{self.calls}",
+                input_tokens=12,
+                output_tokens=8,
+            )
+        return super().generate(prompt=prompt, schema=schema)
+
+
 def _principal() -> Principal:
     return Principal(
         principal_id="person-1",
@@ -290,6 +305,34 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert preview == content
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
+    finally:
+        store.close()
+
+
+def test_given_recoverable_model_responses_when_transformed_then_bounded_retry_succeeds(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        enforced_maximum=10_000,
+    )
+    model = ThirdAttemptModel()
+    service = EstateTransformationService(
+        repository,
+        model=model,
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "completed"
+        assert model.calls == 3
+        assert repository.list_artifacts("estate-1")
     finally:
         store.close()
 

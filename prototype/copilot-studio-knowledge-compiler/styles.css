@@ -813,6 +813,60 @@ h3 {
   box-shadow: 0 2px 5px rgb(0 0 0 / 12%);
 }
 
+.approval-review-tabs {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+  border-bottom: 1px solid var(--color-neutral-stroke-1);
+}
+
+.approval-review-tabs [role="tab"] {
+  position: relative;
+  min-height: 44px;
+  padding: 0 2px;
+  color: var(--color-neutral-foreground-3);
+  background: transparent;
+  border: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.approval-review-tabs [role="tab"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: transparent;
+  border-radius: 3px 3px 0 0;
+  content: "";
+}
+
+.approval-review-tabs [role="tab"]:hover {
+  color: var(--color-neutral-foreground-1);
+}
+
+.approval-review-tabs [role="tab"][aria-selected="true"] {
+  color: var(--color-brand-background);
+}
+
+.approval-review-tabs [role="tab"][aria-selected="true"]::after {
+  background: var(--color-brand-background);
+}
+
+.approval-review-tabs [role="tab"]:focus-visible {
+  outline: 2px solid var(--color-brand-stroke);
+  outline-offset: 2px;
+}
+
+.approval-review-panel {
+  padding-top: 20px;
+}
+
+.approval-review-panel[hidden] {
+  display: none;
+}
+
 .source-input-panels {
   margin-bottom: 0;
 }
@@ -2551,7 +2605,7 @@ h2 {
 }
 
 .evaluation-options {
-  margin: 20px 0;
+  margin: 0;
   padding: 20px;
   background: var(--color-neutral-background-1);
   border: 1px solid var(--color-neutral-stroke-2);

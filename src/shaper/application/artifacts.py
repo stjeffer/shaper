@@ -21,7 +21,7 @@ from shaper.application.shaping import (
     ShapingCancelled,
     ShapingLoop,
 )
-from shaper.application.token_estimation import ESTIMATED_MODEL_CALLS, ESTIMATOR_VERSION
+from shaper.application.token_estimation import ESTIMATOR_VERSION
 from shaper.domain import (
     AnswerUnit,
     ArtifactStatus,
@@ -464,7 +464,6 @@ class EstateTransformationService:
                 validator=self._validator,
                 checkpoints=_RepositoryCheckpoints(self._repository),
                 budget=ShapingBudget(
-                    maximum_model_calls=ESTIMATED_MODEL_CALLS,
                     maximum_tokens=proposal.token_estimate.enforced_maximum,
                 ),
                 monotonic=self._monotonic,

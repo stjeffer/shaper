@@ -241,6 +241,11 @@ marked for subject-matter review. The UI names suitable Foundry evaluator
 dimensions or Copilot Studio test methods without claiming that a generated case
 has already been validated.
 
+The approval workspace separates **Assessment results** and **Evaluation set**
+into keyboard-operable tabs. Assessment findings and proposed transformations
+remain the default view; evaluation drafts have a dedicated view instead of
+adding length above every assessment result.
+
 After approval, the proposal card changes to an explicit **Transformation
 approved** state, shows that the document is ready to transform, and disables
 duplicate approval. The transformation action becomes available immediately.

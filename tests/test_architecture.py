@@ -207,6 +207,13 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "function invalidateAssessmentEvidence()" in browser_app
     assert "Run discovery to assess the updated estate." in browser_app
     assert 'id="evaluationOptions"' in html
+    assert 'role="tablist"\n              aria-label="Improvement plan review"' in html
+    assert 'data-approval-review-tab="assessment"' in html
+    assert 'data-approval-review-tab="evaluations"' in html
+    assert 'id="assessmentResultsPanel"' in html
+    assert 'id="evaluationSetPanel"' in html
+    assert "function switchApprovalReviewTab(name, focus = true)" in browser_app
+    assert 'elements.approvalReviewTabs.addEventListener("keydown"' in browser_app
     assert "Microsoft Foundry JSONL" in html
     assert "Copilot Studio CSV" in html
     assert "function suggestedEvaluations(" in browser_app

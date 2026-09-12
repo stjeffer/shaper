@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-findings-panel" />
+    <link rel="stylesheet" href="styles.css?v=20260912-approval-tabs" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -403,54 +403,106 @@
               </div>
             </div>
             <div
-              id="proposalStatus"
-              class="proposal-status"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              hidden
+              id="approvalReviewTabs"
+              class="approval-review-tabs"
+              role="tablist"
+              aria-label="Improvement plan review"
             >
-              <span class="proposal-status-icon" aria-hidden="true"></span>
-              <div>
-                <strong id="proposalStatusTitle"></strong>
-                <p id="proposalStatusDetail"></p>
-              </div>
-            </div>
-            <div id="proposalList" class="proposal-list"></div>
-            <div id="proposalEmpty" class="empty-state compact" hidden>
-              <h3>No improvement plans yet</h3>
-              <p>Select assessed documents and create an improvement plan.</p>
+              <button
+                id="assessmentResultsTab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="assessmentResultsPanel"
+                data-approval-review-tab="assessment"
+              >
+                Assessment results
+              </button>
+              <button
+                id="evaluationSetTab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="evaluationSetPanel"
+                data-approval-review-tab="evaluations"
+                tabindex="-1"
+              >
+                Evaluation set
+              </button>
             </div>
             <section
-              id="evaluationOptions"
-              class="evaluation-options"
-              aria-labelledby="evaluationOptionsTitle"
+              id="assessmentResultsPanel"
+              class="approval-review-panel"
+              role="tabpanel"
+              aria-labelledby="assessmentResultsTab"
+            >
+              <div
+                id="proposalStatus"
+                class="proposal-status"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                hidden
+              >
+                <span class="proposal-status-icon" aria-hidden="true"></span>
+                <div>
+                  <strong id="proposalStatusTitle"></strong>
+                  <p id="proposalStatusDetail"></p>
+                </div>
+              </div>
+              <div id="proposalList" class="proposal-list"></div>
+              <div id="proposalEmpty" class="empty-state compact" hidden>
+                <h3>No improvement plans yet</h3>
+                <p>Select assessed documents and create an improvement plan.</p>
+              </div>
+            </section>
+            <section
+              id="evaluationSetPanel"
+              class="approval-review-panel"
+              role="tabpanel"
+              aria-labelledby="evaluationSetTab"
               hidden
             >
-              <div class="evaluation-options-heading">
-                <div>
-                  <p class="eyebrow">OPTIONAL TEST SET</p>
-                  <h3 id="evaluationOptionsTitle">Suggested agent evaluations</h3>
-                  <p>
-                    Review source-grounded questions before preparing an evaluation dataset.
-                    Suggestions are drafts and require subject-matter review.
-                  </p>
+              <section
+                id="evaluationOptions"
+                class="evaluation-options"
+                aria-labelledby="evaluationOptionsTitle"
+                hidden
+              >
+                <div class="evaluation-options-heading">
+                  <div>
+                    <p class="eyebrow">OPTIONAL TEST SET</p>
+                    <h3 id="evaluationOptionsTitle">Suggested agent evaluations</h3>
+                    <p>
+                      Review source-grounded questions before preparing an evaluation dataset.
+                      Suggestions are drafts and require subject-matter review.
+                    </p>
+                  </div>
+                  <label for="evaluationTarget">
+                    Target format
+                    <select id="evaluationTarget">
+                      <option value="foundry">Microsoft Foundry JSONL</option>
+                      <option value="copilot-studio">Copilot Studio CSV</option>
+                    </select>
+                  </label>
                 </div>
-                <label for="evaluationTarget">
-                  Target format
-                  <select id="evaluationTarget">
-                    <option value="foundry">Microsoft Foundry JSONL</option>
-                    <option value="copilot-studio">Copilot Studio CSV</option>
-                  </select>
-                </label>
-              </div>
-              <p id="evaluationTargetGuidance" class="evaluation-target-guidance"></p>
-              <div id="evaluationSuggestionList" class="evaluation-suggestion-list"></div>
-              <div class="evaluation-options-footer">
-                <span id="evaluationSelectionSummary">0 suggested evaluations selected</span>
-                <button id="downloadEvaluations" class="button secondary" type="button" disabled>
-                  Download selected test set
-                </button>
+                <p id="evaluationTargetGuidance" class="evaluation-target-guidance"></p>
+                <div id="evaluationSuggestionList" class="evaluation-suggestion-list"></div>
+                <div class="evaluation-options-footer">
+                  <span id="evaluationSelectionSummary">0 suggested evaluations selected</span>
+                  <button
+                    id="downloadEvaluations"
+                    class="button secondary"
+                    type="button"
+                    disabled
+                  >
+                    Download selected test set
+                  </button>
+                </div>
+              </section>
+              <div id="evaluationSetEmpty" class="empty-state compact">
+                <h3>No evaluation set yet</h3>
+                <p>Create an improvement plan to generate source-grounded evaluation drafts.</p>
               </div>
             </section>
             <div class="sticky-actions">
@@ -734,6 +786,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-findings-panel"></script>
+    <script src="app.js?v=20260912-approval-tabs"></script>
   </body>
 </html>
