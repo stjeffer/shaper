@@ -425,9 +425,6 @@ async function initialize() {
   try {
     state.session = await api("/v1/session");
     const collections = Object.keys(state.session.collectionRoles || {});
-    document.querySelector("#avatar").textContent = state.session.subject
-      .slice(0, 2)
-      .toUpperCase();
     if (!state.session.hasGrant || collections.length === 0) {
       showView("no-access");
       return;
@@ -617,10 +614,7 @@ async function openAssessmentChecks() {
   showView("assessment-checks");
   setBusy(elements.assessmentChecksView, true, "Loading assessment checks…");
   try {
-    if (!state.assessmentChecks) {
-      const payload = await api("/v1/assessment-checks");
-      state.assessmentChecks = payload.items;
-    }
+    await ensureAssessmentChecks();
     renderAssessmentChecks();
     history.replaceState(null, "", "#assessment-checks");
     document.querySelector("#assessmentChecksTitle").focus?.();
@@ -629,6 +623,13 @@ async function openAssessmentChecks() {
   } finally {
     setBusy(elements.assessmentChecksView, false);
   }
+}
+
+async function ensureAssessmentChecks() {
+  if (state.assessmentChecks) return state.assessmentChecks;
+  const payload = await api("/v1/assessment-checks");
+  state.assessmentChecks = payload.items;
+  return state.assessmentChecks;
 }
 
 function renderAssessmentChecks() {
@@ -687,6 +688,7 @@ async function openEstate(estateId, targetTab = "sources") {
         api(`/v1/estates/${estateId}/runs`),
         api(`/v1/estates/${estateId}/decisions`),
         api(`/v1/estates/${estateId}/artifacts`),
+        ensureAssessmentChecks(),
       ]);
     state.estate = estate;
     state.sources = sources.items;
@@ -936,8 +938,94 @@ function updateSelection() {
   const count = state.selectedDocuments.size;
   elements.selectionSummary.textContent = `${count} document${
     count === 1 ? "" : "s"
-  } selected for recommendations`;
+  } selected for improvement planning`;
   elements.recommendButton.disabled = count === 0 || !state.discoveryRunId;
+}
+
+function proposalAssessmentResults(report) {
+  const section = document.createElement("section");
+  section.className = "proposal-assessment";
+  const heading = text("h4", "Deterministic assessment");
+  const headingId = `proposal-assessment-${crypto.randomUUID()}`;
+  heading.id = headingId;
+  section.setAttribute("aria-labelledby", headingId);
+
+  if (!report) {
+    section.append(
+      heading,
+      text(
+        "p",
+        "The assessment evidence for this source version is unavailable. Run discovery again.",
+        "proposal-assessment-warning",
+      ),
+    );
+    return section;
+  }
+
+  const completedCodes = report.checks_completed ?? [];
+  const findingCodes = new Set(
+    report.findings?.length
+      ? report.findings.map((finding) => finding.code)
+      : (report.finding_codes ?? []).filter(
+          (code) => RESULT_PRESENTATION[code] || !ACCOUNTABILITY_ONLY_FINDINGS.has(code),
+        ),
+  );
+  const checksByCode = new Map(
+    (state.assessmentChecks ?? []).map((check) => [check.code, check]),
+  );
+  const passedChecks = completedCodes
+    .filter((code) => !findingCodes.has(code))
+    .map((code) => checksByCode.get(code))
+    .filter(Boolean);
+  const findings = classifyFindings(report);
+  const failedCheckCount = completedCodes.filter((code) => findingCodes.has(code)).length;
+  const highPriority = findings.filter((finding) => finding.tone === "high").length;
+
+  const summary = document.createElement("div");
+  summary.className = "assessment-outcome-summary";
+  summary.append(
+    metric("Checks completed", completedCodes.length),
+    metric("Checks needing attention", failedCheckCount),
+    metric("Passed", passedChecks.length),
+  );
+  section.append(
+    heading,
+    text(
+      "p",
+      highPriority > 0
+        ? `${highPriority} high-priority ${highPriority === 1 ? "finding needs" : "findings need"} content-owner review.`
+        : "No high-priority findings were detected.",
+      highPriority > 0 ? "proposal-assessment-warning" : "proposal-assessment-clear",
+    ),
+    summary,
+  );
+
+  if (findings.length > 0) {
+    section.append(text("h5", "Checks that need attention"));
+    const failedList = document.createElement("ul");
+    failedList.className = "result-list proposal-finding-list";
+    failedList.setAttribute("aria-label", "Checks that need attention");
+    failedList.append(...findings.map(resultItem));
+    section.append(failedList);
+  }
+
+  const passed = document.createElement("details");
+  passed.className = "passed-checks";
+  passed.append(text("summary", `${passedChecks.length} checks passed`));
+  const passedList = document.createElement("ul");
+  passedList.className = "passed-check-list";
+  passedChecks.forEach((check) => {
+    const item = document.createElement("li");
+    item.append(
+      text("strong", check.label),
+      text("span", check.category),
+      text("p", check.what_it_checks),
+    );
+    passedList.append(item);
+  });
+  passed.append(passedList);
+  section.append(passed);
+  return section;
 }
 
 function renderProposals() {
@@ -950,6 +1038,8 @@ function renderProposals() {
         ),
       );
       const decision = state.decisions.get(proposal.document_id);
+      const currentReport = state.reports.get(proposal.document_id);
+      const report = currentReport?.report_id === proposal.report_id ? currentReport : null;
       const card = document.createElement("article");
       card.className = "proposal-card";
       card.dataset.proposalId = proposal.recommendation_id;
@@ -975,6 +1065,29 @@ function renderProposals() {
         }),
       );
       const estimate = proposal.token_estimate;
+      const recommendation = document.createElement("section");
+      recommendation.className = "proposal-recommendation";
+      recommendation.append(
+        text("h4", "Recommended changes"),
+        text("p", proposal.rationale, "proposal-rationale"),
+        changes,
+      );
+      const risk = document.createElement("p");
+      risk.className = "proposal-risk";
+      risk.append(
+        text("strong", "Review constraint:"),
+        document.createTextNode(` ${proposal.risk}`),
+      );
+      recommendation.append(risk);
+      const usage = document.createElement("details");
+      usage.className = "token-estimate-disclosure";
+      usage.append(
+        text(
+          "summary",
+          `View estimated model usage · ${estimate.expected_total.toLocaleString()} tokens`,
+        ),
+        tokenEstimateGraphic(estimate, proposal.expected_artifact),
+      );
       const actions = document.createElement("div");
       actions.className = "proposal-actions";
       const approve = text(
@@ -998,9 +1111,9 @@ function renderProposals() {
       actions.append(approve, decline);
       card.append(
         heading,
-        text("p", proposal.rationale),
-        changes,
-        tokenEstimateGraphic(estimate, proposal.expected_artifact),
+        proposalAssessmentResults(report),
+        recommendation,
+        usage,
         ...(decision?.outcome === "approve"
           ? [
               text(
@@ -1544,8 +1657,9 @@ async function runDiscovery() {
 async function requestRecommendations() {
   clearAlert();
   const panel = document.querySelector('[data-panel="discover"]');
-  setBusy(panel, true, "Preparing recommendations and token estimates…");
+  setBusy(panel, true, "Building assessment-backed improvement plans…");
   try {
+    await ensureAssessmentChecks();
     const result = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/recommendation-runs`,
       {

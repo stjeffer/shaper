@@ -175,43 +175,6 @@ textarea:focus-visible,
   font-weight: 600;
 }
 
-.identity {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-left: auto;
-}
-
-.environment {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.environment > span {
-  width: 7px;
-  height: 7px;
-  background: #107c10;
-  border-radius: 50%;
-}
-
-.avatar {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  color: #fff;
-  background: #5c2d91;
-  border: 0;
-  border-radius: 50%;
-  box-shadow: none;
-  font-size: 11px;
-  font-weight: 600;
-}
-
 .app-shell {
   display: grid;
   min-height: calc(100vh - 48px);
@@ -1333,12 +1296,146 @@ td input[type="checkbox"] {
 }
 
 .changes {
+  margin: 8px 0 0;
   padding-left: 20px;
   line-height: 1.6;
 }
 
+.proposal-assessment,
+.proposal-recommendation {
+  margin-top: 18px;
+}
+
+.proposal-assessment h4,
+.proposal-recommendation h4,
+.proposal-assessment h5 {
+  margin: 0;
+}
+
+.proposal-assessment h4,
+.proposal-recommendation h4 {
+  font-size: 17px;
+}
+
+.proposal-assessment h5 {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.proposal-assessment-warning,
+.proposal-assessment-clear,
+.proposal-rationale,
+.proposal-risk {
+  margin: 5px 0 0;
+  color: var(--color-neutral-foreground-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.proposal-assessment-warning {
+  color: var(--color-status-danger-foreground);
+}
+
+.proposal-assessment-clear {
+  color: #0e700e;
+}
+
+.assessment-outcome-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.assessment-outcome-summary .metric {
+  padding: 12px;
+}
+
+.assessment-outcome-summary .metric strong {
+  margin-top: 2px;
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.proposal-finding-list {
+  margin-top: 6px;
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
+}
+
+.passed-checks,
+.token-estimate-disclosure {
+  margin-top: 12px;
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+}
+
+.passed-checks > summary,
+.token-estimate-disclosure > summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: var(--color-brand-background);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.passed-checks > summary:hover,
+.token-estimate-disclosure > summary:hover {
+  background: var(--color-neutral-background-2);
+}
+
+.passed-checks > summary:focus-visible,
+.token-estimate-disclosure > summary:focus-visible {
+  outline: 2px solid var(--color-brand-background);
+  outline-offset: -2px;
+}
+
+.passed-check-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0 12px 10px;
+  list-style: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.passed-check-list li {
+  min-width: 0;
+  padding: 10px 12px 10px 0;
+  border-top: 1px solid var(--color-neutral-stroke-2);
+}
+
+.passed-check-list strong,
+.passed-check-list span {
+  display: block;
+}
+
+.passed-check-list strong {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.passed-check-list span,
+.passed-check-list p {
+  color: var(--color-neutral-foreground-3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.passed-check-list p {
+  margin: 3px 0 0;
+}
+
+.proposal-risk {
+  padding: 10px 12px;
+  background: var(--color-neutral-background-2);
+  border-left: 3px solid var(--color-brand-background);
+}
+
 .token-estimate {
-  margin: 18px 0;
+  margin: 0 12px 12px;
   padding: 18px;
   background: linear-gradient(135deg, #f5f9fe, #fff);
   border: 1px solid #c7ddf5;
@@ -1797,66 +1894,78 @@ body {
 
 .nav-item {
   position: relative;
-  display: grid;
-  width: 64px;
-  min-height: 64px;
-  margin-top: 28px;
-  padding: 0;
-  place-items: center;
-  background: #fff;
-  border: 1px solid #d6d6d6;
-  border-radius: 24px;
-  box-shadow: 0 3px 12px rgb(0 0 0 / 8%);
+  display: flex;
+  width: 68px;
+  min-height: 68px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 8px 4px 7px;
+  color: var(--color-neutral-foreground-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--border-radius-medium);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.brand + .nav-item {
+  margin-top: 24px;
+}
+
+.nav-item:hover {
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-neutral-background-3);
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--color-brand-background);
+  outline-offset: 2px;
 }
 
 .nav-item.active {
-  background: #fff;
-  box-shadow: 0 3px 12px rgb(0 0 0 / 8%);
+  color: var(--color-brand-background);
+  background: var(--color-brand-background-soft);
+  box-shadow: none;
 }
 
 .nav-item.active::before {
   position: absolute;
-  top: 20px;
-  left: -11px;
-  width: 4px;
-  height: 24px;
-  background: #4f5bea;
+  top: 12px;
+  left: -10px;
+  width: 3px;
+  height: 44px;
+  background: var(--color-brand-background);
   border-radius: 4px;
   content: "";
 }
 
 .nav-icon {
-  width: 34px;
-  height: 34px;
-  color: #c341dd;
-  font-size: 28px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  overflow: visible;
+  color: currentcolor;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.nav-item-label {
+  max-width: 60px;
+  color: currentcolor;
+  font-size: 10px;
   font-weight: 600;
+  line-height: 12px;
+  text-align: center;
 }
 
 .sidebar-spacer {
   flex: 1;
-}
-
-.environment {
-  width: 40px;
-  height: 40px;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.environment > span:first-child {
-  width: 18px;
-  height: 18px;
-  background: transparent;
-  border: 2px solid #424242;
-  border-radius: 50%;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  background: #5c2d91;
-  font-size: 12px;
 }
 
 .workspace {
@@ -2979,7 +3088,6 @@ h2 {
   }
 
   .brand-copy small,
-  .environment,
   .product-area,
   .topbar-divider {
     display: none;
@@ -3186,6 +3294,11 @@ h2 {
   }
 
   .token-estimate-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .passed-check-list,
+  .assessment-outcome-summary {
     grid-template-columns: 1fr;
   }
 

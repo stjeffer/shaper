@@ -185,6 +185,21 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'class="nav-item"' in html
     assert 'data-action="open-create"' in html
     assert 'aria-label="New estate"' in html
+    assert '<span class="nav-item-label">New estate</span>' in html
+    assert '<span class="nav-item-label">Checks</span>' in html
+    assert html.count('<svg class="nav-icon"') == 2
+    assert 'id="environment"' not in html
+    assert 'id="avatar"' not in html
+    assert 'querySelector("#avatar")' not in browser_app
+    assert "Create improvement plan" in html
+    assert "Review assessment and improvement plan" in html
+    assert "function proposalAssessmentResults(report)" in browser_app
+    assert '"Checks completed"' in browser_app
+    assert '"Checks that need attention"' in browser_app
+    assert "checks passed" in browser_app
+    assert "Recommended changes" in browser_app
+    assert "View estimated model usage" in browser_app
+    assert "await ensureAssessmentChecks()" in browser_app
     assert 'data-action="open-delete"' in html
     assert 'id="editDialog"' in html
     assert 'id="editForm"' in html
@@ -200,7 +215,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "formatShortDate(estate.updated_at)" in browser_app
     assert "checkbox.disabled = isArchived()" in browser_app
     assert "checkbox.disabled = !report" not in browser_app
-    assert "selected for recommendations" in browser_app
+    assert "selected for improvement planning" in browser_app
     assert "\nfunction switchSourceInputTab(name, focus = true)" in browser_app
     assert "\n  function switchSourceInputTab(name, focus = true)" not in browser_app
     assert "function sourceDisplayDetail(source)" in browser_app

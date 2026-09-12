@@ -83,6 +83,11 @@ narrow screens. Registered web locations display their user-facing URL.
 Uploaded files display a readable source type without exposing their internal
 opaque asset or blob-storage identifier.
 
+The left navigation rail uses labelled, consistent line icons for creating a
+knowledge estate and opening the assessment-check catalogue. Internal
+environment indicators and opaque identity fragments are not shown because
+they do not help people complete either task.
+
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph
 synchronization has occurred.
@@ -182,6 +187,13 @@ The recommendation stage:
 
 * Uses the selected document IDs and the active discovery run
 * Produces version-pinned proposals
+* Leads with a per-document summary of all 29 deterministic checks, including
+  which checks need attention and which passed
+* Shows failed-check explanations and likely agent impact before the proposed
+  changes
+* Lists every passed check in an on-demand review section
+* Presents the assessment-backed improvement actions and review constraint as
+  the primary decision information
 * Merges estimated input, output, and repair-and-safety contingency into one stacked bar
 * Defines tokens as pieces of text the model reads and writes
 * Uses the enforced maximum as the shared chart scale and processing guardrail
@@ -191,6 +203,10 @@ The recommendation stage:
 * Requires a fresh recommendation and approval when the estimator version changes
 * Enforces the configured maximum before model use
 * Records an append-only approve or decline decision
+
+The action is labelled **Create improvement plan** rather than implying that
+token estimation is the recommendation. Token usage is supporting information
+in a collapsed section beneath the assessment results and recommended changes.
 
 After approval, the proposal card changes to an explicit **Transformation
 approved** state, shows that the document is ready to transform, and disables
