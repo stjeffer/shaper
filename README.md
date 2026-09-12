@@ -132,6 +132,10 @@ the C4 model and specialist-agent responsibility boundaries. See the
 [feature guide](docs/features.md) for the current Knowledge Estate workflow,
 content-focused Results, approval boundaries, and lifecycle controls.
 
+See the [wiki](wiki/Home.md) for a task-oriented guide covering what Shaper
+does, how to get started and call the API, how to deploy it, and frequently
+asked questions.
+
 ## Local development
 
 Python 3.11 and `uv` are required.
