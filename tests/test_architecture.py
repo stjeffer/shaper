@@ -220,6 +220,9 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'data-source-input-tab="location"' in html
     assert 'data-source-input-tab="upload"' in html
     assert 'data-source-input-panel="upload"' in html
+    assert 'id="sharePointCredentialMode"' in html
+    assert "Organization-managed connection" in html
+    assert "Credentials are never entered or stored" in html
     assert 'class="source-workspace-grid"' in html
     assert 'class="registered-sources-panel"' in html
     assert 'id="deleteConfirmation"' in html
@@ -242,6 +245,8 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'text("p", `${source.kind} · ${source.locator}`)' not in browser_app
     assert 'elements.sourceInputTabs.addEventListener("click"' in browser_app
     assert 'elements.sourceInputTabs.addEventListener("keydown"' in browser_app
+    assert 'elements.sourceKind.addEventListener("change"' in browser_app
+    assert 'source.credential_mode === "application"' in browser_app
     assert "await loadEstates(true)" in browser_app
     assert 'menu.setAttribute("role", "menu")' in browser_app
     assert 'editButton.setAttribute("role", "menuitem")' in browser_app

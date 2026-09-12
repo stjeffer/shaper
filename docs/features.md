@@ -78,6 +78,11 @@ Users can:
 * Review the current document inventory
 * Choose whether transformed artifacts include evaluation reports
 
+SharePoint registrations record whether synchronization should use the signed-in
+user's delegated access or an organization-managed application connection.
+Application credentials are configured by an administrator outside the browser;
+Shaper never asks a content owner to paste a client secret into the source form.
+
 On wider screens, source input occupies the left half of the Sources workspace
 and the registered-source list occupies the right half. The columns stack on
 narrow screens. Registered web locations display their user-facing URL.

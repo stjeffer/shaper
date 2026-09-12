@@ -35,6 +35,7 @@ from shaper.domain import (
     KnowledgeEstate,
     PermissionSnapshot,
     Principal,
+    SharePointCredentialMode,
     SourceDocument,
     SourceRef,
 )
@@ -141,7 +142,7 @@ def _persistent_services(
     store.connect()
     store.migrate()
     repository = SQLiteEstateRepository(store)
-    source_ids = iter(("one", "two", "three", "four"))
+    source_ids = iter(("one", "two", "three", "four", "five", "six", "seven"))
     return (
         store,
         EstateService(repository, clock=lambda: NOW, id_factory=lambda: "estate"),
@@ -301,6 +302,7 @@ def test_given_mixed_sources_when_registered_then_states_are_truthful_and_indepe
             kind=EstateSourceKind.SHAREPOINT,
             display_name="HR site",
             locator="https://contoso.sharepoint.com/sites/hr",
+            credential_mode=SharePointCredentialMode.APPLICATION,
         )
 
         # Assert
@@ -313,6 +315,24 @@ def test_given_mixed_sources_when_registered_then_states_are_truthful_and_indepe
             item.value.status.value == "pending"
             for item in sources.list(estate.value.estate_id, principal=caller)
         )
+        assert sharepoint.value.credential_mode is SharePointCredentialMode.APPLICATION
+        for kind, locator in (
+            (EstateSourceKind.URL, "https://example.com/knowledge"),
+            (EstateSourceKind.UPLOAD, "asset:invalidupload"),
+            (EstateSourceKind.ZIP, "asset:invalidzip"),
+        ):
+            with pytest.raises(
+                ValueError,
+                match="Application credentials are supported only for SharePoint sources",
+            ):
+                sources.register(
+                    estate.value.estate_id,
+                    principal=caller,
+                    kind=kind,
+                    display_name="Invalid app-authenticated source",
+                    locator=locator,
+                    credential_mode=SharePointCredentialMode.APPLICATION,
+                )
     finally:
         store.close()
 

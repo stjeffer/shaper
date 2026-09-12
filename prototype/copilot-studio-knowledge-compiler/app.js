@@ -115,6 +115,9 @@ const elements = {
   deleteConfirmButton: document.querySelector("#deleteConfirmButton"),
   deleteError: document.querySelector("#deleteError"),
   sourceForm: document.querySelector("#sourceForm"),
+  sourceKind: document.querySelector("#sourceKind"),
+  sharePointCredentialField: document.querySelector("#sharePointCredentialField"),
+  sharePointCredentialMode: document.querySelector("#sharePointCredentialMode"),
   uploadForm: document.querySelector("#uploadForm"),
   files: document.querySelector("#files"),
   fileSummary: document.querySelector("#fileSummary"),
@@ -1193,9 +1196,21 @@ function sourceDisplayDetail(source) {
   const isPublicLocation =
     ["sharepoint", "url"].includes(source.kind) &&
     !source.locator?.toLocaleLowerCase().startsWith("asset:");
-  return isPublicLocation
+  const detail = isPublicLocation
     ? `${label} · ${source.locator}`
     : label;
+  if (source.kind !== "sharepoint") return detail;
+  const access =
+    source.credential_mode === "application"
+      ? "Organization-managed access"
+      : "Signed-in user access";
+  return `${detail} · ${access}`;
+}
+
+function updateSourceCredentialOptions() {
+  const isSharePoint = elements.sourceKind.value === "sharepoint";
+  elements.sharePointCredentialField.hidden = !isSharePoint;
+  elements.sharePointCredentialMode.disabled = !isSharePoint;
 }
 
 function switchSourceInputTab(name, focus = true) {
@@ -1960,6 +1975,7 @@ async function addSource(event) {
     );
     state.sources.push(record);
     elements.sourceForm.reset();
+    updateSourceCredentialOptions();
     renderSources();
     announce("Source registered. Connection has not been claimed.");
   } catch (error) {
@@ -2445,6 +2461,8 @@ elements.sourceInputTabs.addEventListener("keydown", (event) => {
   switchSourceInputTab(tabs[next].dataset.sourceInputTab);
 });
 elements.sourceForm.addEventListener("submit", addSource);
+elements.sourceKind.addEventListener("change", updateSourceCredentialOptions);
+updateSourceCredentialOptions();
 elements.uploadForm.addEventListener("submit", uploadFiles);
 elements.discoverButton.addEventListener("click", runDiscovery);
 elements.recommendButton.addEventListener("click", requestRecommendations);

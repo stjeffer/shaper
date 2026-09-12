@@ -241,6 +241,21 @@
                     <input id="sourceName" name="display_name" required maxlength="300" />
                     <label for="sourceUrl">URL</label>
                     <input id="sourceUrl" name="locator" type="url" required maxlength="2048" />
+                    <div id="sharePointCredentialField">
+                      <label for="sharePointCredentialMode">Connect using</label>
+                      <div class="select-field">
+                        <select id="sharePointCredentialMode" name="credential_mode">
+                          <option value="delegated_user">My signed-in account</option>
+                          <option value="application">Organization-managed connection</option>
+                        </select>
+                        <span aria-hidden="true"></span>
+                      </div>
+                      <p class="field-help">
+                        Organization-managed access uses application credentials configured
+                        securely by an administrator. Credentials are never entered or stored
+                        in this form.
+                      </p>
+                    </div>
                     <button class="button secondary" type="submit">Add location</button>
                   </form>
                   <form

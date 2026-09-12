@@ -33,6 +33,7 @@ from shaper.domain import (
     KnowledgeTransformationAnalysis,
     Principal,
     PurgeTombstone,
+    SharePointCredentialMode,
     SourceRef,
     SourceSpan,
     SourceSyncStatus,
@@ -441,6 +442,7 @@ class EstateSourceService:
         kind: EstateSourceKind,
         display_name: str,
         locator: str,
+        credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER,
     ) -> VersionedRecord[EstateSource]:
         """Register a unique source without claiming it is connected."""
         estate = self._active_estate(estate_id, principal, CollectionRole.COMPILE)
@@ -457,6 +459,7 @@ class EstateSourceService:
                 kind=kind,
                 display_name=display_name,
                 locator=locator,
+                credential_mode=credential_mode,
                 status=SourceSyncStatus.PENDING,
                 created_at=now,
                 updated_at=now,

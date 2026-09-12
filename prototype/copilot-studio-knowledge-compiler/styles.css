@@ -1109,6 +1109,12 @@ td input[type="checkbox"] {
   margin: 0;
 }
 
+.form-card .field-help {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .results-cell {
   min-width: 360px;
 }

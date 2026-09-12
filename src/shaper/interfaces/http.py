@@ -64,6 +64,7 @@ from shaper.domain import (
     KnowledgeTransformationAnalysis,
     OutputRef,
     Principal,
+    SharePointCredentialMode,
     SourceRef,
 )
 from shaper.infrastructure.archive import ZipArchiveExpander
@@ -161,6 +162,7 @@ class SourceCreateRequest(BaseModel):
     kind: EstateSourceKind
     display_name: str = Field(min_length=1, max_length=300)
     locator: str = Field(min_length=1, max_length=2048)
+    credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER
 
 
 class SelectionRequest(BaseModel):
@@ -514,6 +516,7 @@ def create_app(services: HttpServices) -> FastAPI:
                 kind=request.kind,
                 display_name=request.display_name,
                 locator=request.locator,
+                credential_mode=request.credential_mode,
             )
             return _versioned_payload(item)
 
