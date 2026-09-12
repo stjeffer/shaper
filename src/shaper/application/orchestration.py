@@ -101,8 +101,32 @@ class TransformationAgent:
             "cross_policy_reference": "Resolve cross-policy references into explicit context",
             "faq_gap": "Generate grounded question and answer pairs",
             "procedure_gap": "Extract implied actions into explicit procedural steps",
+            "external_dependency": "Bring required external context into the governed source",
+            "circular_reference": "Replace circular references with a direct definition",
+            "missing_referenced_content": "Add or remove unresolved referenced material",
+            "version_ambiguity": "State one effective version and precedence rule",
+            "orphaned_amendment": "Merge amendment text into the governed source",
+            "vague_quantifier": "Replace vague quantities with reviewable criteria",
+            "discretion_clause": "Document the criteria for discretionary decisions",
+            "undefined_term": "Define policy-specific terms where they are first used",
+            "unclear_responsibility": "Name the responsible role and decision criteria",
+            "conflicting_numeric_value": "Resolve conflicting values into one approved rule",
+            "conflicting_authority": "Define an explicit source-precedence order",
+            "terminology_drift": "Normalize equivalent terms to one canonical vocabulary",
+            "missing_definitions": "Add the referenced definitions section",
+            "missing_enumeration": "Add the complete jurisdiction-specific enumeration",
+            "dangling_program": "State the program status and end date",
+            "unclear_source_of_truth": "Identify one canonical governed source",
+            "undocumented_verbal_policy": "Incorporate verbal guidance into reviewed text",
+            "restricted_companion": "Provide accessible governed context or remove the dependency",
+            "inconsistent_heading_hierarchy": "Normalize heading levels for reliable chunking",
+            "inaccessible_embedded_content": "Convert embedded information to structured text",
+            "repeated_variation": "Consolidate subtly different repeated rules",
+            "noncanonical_duplicate": "Select and maintain one canonical source",
         }
-        proposed = tuple(actions[code] for code in report.finding_codes if code in actions)
+        proposed = tuple(
+            dict.fromkeys(actions[code] for code in report.finding_codes if code in actions)
+        )
         return proposed or ("Create a canonical agent-ready HTML knowledge asset",)
 
 

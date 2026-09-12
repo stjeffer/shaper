@@ -7,6 +7,12 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 
+from shaper.application.document_findings import (
+    BASELINE_CHECK_CODES,
+    DOCUMENT_CHECK_CODES,
+    assess_document_findings,
+    baseline_document_findings,
+)
 from shaper.domain.assessment import (
     AssessmentCoverage,
     AssessmentFinding,
@@ -56,6 +62,7 @@ class DocumentAssessmentService:
         source_version: str,
         profile: KnowledgeDocumentProfile,
         assessed_at: datetime,
+        peers: Sequence[KnowledgeDocumentProfile] = (),
     ) -> DocumentReadinessReport:
         """Return one deterministic report without invoking a model."""
         scores = (
@@ -69,7 +76,14 @@ class DocumentAssessmentService:
             _chunking_score(profile.text),
         )
         available = tuple(score for score in scores if score is not None)
-        finding_codes = self._finding_codes(profile, assessed_at)
+        baseline_codes = self._finding_codes(profile, assessed_at)
+        detailed_findings = (
+            *baseline_document_findings(profile, baseline_codes),
+            *assess_document_findings(profile, peers),
+        )
+        finding_codes = tuple(
+            dict.fromkeys((*baseline_codes, *(item.code for item in detailed_findings)))
+        )
         effort_points = min(
             100,
             round(100 - sum(available) / len(available)) + 10 * len(finding_codes),
@@ -98,8 +112,11 @@ class DocumentAssessmentService:
                 if effort_points <= 65
                 else EffortBand.HIGH
             ),
-            reasons=self._reasons(finding_codes),
+            reasons=tuple(item.explanation for item in detailed_findings)
+            or ("No high-priority reshaping gaps detected.",),
             finding_codes=finding_codes,
+            findings=detailed_findings,
+            checks_completed=(*BASELINE_CHECK_CODES, *DOCUMENT_CHECK_CODES),
             agent_roles=(
                 "Assessment Agent",
                 "Knowledge Agent",

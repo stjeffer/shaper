@@ -311,6 +311,24 @@ class WorkflowRun(DomainModel):
         return self
 
 
+class DocumentFindingEvidence(DomainModel):
+    """Bounded source evidence for one document finding."""
+
+    quote: str = Field(min_length=1, max_length=500)
+    location: str = Field(min_length=1, max_length=200)
+
+
+class DocumentFinding(DomainModel):
+    """Reviewable document-suitability finding with source evidence."""
+
+    code: str = Field(min_length=1, max_length=100)
+    label: str = Field(min_length=1, max_length=200)
+    explanation: str = Field(min_length=1, max_length=1000)
+    severity: str = Field(pattern=r"^(info|warning|high)$")
+    review_required: bool = True
+    evidence: tuple[DocumentFindingEvidence, ...] = Field(default=(), max_length=4)
+
+
 class DocumentReadinessReport(DomainModel):
     """Per-document deterministic discovery result."""
 
@@ -323,8 +341,10 @@ class DocumentReadinessReport(DomainModel):
     evidence_coverage: float = Field(ge=0, le=100)
     effort_points: int = Field(ge=0, le=100)
     effort_band: EffortBand
-    reasons: tuple[str, ...] = Field(min_length=1, max_length=20)
+    reasons: tuple[str, ...] = Field(min_length=1, max_length=50)
     finding_codes: tuple[str, ...] = Field(default=(), max_length=50)
+    findings: tuple[DocumentFinding, ...] = Field(default=(), max_length=50)
+    checks_completed: tuple[str, ...] = Field(default=(), max_length=50)
     agent_roles: tuple[str, ...] = Field(min_length=1, max_length=5)
     assessed_at: datetime
 

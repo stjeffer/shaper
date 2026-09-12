@@ -66,14 +66,18 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
 
     # Assert
     assert '<th scope="col">Results</th>' in markup
-    assert "documentResults(report.finding_codes)" in script
-    assert "classifyResults(report.finding_codes).length" in script
+    assert "documentResults(report)" in script
+    assert "classifyResults(report).length" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
     assert "Long paragraph" in script
     assert "Document reference" in script
     assert "Additional issue detected" in script
     assert 'metric("Results found", results)' in script
+    assert 'id="documentDialog"' in markup
+    assert "checks completed" in script
+    assert "result-evidence" in styles
+    assert "/documents/` +" in script
     assert "result-list" in styles
 
 
@@ -111,9 +115,9 @@ def test_given_live_estate_workspace_when_inspected_then_lifecycle_actions_are_w
 
 
 def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_present() -> None:
-    html = (
-        REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/index.html"
-    ).read_text(encoding="utf-8")
+    html = (REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/index.html").read_text(
+        encoding="utf-8"
+    )
     browser_app = (
         REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js"
     ).read_text(encoding="utf-8")

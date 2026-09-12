@@ -201,8 +201,9 @@
               <div>
                 <h2 id="discoverTitle" tabindex="-1">Document readiness</h2>
                 <p>
-                  The five-agent process scores each current source version and estimates
-                  the effort required to reshape it.
+                  Deterministic checks inspect structure, references, ambiguity, conflicts,
+                  completeness, provenance, and retrieval quality. Small documents may
+                  complete quickly.
                 </p>
               </div>
               <button id="discoverButton" class="button primary" type="button">
@@ -346,6 +347,32 @@
       </form>
     </dialog>
 
+    <dialog
+      id="documentDialog"
+      class="document-dialog"
+      aria-labelledby="documentDialogTitle"
+    >
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">NORMALIZED SOURCE</p>
+          <h2 id="documentDialogTitle">Document content</h2>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          data-action="close-document"
+          aria-label="Close document"
+        >
+          ×
+        </button>
+      </div>
+      <p class="hint">
+        Findings quote this exact source version. Review the original file before approving
+        policy meaning.
+      </p>
+      <pre id="documentContent" class="document-content" tabindex="0"></pre>
+    </dialog>
+
     <dialog id="deleteDialog" class="confirm-dialog" aria-labelledby="deleteTitle">
       <form id="deleteForm">
         <div class="dialog-heading">
@@ -425,6 +452,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260911-ui10"></script>
+    <script src="app.js?v=20260912-evidence1"></script>
   </body>
 </html>

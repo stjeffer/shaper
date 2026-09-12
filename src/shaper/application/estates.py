@@ -33,6 +33,7 @@ from shaper.domain import (
     Principal,
     PurgeTombstone,
     SourceRef,
+    SourceSpan,
     SourceSyncStatus,
     TokenUsage,
     TransformationDecision,
@@ -578,6 +579,25 @@ class EstateSourceService:
         return content
 
 
+def _normalized_content(spans: Sequence[SourceSpan]) -> str:
+    """Preserve real heading context without adding synthetic parser locations."""
+    parts: list[str] = []
+    previous_headings: tuple[str, ...] = ()
+    for span in spans:
+        common = 0
+        for previous, current in zip(previous_headings, span.heading_path, strict=False):
+            if previous != current:
+                break
+            common += 1
+        parts.extend(
+            f"{'#' * (level + 1)} {heading}"
+            for level, heading in enumerate(span.heading_path[common:], start=common)
+        )
+        parts.append(span.text)
+        previous_headings = span.heading_path
+    return "\n\n".join(parts)
+
+
 @dataclass(frozen=True)
 class InventoryInput:
     """One already-scanned file prepared for inventory creation."""
@@ -680,7 +700,7 @@ class EstateInventoryService:
             parser=self._parser,
             observed_at=modified_at,
         )
-        normalized_text = "\n\n".join(span.text for span in ingested.spans)
+        normalized_text = _normalized_content(ingested.spans)
         document = EstateDocument(
             document_id=document_id,
             estate_id=estate.estate_id,
@@ -822,6 +842,7 @@ class EstateDiscoveryService:
             for report in self._repository.list_reports(running.value.run_id)
         }
         profiles: list[KnowledgeDocumentProfile] = []
+        profile_documents: list[tuple[KnowledgeDocumentProfile, EstateDocument]] = []
         completed: list[str] = []
         failed: list[str] = []
         for record in inventory:
@@ -829,19 +850,24 @@ class EstateDiscoveryService:
             try:
                 profile = self._profile(document)
                 profiles.append(profile)
-                if document.document_id not in existing:
-                    self._repository.append_report(
-                        self._documents.report(
-                            run_id=running.value.run_id,
-                            estate_id=estate.estate_id,
-                            source_version=document.source_version,
-                            profile=profile,
-                            assessed_at=self._clock(),
-                        )
-                    )
+                profile_documents.append((profile, document))
                 completed.append(document.document_id)
             except (KeyError, ValueError):
                 failed.append(document.document_id)
+        for profile, document in profile_documents:
+            if document.document_id not in existing:
+                self._repository.append_report(
+                    self._documents.report(
+                        run_id=running.value.run_id,
+                        estate_id=estate.estate_id,
+                        source_version=document.source_version,
+                        profile=profile,
+                        assessed_at=self._clock(),
+                        peers=tuple(
+                            peer for peer in profiles if peer.document_id != profile.document_id
+                        ),
+                    )
+                )
         analysis: KnowledgeTransformationAnalysis | None = None
         if profiles:
             analysis = self._orchestrator.analyze(

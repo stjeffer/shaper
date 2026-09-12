@@ -108,6 +108,9 @@ const elements = {
   purgeDialog: document.querySelector("#purgeDialog"),
   purgeForm: document.querySelector("#purgeForm"),
   purgePhrase: document.querySelector("#purgePhrase"),
+  documentDialog: document.querySelector("#documentDialog"),
+  documentDialogTitle: document.querySelector("#documentDialogTitle"),
+  documentContent: document.querySelector("#documentContent"),
 };
 
 function announce(message) {
@@ -167,6 +170,21 @@ async function api(path, options = {}) {
   return response.status === 204 ? null : response.json();
 }
 
+async function apiText(path) {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+    redirect: "manual",
+  });
+  if (response.status === 401 || response.type === "opaqueredirect") {
+    await redirectToSignIn();
+  }
+  if (!response.ok) {
+    throw new Error(`Request failed with HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
 function setBusy(container, busy, message = "Working…") {
   container.querySelector(".busy-overlay")?.remove();
   container.setAttribute("aria-busy", `${busy}`);
@@ -190,19 +208,47 @@ function text(tag, value, className) {
   return node;
 }
 
-function resultItem({ label, detail, icon, tone }) {
+function resultItem({ label, detail, icon, tone, evidence = [], review_required = false }) {
   const item = document.createElement("li");
   item.className = `result-item ${tone}`;
   const symbol = text("span", icon, "result-icon");
   symbol.setAttribute("aria-hidden", "true");
-  const copy = document.createElement("span");
+  const copy = document.createElement("div");
   copy.className = "result-copy";
   copy.append(text("strong", label), text("small", detail));
+  if (review_required) {
+    copy.append(text("span", "Review required", "review-required"));
+  }
+  if (evidence.length > 0) {
+    const details = document.createElement("details");
+    details.className = "result-evidence";
+    details.append(text("summary", `View evidence (${evidence.length})`));
+    evidence.forEach((entry) => {
+      const figure = document.createElement("figure");
+      figure.append(text("blockquote", entry.quote), text("figcaption", entry.location));
+      details.append(figure);
+    });
+    copy.append(details);
+  }
   item.append(symbol, copy);
   return item;
 }
 
-function classifyResults(codes = []) {
+function classifyResults(report = {}) {
+  if (report.findings?.length) {
+    return report.findings.map((finding) => {
+      const presentation = RESULT_PRESENTATION[finding.code] ?? {};
+      return {
+        label: finding.label,
+        detail: finding.explanation,
+        icon: presentation.icon ?? "!",
+        tone: presentation.tone ?? finding.severity ?? "warning",
+        evidence: finding.evidence ?? [],
+        review_required: finding.review_required,
+      };
+    });
+  }
+  const codes = report.finding_codes ?? [];
   const classified = codes
     .map((code) => RESULT_PRESENTATION[code])
     .filter((result) => result !== undefined);
@@ -220,11 +266,11 @@ function classifyResults(codes = []) {
   return classified;
 }
 
-function documentResults(codes = []) {
+function documentResults(report) {
   const results = document.createElement("ul");
   results.className = "result-list";
   results.setAttribute("aria-label", "Content quality results");
-  results.append(...classifyResults(codes).map(resultItem));
+  results.append(...classifyResults(report).map(resultItem));
   if (results.children.length === 0) {
     results.append(
       resultItem({
@@ -545,6 +591,12 @@ function renderDocuments() {
           text("strong", documentValue.title),
           text("p", `${documentValue.media_type} · ${formatDate(documentValue.modified_at)}`),
         );
+        const viewDocument = text("button", "View document", "text-button");
+        viewDocument.type = "button";
+        viewDocument.dataset.viewDocument = documentValue.document_id;
+        viewDocument.dataset.sourceVersion = documentValue.source_version;
+        viewDocument.dataset.documentTitle = documentValue.title;
+        documentCell.append(viewDocument);
         const scoreCell = document.createElement("td");
         scoreCell.append(text("span", report ? `${report.readiness_score}` : "—", "score"));
         const effortCell = document.createElement("td");
@@ -558,7 +610,14 @@ function renderDocuments() {
         const findingsCell = document.createElement("td");
         findingsCell.className = "results-cell";
         if (report) {
-          findingsCell.append(documentResults(report.finding_codes));
+          findingsCell.append(
+            text(
+              "p",
+              `${report.checks_completed?.length ?? 7} checks completed`,
+              "checks-completed",
+            ),
+            documentResults(report),
+          );
         } else {
           findingsCell.append(text("span", "Run discovery to assess this source version.", "pending-result"));
         }
@@ -582,7 +641,7 @@ function renderDiscoverySummary() {
   );
   const highEffort = reports.filter((report) => report.effort_band === "high").length;
   const results = reports.reduce(
-    (total, report) => total + classifyResults(report.finding_codes).length,
+    (total, report) => total + classifyResults(report).length,
     0,
   );
   elements.discoverySummary.replaceChildren(
@@ -1097,6 +1156,25 @@ async function approveArtifact(artifactId, revision) {
   }
 }
 
+async function openDocument(documentId, sourceVersion, title) {
+  clearAlert();
+  elements.documentDialogTitle.textContent = title;
+  elements.documentContent.textContent = "Loading document content…";
+  elements.documentDialog.showModal();
+  try {
+    elements.documentContent.textContent = await apiText(
+      `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
+        `${encodeURIComponent(documentId)}/content?source_version=${encodeURIComponent(
+          sourceVersion,
+        )}`,
+    );
+  } catch (error) {
+    elements.documentContent.textContent = "";
+    elements.documentDialog.close();
+    showAlert(error.message);
+  }
+}
+
 async function archiveEstate() {
   const estate = recordValue(state.estate);
   if (
@@ -1170,6 +1248,14 @@ document.addEventListener("click", async (event) => {
     closeDeleteDialog();
   } else if (target.dataset.action === "close-purge") {
     elements.purgeDialog.close();
+  } else if (target.dataset.action === "close-document") {
+    elements.documentDialog.close();
+  } else if (target.dataset.viewDocument) {
+    await openDocument(
+      target.dataset.viewDocument,
+      target.dataset.sourceVersion,
+      target.dataset.documentTitle,
+    );
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {

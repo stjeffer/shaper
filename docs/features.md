@@ -23,8 +23,9 @@ reshaping effort, Results, or transformation actions.
 | Knowledge Estates | Implemented | Durable, collection-scoped workspaces |
 | URL and SharePoint registration | Implemented | Registration only until a connector synchronizes content |
 | File and ZIP upload | Implemented | Bounded uploads with scanning and inventory controls |
-| Document assessment | Implemented | Deterministic, read-only heuristics |
-| Infographic Results | Implemented | Content-quality signals, not accountability recommendations |
+| Document assessment | Implemented | 29 deterministic, read-only checks per document |
+| Evidence-grounded Results | Implemented | Quoted content-quality findings that require human review |
+| Full-document review | Implemented | Authorized, version-pinned normalized source viewer |
 | Transformation recommendations | Implemented | Generated only for selected documents |
 | Human approval | Implemented | Required before transformation and publication |
 | Semantic HTML output | Implemented | Escaped, versioned, estate-owned artifacts |
@@ -64,18 +65,26 @@ Each report contains:
 * A readiness score from 0 to 100
 * Evidence coverage
 * Reshaping effort in low, medium, or high bands
-* Typed content findings
+* The complete list of checks that ran
+* Typed content findings with bounded quotes and locations
 * The source version and assessment time
 
 The score is an uncalibrated deterministic heuristic. It is not an accuracy
 percentage, model confidence, or publication decision.
 
+Discovery uses two passes. It first collects every readable document profile,
+then assesses each document against the complete peer set. This allows
+cross-document checks to identify unresolved references, conflicting numeric
+statements, and substantially duplicated content without changing partial-run
+behavior for unreadable files.
+
 ## Content-focused Results
 
-The Assess table presents findings as compact infographic cards under
-**Results**. Each card has a label, a short explanation, and a visual category.
-The same information remains available as a labelled semantic list for assistive
-technology.
+The Assess table presents findings as expandable infographic cards under
+**Results**. Each card has a label, explanation, severity, and review-required
+status. Expanding a card reveals the exact source quote and normalized section or
+line location. The same information remains available as a labelled semantic
+list for assistive technology.
 
 | Result | Detection basis | Why it matters for AI use |
 |---|---|---|
@@ -86,6 +95,33 @@ technology.
 | Document reference | Opaque references to another policy, procedure, or standard | Hides context outside the retrieved passage |
 | No question coverage | No FAQ or question-shaped content is detected | Reduces direct answer coverage |
 | Implicit procedure | Procedural language lacks explicit numbered steps | Makes actions harder to extract and follow |
+
+Seven baseline checks produce these established Results. Twenty-two additional
+checks cover the document-quality risks below.
+
+| Risk group | Checks |
+|---|---|
+| Structural and referential | External dependency, circular reference, missing referenced content, version ambiguity, orphaned amendment |
+| Ambiguity | Vague quantifier, discretion clause, undefined term, unclear responsibility |
+| Contradiction | Conflicting numeric value, conflicting authority, terminology drift |
+| Incompleteness | Missing definitions, missing enumeration, dangling program |
+| Provenance and authority | Unclear source of truth, undocumented verbal policy, restricted companion |
+| Formatting and retrieval | Inconsistent heading hierarchy, inaccessible embedded content, repeated variation, noncanonical duplicate |
+
+These checks identify review candidates. They do not prove legal meaning,
+authority, or semantic contradiction. A content owner must inspect the quoted
+evidence and source context before approving a proposed change.
+
+### Review the source content
+
+Select **View document** from an assessment row to open the complete normalized
+source used by the check. The request includes the report's exact source version.
+Shaper rejects a stale version, a deleted or missing document, and a document
+outside the authorized estate. Content loads only after the user requests it and
+is not copied into every assessment report.
+
+The viewer preserves real headings for newly uploaded documents. Synthetic PDF
+page, block, table, and row labels are not inserted into transformation input.
 
 The interface also handles compatibility cases:
 
@@ -180,9 +216,12 @@ See [platform architecture](architecture.md), [deployment guidance](deployment.m
 ## Current limitations
 
 * Assessment thresholds are deterministic defaults, not calibrated quality claims
-* Long-content detection evaluates paragraphs over 150 words, not
-  heading-bounded section size
-* Duplicate, contradiction, and authority findings still require human review
+* Every evidence-grounded finding is a deterministic review candidate, not a
+  proven semantic or legal conclusion
+* Historical versions do not gain preserved heading context unless they are
+  uploaded again
+* Scanned PDFs without extractable text can fail ingestion before embedded-content
+  checks can run
 * SharePoint content synchronization is not complete without Graph integration
 * Confluence, ServiceNow, arbitrary wiki crawling, and distributed specialist
   workers remain planned work

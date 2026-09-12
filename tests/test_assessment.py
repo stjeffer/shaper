@@ -8,6 +8,10 @@ import pytest
 from pydantic import ValidationError
 
 from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
+from shaper.application.document_findings import (
+    DOCUMENT_CHECK_CODES,
+    assess_document_findings,
+)
 from shaper.domain import (
     AssessmentFindingKind,
     AuthorityStatus,
@@ -239,6 +243,122 @@ def test_given_long_paragraph_and_policy_reference_when_reported_then_effort_is_
     assert {"long_paragraph", "cross_policy_reference"}.issubset(report.finding_codes)
     assert report.effort_points > 30
     assert report.reasons
+    assert all(finding.evidence for finding in report.findings)
+
+
+@pytest.mark.parametrize(
+    ("expected_code", "text", "peer_text"),
+    (
+        ("external_dependency", "See the Global Travel Policy.", None),
+        (
+            "circular_reference",
+            "# Section A\n\nSee Section B.\n\n# Section B\n\nSee Section A.",
+            None,
+        ),
+        ("missing_referenced_content", "See Appendix C for the complete table.", None),
+        ("version_ambiguity", "Employees submit requests to HR.", None),
+        ("orphaned_amendment", "Per the Q2 memo, this rule has changed.", None),
+        ("vague_quantifier", "Requests are generally completed approximately weekly.", None),
+        ("discretion_clause", "Exceptions are granted at the manager's discretion.", None),
+        (
+            "undefined_term",
+            'An "Exempt Employee" may apply. Each "Exempt Employee" must register.',
+            None,
+        ),
+        ("unclear_responsibility", "The request will be reviewed within 30 days.", None),
+        (
+            "conflicting_numeric_value",
+            "Employees submit expenses within 30 days. Employees submit expenses within 60 days.",
+            None,
+        ),
+        (
+            "conflicting_authority",
+            "The handbook controls all requests. The local addendum overrides the handbook.",
+            None,
+        ),
+        (
+            "terminology_drift",
+            '"Complaint" means a report of workplace misconduct. '
+            '"Covered Report" means a report of workplace misconduct.',
+            None,
+        ),
+        ("missing_definitions", "Terms are defined in the Definitions section.", None),
+        ("missing_enumeration", "Leave entitlement varies by state.", None),
+        ("dangling_program", "The travel pilot applies to contractors.", None),
+        (
+            "unclear_source_of_truth",
+            "The most recent communication governs this policy.",
+            None,
+        ),
+        (
+            "undocumented_verbal_policy",
+            "The exception was clarified verbally in an all-hands.",
+            None,
+        ),
+        (
+            "restricted_companion",
+            "The confidential Severance Guidelines document contains the required rule.",
+            None,
+        ),
+        (
+            "inconsistent_heading_hierarchy",
+            "# Policy\n\nCurrent rule.\n\n### Exceptions\n\nSpecial rule.",
+            None,
+        ),
+        ("inaccessible_embedded_content", "See the chart below.\n\n![](chart.png)", None),
+        (
+            "repeated_variation",
+            "Employees must submit travel expenses within 30 calendar days.\n\n"
+            "Employees should submit travel expenses within 30 working days.",
+            None,
+        ),
+        (
+            "noncanonical_duplicate",
+            "Employees submit approved travel expenses through the finance portal.",
+            "Employees submit approved travel expenses through the finance portal.",
+        ),
+    ),
+)
+def test_given_requested_document_risk_when_checked_then_evidence_is_reported(
+    expected_code: str,
+    text: str,
+    peer_text: str | None,
+) -> None:
+    # Arrange
+    assert DOCUMENT_CHECK_CODES == (
+        "external_dependency",
+        "circular_reference",
+        "missing_referenced_content",
+        "version_ambiguity",
+        "orphaned_amendment",
+        "vague_quantifier",
+        "discretion_clause",
+        "undefined_term",
+        "unclear_responsibility",
+        "conflicting_numeric_value",
+        "conflicting_authority",
+        "terminology_drift",
+        "missing_definitions",
+        "missing_enumeration",
+        "dangling_program",
+        "unclear_source_of_truth",
+        "undocumented_verbal_policy",
+        "restricted_companion",
+        "inconsistent_heading_hierarchy",
+        "inaccessible_embedded_content",
+        "repeated_variation",
+        "noncanonical_duplicate",
+    )
+    current = profile("current", text=text)
+    peers = () if peer_text is None else (profile("peer", text=peer_text),)
+
+    # Act
+    findings = assess_document_findings(current, peers)
+
+    # Assert
+    finding = next(item for item in findings if item.code == expected_code)
+    assert finding.review_required
+    assert finding.evidence
 
 
 def test_given_ownerless_document_when_reported_then_reshaping_evidence_is_unchanged() -> None:

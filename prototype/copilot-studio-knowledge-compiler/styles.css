@@ -1400,6 +1400,93 @@ dialog form {
   color: var(--ink);
 }
 
+.checks-completed {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.result-evidence {
+  margin-top: 8px;
+  color: var(--ink-soft);
+}
+
+.result-evidence summary {
+  width: fit-content;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.result-evidence figure {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: rgb(255 255 255 / 72%);
+  border-left: 3px solid currentcolor;
+  border-radius: 4px;
+}
+
+.result-evidence blockquote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.result-evidence figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.review-required {
+  width: fit-content;
+  margin-top: 7px;
+  padding: 2px 7px;
+  color: #6f2633;
+  background: var(--red-soft);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.text-button {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  color: var(--blue);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.document-dialog {
+  width: min(900px, calc(100% - 32px));
+}
+
+.document-content {
+  max-height: min(65vh, 720px);
+  overflow: auto;
+  margin: 18px 0 0;
+  padding: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f8f8fa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .dialog-error {
   margin: 4px 0 0;
   color: var(--red);

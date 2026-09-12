@@ -92,7 +92,7 @@ class GroundedModel:
         )
 
 
-def _client(path: Path) -> tuple[TestClient, SQLiteStore]:
+def _client(path: Path) -> tuple[TestClient, SQLiteStore, SQLiteEstateRepository]:
     store = SQLiteStore(path)
     store.connect()
     store.migrate()
@@ -108,57 +108,59 @@ def _client(path: Path) -> tuple[TestClient, SQLiteStore]:
         agent_readiness_agent=AgentReadinessAgent(),
     )
     reviews = ReviewService(SQLiteReviewStore(store))
-    return (
-        TestClient(
-            create_app(
-                HttpServices(
-                    jobs=CompileJobService(InMemoryJobStore()),
-                    authenticator=Authenticator(),
-                    estates=EstateService(repository, clock=lambda: NOW),
-                    estate_sources=EstateSourceService(repository, clock=lambda: NOW),
-                    estate_inventory=EstateInventoryService(
-                        repository,
-                        parser=parser,
-                        clock=lambda: NOW,
-                    ),
-                    discovery=EstateDiscoveryService(
-                        repository,
-                        documents=DocumentAssessmentService(),
-                        orchestrator=orchestrator,
-                        clock=lambda: NOW,
-                    ),
-                    recommendations=EstateRecommendationService(
-                        repository,
-                        transformation_agent=TransformationAgent(),
-                        estimator=TokenEstimator(model_deployment="test-model"),
-                        clock=lambda: NOW,
-                    ),
-                    decisions=TransformationDecisionService(
-                        repository,
-                        clock=lambda: NOW,
-                    ),
-                    transformations=EstateTransformationService(
-                        repository,
-                        model=GroundedModel(),
-                        validator=DeterministicValidator(),
-                        reviews=reviews,
-                        renderer=HtmlArtifactRenderer(),
-                        clock=lambda: NOW,
-                    ),
-                    estate_repository=repository,
-                    archive_expander=ZipArchiveExpander(CleanScanner()),
-                    malware_scanner=CleanScanner(),
-                )
+    client = TestClient(
+        create_app(
+            HttpServices(
+                jobs=CompileJobService(InMemoryJobStore()),
+                authenticator=Authenticator(),
+                estates=EstateService(repository, clock=lambda: NOW),
+                estate_sources=EstateSourceService(repository, clock=lambda: NOW),
+                estate_inventory=EstateInventoryService(
+                    repository,
+                    parser=parser,
+                    clock=lambda: NOW,
+                ),
+                discovery=EstateDiscoveryService(
+                    repository,
+                    documents=DocumentAssessmentService(),
+                    orchestrator=orchestrator,
+                    clock=lambda: NOW,
+                ),
+                recommendations=EstateRecommendationService(
+                    repository,
+                    transformation_agent=TransformationAgent(),
+                    estimator=TokenEstimator(model_deployment="test-model"),
+                    clock=lambda: NOW,
+                ),
+                decisions=TransformationDecisionService(
+                    repository,
+                    clock=lambda: NOW,
+                ),
+                transformations=EstateTransformationService(
+                    repository,
+                    model=GroundedModel(),
+                    validator=DeterministicValidator(),
+                    reviews=reviews,
+                    renderer=HtmlArtifactRenderer(),
+                    clock=lambda: NOW,
+                ),
+                estate_repository=repository,
+                archive_expander=ZipArchiveExpander(CleanScanner()),
+                malware_scanner=CleanScanner(),
             )
-        ),
+        )
+    )
+    return (
+        client,
         store,
+        repository,
     )
 
 
 def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
     tmp_path: Path,
 ) -> None:
-    client, store = _client(tmp_path / "estate-http.db")
+    client, store, repository = _client(tmp_path / "estate-http.db")
     headers = {"Authorization": "Bearer valid"}
     try:
         estate_response = client.post(
@@ -180,14 +182,57 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             headers=headers,
             files={
                 "files": (
-                    "leave-policy.txt",
-                    b"Employees must request annual leave from their manager.",
-                    "text/plain",
+                    "leave-policy.md",
+                    b"# Leave policy\n\nEmployees must request annual leave from their manager.",
+                    "text/markdown",
                 )
             },
         )
         assert upload_response.status_code == 201, upload_response.text
-        document_id = upload_response.json()["documents"][0]["value"]["document_id"]
+        uploaded_document = upload_response.json()["documents"][0]["value"]
+        document_id = uploaded_document["document_id"]
+        source_version = uploaded_document["source_version"]
+
+        content_response = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/content",
+            params={"source_version": source_version},
+            headers=headers,
+        )
+        stale_content_response = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/content",
+            params={"source_version": "0" * 64},
+            headers=headers,
+        )
+        assert content_response.status_code == 200
+        assert content_response.text.startswith("# Leave policy")
+        assert stale_content_response.status_code == 422
+        assert (
+            client.get(
+                f"/v1/estates/{estate_id}/documents/missing-document/content",
+                params={"source_version": source_version},
+                headers=headers,
+            ).status_code
+            == 404
+        )
+
+        other_estate = client.post(
+            "/v1/estates",
+            headers=headers,
+            json={
+                "collection_id": "collection-1",
+                "name": "Other estate",
+                "description": "",
+                "artifact_name_template": "shaper_{source_stem}.html",
+            },
+        ).json()
+        assert (
+            client.get(
+                f"/v1/estates/{other_estate['value']['estate_id']}/documents/{document_id}/content",
+                params={"source_version": source_version},
+                headers=headers,
+            ).status_code
+            == 404
+        )
 
         discovery_response = client.post(
             f"/v1/estates/{estate_id}/discovery-runs",
@@ -196,7 +241,10 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         )
         assert discovery_response.status_code == 200, discovery_response.text
         discovery_run_id = discovery_response.json()["run"]["value"]["run_id"]
-        assert discovery_response.json()["reports"][0]["readiness_score"] >= 0
+        report = discovery_response.json()["reports"][0]
+        assert report["readiness_score"] >= 0
+        assert len(report["checks_completed"]) == 29
+        assert all(finding["evidence"] for finding in report["findings"])
 
         recommendation_response = client.post(
             f"/v1/estates/{estate_id}/recommendation-runs",
@@ -259,6 +307,21 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert content_response.status_code == 200
         assert "<!doctype html>" in content_response.text
         assert "Employees must request annual leave" in content_response.text
+
+        document_record = repository.get_document(document_id)
+        assert document_record is not None
+        repository.save_document(
+            document_record.value.model_copy(update={"deleted": True}),
+            expected_revision=document_record.revision,
+        )
+        assert (
+            client.get(
+                f"/v1/estates/{estate_id}/documents/{document_id}/content",
+                params={"source_version": source_version},
+                headers=headers,
+            ).status_code
+            == 404
+        )
     finally:
         store.close()
 
@@ -267,7 +330,7 @@ def test_given_active_estate_when_archived_and_purged_then_lifecycle_is_enforced
     tmp_path: Path,
 ) -> None:
     # Arrange
-    client, store = _client(tmp_path / "estate-lifecycle-http.db")
+    client, store, _repository = _client(tmp_path / "estate-lifecycle-http.db")
     headers = {"Authorization": "Bearer " + "valid"}
     try:
         created = client.post(
