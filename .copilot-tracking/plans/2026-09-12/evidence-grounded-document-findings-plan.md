@@ -5,7 +5,7 @@
 
 * Task ID: evidence-grounded-document-findings
 * Mode: Automatic
-* Status: Implemented, pending review and deployment
+* Status: Complete
 * Research: .copilot-tracking/research/2026-09-12/evidence-grounded-document-findings-research.md
 * Details: .copilot-tracking/details/2026-09-12/evidence-grounded-document-findings-phase-details.md
 * Critique: .copilot-tracking/reviews/plans/2026-09-12/evidence-grounded-document-findings-plan-critique.md
@@ -151,7 +151,7 @@ Require the report's exact `source_version` and reject a mismatch.
 #### [x] P03-T03: Explain deterministic check completion and uncertainty
 
 <!-- P04 -->
-### [ ] P04: Validate, document, and deploy
+### [x] P04: Validate, document, and deploy
 
 <!-- P04-T01 -->
 #### [x] P04-T01: Add bounded semantic and integration tests
@@ -160,7 +160,7 @@ Require the report's exact `source_version` and reject a mismatch.
 #### [x] P04-T02: Update the feature guide and run full validation
 
 <!-- P04-T03 -->
-#### [ ] P04-T03: Commit, deploy to Azure, and verify the live workflow
+#### [x] P04-T03: Commit, deploy to Azure, and verify the live workflow
 
 ## Dependencies
 

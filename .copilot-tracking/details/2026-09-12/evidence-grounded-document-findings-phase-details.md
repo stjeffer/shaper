@@ -56,8 +56,7 @@ Completion evidence:
 
 ## P04: Validate, document, and deploy
 
-Status: In progress. Tests, static validation, and documentation are complete.
-Review, commit, deployment, and live verification remain.
+Status: Complete
 
 Update the feature guide, run the repository-native validation suite, perform a
 rendered browser pass, commit the result, build an immutable ACR image, update

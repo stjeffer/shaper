@@ -10,19 +10,19 @@
 
 ## Execution Status
 
-* Status: Implementation complete, pending review and deployment
+* Status: Complete
 * Declared scope: Full plan
-* Completed markers: P01 through P03, P04-T01, P04-T02
-* Remaining markers: P04-T03
+* Completed markers: P01 through P04
+* Remaining markers: None
 
 ## Active Work
 
 ### Commit, deploy, and verify
 
 * Active marker: P04-T03
-* Intended result: Commit the reviewed implementation, deploy an immutable image,
-  and verify the healthy live workflow.
-* Current blockers: Post-implementation review has not run.
+* Result: Committed the reviewed implementation, deployed immutable image
+  `shaper:20260912-7bbaba0`, and verified the live workflow.
+* Current blockers: None
 
 ## Completed Work
 
@@ -55,6 +55,23 @@
 * Extended the static UI contract.
 * Updated the feature guide.
 
+### Resolve review findings
+
+* Moved the document viewer function to module scope so the delegated click
+  handler can invoke it.
+* Extended existing tests with exact detector-catalog equality plus missing,
+  cross-estate, deleted, and stale-version retrieval assertions.
+
+### Deploy and verify
+
+* Committed the feature as `7bbaba0`.
+* Built image `crshaperdevi5e45vhjjbud6.azurecr.io/shaper:20260912-7bbaba0`
+  with digest
+  `sha256:28557e9227e9a3734c49da9cc516fdfe8e8361e092afd0a4eacac4bd69da2a33`.
+* Deployed healthy revision `ca-shaper-dev--r7bbaba0` with 100 percent traffic.
+* Verified liveness, readiness, `/concept/`, dialog loading and closure, keyboard
+  focus return, evidence semantics, and a 375-pixel viewport.
+
 ## Validation
 
 * `PYTHONPATH=src uv run pytest`: passed, 175 tests
@@ -64,13 +81,14 @@
 * `PYTHONPATH=src uv run shaper-schema --check`: passed
 * `node --check prototype/copilot-studio-knowledge-compiler/app.js`: passed
 * `git diff --check`: passed
+* Rendered browser workflow: passed
+* Azure liveness and readiness: passed
 
 ## Remaining Work
 
-* Complete post-implementation review
-* Commit and deploy the reviewed implementation
-* Verify the Azure revision and live workflow
+None.
 
 ## Review Readiness
 
-Ready for the single post-implementation review.
+Review executed once. Findings RV-001 and RV-002 were implemented and validated
+as later work; a second Review was not required.
