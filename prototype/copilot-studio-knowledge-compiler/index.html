@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-source-preservation" />
+    <link rel="stylesheet" href="styles.css?v=20260912-plan-status-check-tabs" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -111,7 +111,7 @@
               <span>Checks identify review candidates; they do not prove policy meaning.</span>
             </article>
           </div>
-          <div id="assessmentCheckGroups" class="assessment-check-groups"></div>
+          <div id="assessmentCheckGroups" class="assessment-check-browser"></div>
         </section>
 
         <section id="estateListView" hidden aria-labelledby="estateListTitle">
@@ -362,17 +362,63 @@
                 </p>
               </div>
             </div>
+            <div
+              id="proposalStatus"
+              class="proposal-status"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              hidden
+            >
+              <span class="proposal-status-icon" aria-hidden="true"></span>
+              <div>
+                <strong id="proposalStatusTitle"></strong>
+                <p id="proposalStatusDetail"></p>
+              </div>
+            </div>
             <div id="proposalList" class="proposal-list"></div>
             <div id="proposalEmpty" class="empty-state compact" hidden>
               <h3>No improvement plans yet</h3>
               <p>Select assessed documents and create an improvement plan.</p>
             </div>
+            <section
+              id="evaluationOptions"
+              class="evaluation-options"
+              aria-labelledby="evaluationOptionsTitle"
+              hidden
+            >
+              <div class="evaluation-options-heading">
+                <div>
+                  <p class="eyebrow">OPTIONAL TEST SET</p>
+                  <h3 id="evaluationOptionsTitle">Suggested agent evaluations</h3>
+                  <p>
+                    Review source-grounded questions before preparing an evaluation dataset.
+                    Suggestions are drafts and require subject-matter review.
+                  </p>
+                </div>
+                <label for="evaluationTarget">
+                  Target format
+                  <select id="evaluationTarget">
+                    <option value="foundry">Microsoft Foundry JSONL</option>
+                    <option value="copilot-studio">Copilot Studio CSV</option>
+                  </select>
+                </label>
+              </div>
+              <p id="evaluationTargetGuidance" class="evaluation-target-guidance"></p>
+              <div id="evaluationSuggestionList" class="evaluation-suggestion-list"></div>
+              <div class="evaluation-options-footer">
+                <span id="evaluationSelectionSummary">0 suggested evaluations selected</span>
+                <button id="downloadEvaluations" class="button secondary" type="button" disabled>
+                  Download selected test set
+                </button>
+              </div>
+            </section>
             <div class="sticky-actions">
               <div>
                 <span id="approvalSummary">0 approved transformations</span>
                 <label class="checkbox-option" for="generateEvaluations">
                   <input id="generateEvaluations" type="checkbox" />
-                  Create evaluations for reshaped content
+                  Run deterministic quality checks on reshaped content
                 </label>
               </div>
               <button id="transformButton" class="button primary" type="button" disabled>
@@ -625,6 +671,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-source-preservation"></script>
+    <script src="app.js?v=20260912-plan-status-check-tabs"></script>
   </body>
 </html>

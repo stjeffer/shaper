@@ -578,3 +578,191 @@ def test_given_selected_discovered_document_when_recommended_then_one_estimate_i
         assert proposals[0].expected_artifact == "shaper_travel.html"
     finally:
         store.close()
+
+
+def test_given_all_selected_documents_changed_when_recommended_then_run_fails_clearly(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally and retain receipts.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini"),
+        clock=lambda: NOW,
+        id_factory=lambda: "stale",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            (documents[0].value.document_id,),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "failed"
+        assert run.value.completed_document_ids == ()
+        assert run.value.failed_document_ids == (documents[0].value.document_id,)
+        assert run.value.error is not None
+        assert "Run discovery again" in run.value.error
+        assert recommendations.proposals(run.value.run_id, principal=caller) == ()
+    finally:
+        store.close()
+
+
+def test_given_source_exceeds_quota_when_recommended_then_run_preserves_quota_guidance(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=1),
+        clock=lambda: NOW,
+        id_factory=lambda: "quota",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            (documents[0].value.document_id,),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "failed"
+        assert run.value.completed_document_ids == ()
+        assert run.value.failed_document_ids == (documents[0].value.document_id,)
+        assert run.value.error is not None
+        assert "narrow or split the source document" in run.value.error
+        assert "Run discovery again" not in run.value.error
+    finally:
+        store.close()
+
+
+def test_given_one_source_exceeds_quota_when_recommended_then_partial_run_is_actionable(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+            InventoryInput(
+                "expenses.md",
+                "text/markdown",
+                ("word " * 5_000).encode(),
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=15_000),
+        clock=lambda: NOW,
+        id_factory=lambda: "partial-quota",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            tuple(document.value.document_id for document in documents),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "partial"
+        assert run.value.completed_document_ids == (documents[0].value.document_id,)
+        assert run.value.failed_document_ids == (documents[1].value.document_id,)
+        assert run.value.error is not None
+        assert "narrow or split the source document" in run.value.error
+    finally:
+        store.close()

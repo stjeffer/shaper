@@ -60,11 +60,12 @@ using optimistic concurrency. Archived estates remain read-only. **Delete**
 opens the same name-confirmed, archive-then-purge safeguard used inside the
 estate workspace.
 
-The **Assessment checks** screen lists all 29 deterministic checks by category.
-Each entry explains what the check looks for and its likely impact on retrieval
-or agent answers. The browser loads this catalogue from the authenticated
-`GET /v1/assessment-checks` contract, keeping the explanation aligned with the
-implemented check set.
+The **Assessment checks** screen groups all 29 deterministic checks into
+keyboard-operable category tabs so reviewers can inspect one focused group at a
+time. Each entry explains what the check looks for and its likely impact on
+retrieval or agent answers. The browser loads this catalogue from the
+authenticated `GET /v1/assessment-checks` contract, keeping the explanation
+aligned with the implemented check set.
 
 ### Sources
 
@@ -207,6 +208,22 @@ The recommendation stage:
 The action is labelled **Create improvement plan** rather than implying that
 token estimation is the recommendation. Token usage is supporting information
 in a collapsed section beneath the assessment results and recommended changes.
+Activating the action moves to the review step immediately and exposes a live,
+inline progress state. Completion reports how many plans are ready; stale or
+missing discovery evidence produces an actionable error instead of an empty
+approval screen.
+
+Each completed improvement plan also offers draft, content-grounded evaluation
+questions before output evaluation is enabled. Reviewers can include or exclude
+individual cases and prepare either Microsoft Foundry JSONL using the standard
+`query`, `ground_truth`, and `context` columns, or a Copilot Studio
+single-response CSV using `question` and `expectedResponse`. Suggested keywords
+remain visible in Shaper so reviewers can configure keyword-match evaluation
+after import.
+Expected answers are derived from version-pinned source passages and remain
+marked for subject-matter review. The UI names suitable Foundry evaluator
+dimensions or Copilot Studio test methods without claiming that a generated case
+has already been validated.
 
 After approval, the proposal card changes to an explicit **Transformation
 approved** state, shows that the document is ready to transform, and disables

@@ -14,6 +14,10 @@ const state = {
   artifacts: [],
   selectedDocuments: new Set(),
   assessmentChecks: null,
+  assessmentCheckCategory: 0,
+  evaluationSuggestions: [],
+  selectedEvaluationSuggestions: new Set(),
+  evaluationSuggestionErrors: [],
   actionEstate: null,
   openEstateMenuId: null,
 };
@@ -124,6 +128,15 @@ const elements = {
   selectionSummary: document.querySelector("#selectionSummary"),
   proposalList: document.querySelector("#proposalList"),
   proposalEmpty: document.querySelector("#proposalEmpty"),
+  proposalStatus: document.querySelector("#proposalStatus"),
+  proposalStatusTitle: document.querySelector("#proposalStatusTitle"),
+  proposalStatusDetail: document.querySelector("#proposalStatusDetail"),
+  evaluationOptions: document.querySelector("#evaluationOptions"),
+  evaluationTarget: document.querySelector("#evaluationTarget"),
+  evaluationTargetGuidance: document.querySelector("#evaluationTargetGuidance"),
+  evaluationSuggestionList: document.querySelector("#evaluationSuggestionList"),
+  evaluationSelectionSummary: document.querySelector("#evaluationSelectionSummary"),
+  downloadEvaluations: document.querySelector("#downloadEvaluations"),
   approvalSummary: document.querySelector("#approvalSummary"),
   generateEvaluations: document.querySelector("#generateEvaluations"),
   transformButton: document.querySelector("#transformButton"),
@@ -146,6 +159,235 @@ function announce(message) {
   requestAnimationFrame(() => {
     elements.status.textContent = message;
   });
+}
+
+function evaluationPassages(sourceText) {
+  const passages = [];
+  let heading = "";
+  sourceText
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      const headingMatch = part.match(/^#{1,6}\s+([^\n]+)(?:\n+([\s\S]+))?$/);
+      let content = part;
+      if (headingMatch) {
+        heading = headingMatch[1].trim();
+        content = (headingMatch[2] ?? "").trim();
+        if (!content) return;
+      }
+      const candidates =
+        content.length > 1200
+          ? content.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()) ??
+            []
+          : [content];
+      candidates
+        .filter((candidate) => candidate.length >= 40)
+        .forEach((candidate) => passages.push({ heading, text: candidate.slice(0, 1000) }));
+    });
+  const seen = new Set();
+  return passages.filter((passage) => {
+    const key = `${passage.heading}\n${passage.text}`.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function evaluationKeywords(passage) {
+  const excluded = new Set([
+    "about",
+    "after",
+    "before",
+    "from",
+    "have",
+    "must",
+    "shall",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "with",
+  ]);
+  return [...new Set(passage.toLocaleLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])]
+    .filter((word) => !excluded.has(word))
+    .slice(0, 5);
+}
+
+function suggestedEvaluations(proposal, documentValue, sourceText) {
+  return evaluationPassages(sourceText)
+    .slice(0, 5)
+    .map((passage, index) => {
+      const focus = passage.heading || passage.text.split(/\s+/).slice(0, 7).join(" ");
+      return {
+        id: `${proposal.recommendation_id}-evaluation-${index + 1}`,
+        document_id: documentValue.document_id,
+        source_version: documentValue.source_version,
+        source_reference: `${documentValue.document_id}@${documentValue.source_version}`,
+        query: passage.heading
+          ? `According to ${documentValue.title}, what guidance is provided under "${focus}"?`
+          : `According to ${documentValue.title}, what does the source say about "${focus}…"?`,
+        ground_truth: passage.text,
+        context: passage.text,
+        keywords: evaluationKeywords(`${passage.heading} ${passage.text}`),
+        foundry_evaluators: ["groundedness", "relevance", "completeness"],
+        copilot_studio_methods: ["General quality", "Compare meaning", "Keyword match"],
+        needs_sme_review: true,
+      };
+    });
+}
+
+async function loadEvaluationSuggestions() {
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  const estateId = recordValue(state.estate).estate_id;
+  for (const proposal of state.proposals) {
+    const documentRecord = state.documents.find(
+      (item) => recordValue(item).document_id === proposal.document_id,
+    );
+    const documentValue = documentRecord ? recordValue(documentRecord) : null;
+    if (!documentValue) {
+      state.evaluationSuggestionErrors.push(
+        `The source document for ${proposal.expected_artifact} is unavailable.`,
+      );
+      continue;
+    }
+    try {
+      const sourceText = await apiText(
+        `/v1/estates/${estateId}/documents/${encodeURIComponent(
+          documentValue.document_id,
+        )}/content?source_version=${encodeURIComponent(documentValue.source_version)}`,
+      );
+      state.evaluationSuggestions.push(
+        ...suggestedEvaluations(proposal, documentValue, sourceText),
+      );
+    } catch (error) {
+      state.evaluationSuggestionErrors.push(
+        `Suggestions for ${documentValue.title} could not be created: ${error.message}`,
+      );
+    }
+  }
+  state.evaluationSuggestions.forEach((suggestion) => {
+    state.selectedEvaluationSuggestions.add(suggestion.id);
+  });
+}
+
+function renderEvaluationOptions() {
+  const hasPlans = state.proposals.length > 0;
+  elements.evaluationOptions.hidden = !hasPlans;
+  if (!hasPlans) {
+    elements.evaluationSuggestionList.replaceChildren();
+    return;
+  }
+  const target = elements.evaluationTarget.value;
+  elements.evaluationTargetGuidance.textContent =
+    target === "foundry"
+      ? "Exports JSONL using Foundry standard columns: query, ground_truth, and context. Select groundedness, relevance, and completeness evaluators when configuring the run."
+      : "Exports question and expectedResponse for a Copilot Studio single-response test set. Suggested keywords remain here for configuring keyword-match evaluation after import.";
+  const items = state.evaluationSuggestions.map((suggestion) => {
+    const item = document.createElement("article");
+    item.className = "evaluation-suggestion";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.selectedEvaluationSuggestions.has(suggestion.id);
+    checkbox.dataset.evaluationSuggestion = suggestion.id;
+    checkbox.setAttribute("aria-label", `Include evaluation: ${suggestion.query}`);
+    const content = document.createElement("div");
+    const methods =
+      target === "foundry"
+        ? suggestion.foundry_evaluators.join(", ")
+        : suggestion.copilot_studio_methods.join(", ");
+    content.append(
+      text("h4", suggestion.query),
+      text("p", suggestion.ground_truth, "evaluation-expected-answer"),
+      text("p", `Suggested evaluation methods: ${methods}`, "evaluation-methods"),
+    );
+    if (target === "copilot-studio") {
+      content.append(
+        text(
+          "p",
+          `Suggested keywords: ${suggestion.keywords.join(", ")}`,
+          "evaluation-methods",
+        ),
+      );
+    }
+    item.append(checkbox, content);
+    return item;
+  });
+  if (state.evaluationSuggestionErrors.length) {
+    items.push(
+      text(
+        "p",
+        state.evaluationSuggestionErrors.join(" "),
+        "evaluation-suggestion-warning",
+      ),
+    );
+  }
+  if (items.length === 0) {
+    items.push(
+      text(
+        "p",
+        "No sufficiently substantive passages were found. Add test cases manually after reviewing the source.",
+        "evaluation-suggestion-warning",
+      ),
+    );
+  }
+  elements.evaluationSuggestionList.replaceChildren(...items);
+  const selected = state.selectedEvaluationSuggestions.size;
+  elements.evaluationSelectionSummary.textContent = `${selected} suggested evaluation${
+    selected === 1 ? "" : "s"
+  } selected`;
+  elements.downloadEvaluations.disabled = selected === 0;
+}
+
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function downloadEvaluationDataset() {
+  const selected = state.evaluationSuggestions.filter((suggestion) =>
+    state.selectedEvaluationSuggestions.has(suggestion.id),
+  );
+  if (selected.length === 0) return;
+  const target = elements.evaluationTarget.value;
+  let content;
+  let filename;
+  let type;
+  if (target === "foundry") {
+    content = selected
+      .map((suggestion) =>
+        JSON.stringify({
+          query: suggestion.query,
+          ground_truth: suggestion.ground_truth,
+          context: suggestion.context,
+          metadata: {
+            case_id: suggestion.id,
+            source_reference: suggestion.source_reference,
+            needs_sme_review: suggestion.needs_sme_review,
+          },
+        }),
+      )
+      .join("\n");
+    filename = "shaper-foundry-evaluation-dataset.jsonl";
+    type = "application/x-ndjson";
+  } else {
+    const rows = [
+      ["question", "expectedResponse"],
+      ...selected.map((suggestion) => [suggestion.query, suggestion.ground_truth]),
+    ];
+    content = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    filename = "shaper-copilot-studio-test-set.csv";
+    type = "text/csv";
+  }
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  announce(`${selected.length} evaluation cases prepared for download`);
 }
 
 function showAlert(message) {
@@ -641,40 +883,87 @@ function renderAssessmentChecks() {
     group.push(check);
     groups.set(check.category, group);
   });
-  elements.assessmentCheckGroups.replaceChildren(
-    ...[...groups.entries()].map(([category, checks]) => {
-      const section = document.createElement("section");
-      section.className = "assessment-check-group";
-      section.append(
-        text("h2", category),
-        text(
-          "p",
-          `${checks.length} deterministic check${checks.length === 1 ? "" : "s"}`,
-          "assessment-check-count",
-        ),
+  const tablist = document.createElement("div");
+  tablist.className = "assessment-check-tabs";
+  tablist.setAttribute("role", "tablist");
+  tablist.setAttribute("aria-label", "Assessment check categories");
+  tablist.setAttribute("aria-orientation", "horizontal");
+  const panels = document.createElement("div");
+  panels.className = "assessment-check-panels";
+  [...groups.entries()].forEach(([category, checks], index) => {
+    const tab = document.createElement("button");
+    tab.id = `assessment-check-tab-${index}`;
+    tab.type = "button";
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `assessment-check-panel-${index}`);
+    tab.dataset.assessmentCheckTab = `${index}`;
+    tab.append(text("span", category), text("span", `${checks.length}`, "tab-count"));
+    tablist.append(tab);
+
+    const section = document.createElement("section");
+    section.id = `assessment-check-panel-${index}`;
+    section.className = "assessment-check-panel";
+    section.setAttribute("role", "tabpanel");
+    section.setAttribute("aria-labelledby", tab.id);
+    section.tabIndex = 0;
+    section.append(
+      text("h2", category),
+      text(
+        "p",
+        `${checks.length} deterministic check${checks.length === 1 ? "" : "s"} in this category`,
+        "assessment-check-count",
+      ),
+    );
+    const list = document.createElement("div");
+    list.className = "assessment-check-list";
+    checks.forEach((check, checkIndex) => {
+      const article = document.createElement("article");
+      article.className = "assessment-check-card";
+      const number = text("span", `${checkIndex + 1}`, "assessment-check-number");
+      number.setAttribute("aria-hidden", "true");
+      const content = document.createElement("div");
+      const impact = document.createElement("p");
+      impact.className = "assessment-check-impact";
+      impact.append(
+        text("strong", "Likely agent impact"),
+        document.createTextNode(` ${check.agent_impact}`),
       );
-      const list = document.createElement("div");
-      list.className = "assessment-check-list";
-      checks.forEach((check) => {
-        const article = document.createElement("article");
-        article.className = "assessment-check-card";
-        const impact = document.createElement("p");
-        impact.className = "assessment-check-impact";
-        impact.append(
-          text("strong", "Likely agent impact"),
-          document.createTextNode(` ${check.agent_impact}`),
-        );
-        article.append(
-          text("h3", check.label),
-          text("p", check.what_it_checks),
-          impact,
-        );
-        list.append(article);
-      });
-      section.append(list);
-      return section;
-    }),
+      content.append(
+        text("h3", check.label),
+        text("p", check.what_it_checks),
+        impact,
+      );
+      article.append(number, content);
+      list.append(article);
+    });
+    section.append(list);
+    panels.append(section);
+  });
+  elements.assessmentCheckGroups.replaceChildren(tablist, panels);
+  switchAssessmentCheckCategory(
+    Math.min(state.assessmentCheckCategory, groups.size - 1),
+    false,
   );
+}
+
+function switchAssessmentCheckCategory(index, focus = true) {
+  const tabs = [
+    ...elements.assessmentCheckGroups.querySelectorAll("[data-assessment-check-tab]"),
+  ];
+  const panels = [
+    ...elements.assessmentCheckGroups.querySelectorAll(".assessment-check-panel"),
+  ];
+  if (!tabs[index]) return;
+  state.assessmentCheckCategory = index;
+  tabs.forEach((tab, tabIndex) => {
+    const selected = tabIndex === index;
+    tab.setAttribute("aria-selected", `${selected}`);
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  panels.forEach((panel, panelIndex) => {
+    panel.hidden = panelIndex !== index;
+  });
+  if (focus) tabs[index].focus();
 }
 
 async function openEstate(estateId, targetTab = "sources") {
@@ -717,10 +1006,12 @@ async function openEstate(estateId, targetTab = "sources") {
 }
 
 async function restoreWorkflowEvidence(estateId) {
-  const runs = state.runs.map(recordValue);
-  const latestDiscovery = [...runs]
-    .reverse()
-    .find((run) => run.kind === "discover" && ["completed", "partial"].includes(run.status));
+  const runs = state.runs
+    .map(recordValue)
+    .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+  const latestDiscovery = runs
+    .filter((run) => run.kind === "discover" && ["completed", "partial"].includes(run.status))
+    .at(-1);
   state.discoveryRunId = latestDiscovery?.run_id ?? null;
   state.reports = new Map();
   if (state.discoveryRunId) {
@@ -730,19 +1021,76 @@ async function restoreWorkflowEvidence(estateId) {
       )}`,
     );
     state.reports = new Map(reports.items.map((report) => [report.document_id, report]));
+    const currentDocuments = new Map(
+      state.documents
+        .map(recordValue)
+        .filter((document) => !document.deleted)
+        .map((document) => [document.document_id, document]),
+    );
+    const completedDocumentIds =
+      latestDiscovery.completed_document_ids?.length > 0
+        ? latestDiscovery.completed_document_ids
+        : [...state.reports.keys()];
+    const discoveryIsCurrent =
+      completedDocumentIds.length > 0 &&
+      completedDocumentIds.every((documentId) => {
+        const document = currentDocuments.get(documentId);
+        return (
+          document &&
+          state.reports.get(documentId)?.source_version === document.source_version
+        );
+      });
+    if (!discoveryIsCurrent) {
+      state.discoveryRunId = null;
+      state.reports = new Map();
+    }
   }
-  const latestRecommendation = [...runs]
-    .reverse()
-    .find((run) => run.kind === "recommend" && ["completed", "partial"].includes(run.status));
+  setProposalStatus("idle");
+  const latestRecommendation = runs.filter((run) => run.kind === "recommend").at(-1);
   state.proposalRunId = latestRecommendation?.run_id ?? null;
   state.proposals = [];
-  if (state.proposalRunId) {
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  if (latestRecommendation?.status === "failed") {
+    setProposalStatus(
+      "error",
+      "No improvement plan was created",
+      latestRecommendation.error ||
+        "Run discovery again, reselect the documents, and retry.",
+    );
+  } else if (latestRecommendation && ["queued", "running"].includes(latestRecommendation.status)) {
+    setProposalStatus(
+      "working",
+      "Creating improvement plan",
+      "The latest recommendation run is still in progress.",
+    );
+  } else if (
+    state.discoveryRunId &&
+    latestRecommendation &&
+    ["completed", "partial"].includes(latestRecommendation.status)
+  ) {
     const proposals = await api(
       `/v1/estates/${estateId}/proposals?run_id=${encodeURIComponent(
         state.proposalRunId,
       )}`,
     );
-    state.proposals = proposals.items;
+    state.proposals = proposals.items.filter((proposal) => {
+      const report = state.reports.get(proposal.document_id);
+      return report?.report_id === proposal.report_id;
+    });
+    if (state.proposals.length > 0 && latestRecommendation.status === "partial") {
+      setProposalStatus(
+        "warning",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan" : "plans"
+        } restored`,
+        latestRecommendation.error || "Some selected documents were skipped.",
+      );
+    }
+    if (state.proposals.length > 0) {
+      await loadEvaluationSuggestions();
+    }
   }
 }
 
@@ -945,6 +1293,20 @@ function updateSelection() {
   elements.recommendButton.disabled = count === 0 || !state.discoveryRunId;
 }
 
+function invalidateAssessmentEvidence() {
+  state.discoveryRunId = null;
+  state.reports = new Map();
+  state.selectedDocuments.clear();
+  state.proposalRunId = null;
+  state.proposals = [];
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  setProposalStatus("idle");
+  renderDocuments();
+  renderProposals();
+}
+
 function proposalAssessmentResults(report) {
   const section = document.createElement("section");
   section.className = "proposal-assessment";
@@ -1131,9 +1493,18 @@ function renderProposals() {
       return card;
     }),
   );
-  elements.proposalEmpty.hidden = state.proposals.length !== 0;
+  elements.proposalEmpty.hidden =
+    state.proposals.length !== 0 || !elements.proposalStatus.hidden;
+  renderEvaluationOptions();
   updateApprovals();
   updateWorkflowProgress();
+}
+
+function setProposalStatus(kind, title = "", detail = "") {
+  elements.proposalStatus.hidden = kind === "idle";
+  elements.proposalStatus.dataset.state = kind;
+  elements.proposalStatusTitle.textContent = title;
+  elements.proposalStatusDetail.textContent = detail;
 }
 
 function tokenEstimateGraphic(estimate, filename) {
@@ -1616,11 +1987,11 @@ async function uploadFiles(event) {
     elements.uploadForm.reset();
     elements.fileSummary.textContent = "No files selected";
     renderSources();
-    renderDocuments();
+    invalidateAssessmentEvidence();
     announce(
       `${result.documents.length} document${
         result.documents.length === 1 ? "" : "s"
-      } inventoried`,
+      } inventoried. Run discovery to assess the updated estate.`,
     );
   } catch (error) {
     showAlert(error.message);
@@ -1659,8 +2030,18 @@ async function runDiscovery() {
 
 async function requestRecommendations() {
   clearAlert();
-  const panel = document.querySelector('[data-panel="discover"]');
-  setBusy(panel, true, "Building assessment-backed improvement plans…");
+  const selectedCount = state.selectedDocuments.size;
+  state.proposals = [];
+  setProposalStatus(
+    "working",
+    "Creating improvement plan",
+    `Reviewing assessment evidence for ${selectedCount} selected ${
+      selectedCount === 1 ? "document" : "documents"
+    }. This may take a moment.`,
+  );
+  renderProposals();
+  switchTab("recommend");
+  elements.recommendButton.disabled = true;
   try {
     await ensureAssessmentChecks();
     const result = await api(
@@ -1674,18 +2055,49 @@ async function requestRecommendations() {
       },
     );
     state.proposalRunId = recordValue(result.run).run_id;
-    await waitForRun(state.proposalRunId);
+    const runRecord = await waitForRun(state.proposalRunId);
+    const run = recordValue(runRecord);
     state.proposals = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/proposals?run_id=${encodeURIComponent(
         state.proposalRunId,
       )}`,
     ).then((payload) => payload.items);
+    if (state.proposals.length === 0) {
+      throw new Error(
+        run.error ||
+          "No improvement plans were created. Run discovery again, then reselect the documents.",
+      );
+    }
+    await loadEvaluationSuggestions();
     renderProposals();
-    switchTab("recommend");
+    if (run.failed_document_ids?.length) {
+      setProposalStatus(
+        "warning",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan" : "plans"
+        } created`,
+        run.error || "Some selected documents were skipped. Run discovery again for those sources.",
+      );
+    } else {
+      setProposalStatus(
+        "success",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan is" : "plans are"
+        } ready to review`,
+        "Review each assessment result and proposed change before approving a transformation.",
+      );
+    }
+    announce(`${state.proposals.length} improvement plans ready to review`);
   } catch (error) {
+    setProposalStatus(
+      "error",
+      "No improvement plan was created",
+      `${error.message} Return to Assess, run discovery again if the source changed, and retry.`,
+    );
+    renderProposals();
     showAlert(error.message);
   } finally {
-    setBusy(panel, false);
+    updateSelection();
   }
 }
 
@@ -1897,6 +2309,10 @@ document.addEventListener("click", async (event) => {
     await loadEstates();
   } else if (target.dataset.action === "assessment-checks") {
     await openAssessmentChecks();
+  } else if (target.dataset.assessmentCheckTab) {
+    switchAssessmentCheckCategory(Number(target.dataset.assessmentCheckTab), false);
+  } else if (target.id === "downloadEvaluations") {
+    downloadEvaluationDataset();
   } else if (target.dataset.action === "open-create") {
     elements.createDialog.showModal();
   } else if (target.dataset.action === "close-create") {
@@ -1939,6 +2355,27 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  const assessmentTab = event.target.closest("[data-assessment-check-tab]");
+  if (
+    assessmentTab &&
+    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+  ) {
+    event.preventDefault();
+    const tabs = [
+      ...elements.assessmentCheckGroups.querySelectorAll("[data-assessment-check-tab]"),
+    ];
+    const current = tabs.indexOf(assessmentTab);
+    let next = 0;
+    if (event.key === "End") {
+      next = tabs.length - 1;
+    } else if (event.key === "ArrowLeft") {
+      next = current <= 0 ? tabs.length - 1 : current - 1;
+    } else if (event.key === "ArrowRight") {
+      next = current === tabs.length - 1 ? 0 : current + 1;
+    }
+    switchAssessmentCheckCategory(next);
+    return;
+  }
   if (event.key === "Escape" && state.openEstateMenuId) {
     event.preventDefault();
     closeEstateMenus({ restoreFocus: true });
@@ -2015,6 +2452,17 @@ elements.transformButton.addEventListener("click", transformApproved);
 elements.archiveButton.addEventListener("click", archiveEstate);
 elements.purgeButton.addEventListener("click", openPurgeDialog);
 elements.purgeForm.addEventListener("submit", purgeEstate);
+elements.evaluationTarget.addEventListener("change", renderEvaluationOptions);
+elements.evaluationSuggestionList.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-evaluation-suggestion]");
+  if (!checkbox) return;
+  if (checkbox.checked) {
+    state.selectedEvaluationSuggestions.add(checkbox.dataset.evaluationSuggestion);
+  } else {
+    state.selectedEvaluationSuggestions.delete(checkbox.dataset.evaluationSuggestion);
+  }
+  renderEvaluationOptions();
+});
 elements.files.addEventListener("change", () => {
   const count = elements.files.files.length;
   elements.fileSummary.textContent =

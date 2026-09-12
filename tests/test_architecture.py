@@ -193,6 +193,19 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'querySelector("#avatar")' not in browser_app
     assert "Create improvement plan" in html
     assert "Review assessment and improvement plan" in html
+    assert 'id="proposalStatus"' in html
+    assert '"No improvement plan was created"' in browser_app
+    assert "state.proposals.length === 0" in browser_app
+    assert "function invalidateAssessmentEvidence()" in browser_app
+    assert "Run discovery to assess the updated estate." in browser_app
+    assert 'id="evaluationOptions"' in html
+    assert "Microsoft Foundry JSONL" in html
+    assert "Copilot Studio CSV" in html
+    assert "function suggestedEvaluations(" in browser_app
+    assert "ground_truth: suggestion.ground_truth" in browser_app
+    assert '["question", "expectedResponse"]' in browser_app
+    assert "Suggested keywords:" in browser_app
+    assert "needs_sme_review: suggestion.needs_sme_review" in browser_app
     assert "function proposalAssessmentResults(report)" in browser_app
     assert '"Checks completed"' in browser_app
     assert '"Checks that need attention"' in browser_app
@@ -216,6 +229,10 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "checkbox.disabled = isArchived()" in browser_app
     assert "checkbox.disabled = !report" not in browser_app
     assert "selected for improvement planning" in browser_app
+    assert 'tablist.setAttribute("role", "tablist")' in browser_app
+    assert 'section.setAttribute("role", "tabpanel")' in browser_app
+    assert 'tab.setAttribute("aria-selected", `${selected}`)' in browser_app
+    assert '["ArrowLeft", "ArrowRight", "Home", "End"]' in browser_app
     assert "\nfunction switchSourceInputTab(name, focus = true)" in browser_app
     assert "\n  function switchSourceInputTab(name, focus = true)" not in browser_app
     assert "function sourceDisplayDetail(source)" in browser_app

@@ -17,7 +17,7 @@ from shaper.application.orchestration import (
     TransformationAgent,
 )
 from shaper.application.ports import DocumentParser, SourceConnector
-from shaper.application.token_estimation import TokenEstimator
+from shaper.application.token_estimation import TokenEstimateLimitError, TokenEstimator
 from shaper.domain import (
     AuthorityStatus,
     CollectionGrant,
@@ -1097,6 +1097,8 @@ class EstateRecommendationService:
         }
         completed = []
         failed = []
+        quota_failures = []
+        evidence_failures = []
         output_names: set[str] = set()
         for document_id in selected:
             try:
@@ -1168,14 +1170,50 @@ class EstateRecommendationService:
                     )
                 )
                 completed.append(document_id)
+            except TokenEstimateLimitError as quota_error:
+                failed.append(document_id)
+                quota_failures.append(str(quota_error))
             except (KeyError, ValueError):
                 failed.append(document_id)
+                evidence_failures.append(document_id)
         values = running.value.model_dump()
+        if failed and not completed:
+            status = WorkflowStatus.FAILED
+            if quota_failures and not evidence_failures:
+                error = f"No improvement plans were created. {quota_failures[0]}."
+            elif evidence_failures and not quota_failures:
+                error = (
+                    "No improvement plans were created because every selected document "
+                    "was absent from the discovery evidence or changed after discovery. "
+                    "Run discovery again, then reselect the documents."
+                )
+            else:
+                error = (
+                    "No improvement plans were created. Some documents changed after "
+                    "discovery, and others exceed the transformation quota. Run discovery "
+                    "again and narrow or split oversized sources."
+                )
+        elif failed:
+            status = WorkflowStatus.PARTIAL
+            reasons = []
+            if evidence_failures:
+                reasons.append("the source changed or its discovery evidence was unavailable")
+            if quota_failures:
+                reasons.append(quota_failures[0].removesuffix("."))
+            error = (
+                f"{len(failed)} selected document"
+                f"{' was' if len(failed) == 1 else 's were'} skipped: "
+                f"{'; '.join(reasons)}."
+            )
+        else:
+            status = WorkflowStatus.COMPLETED
+            error = None
         values.update(
             {
-                "status": WorkflowStatus.PARTIAL if failed else WorkflowStatus.COMPLETED,
+                "status": status,
                 "completed_document_ids": tuple(completed),
                 "failed_document_ids": tuple(failed),
+                "error": error,
                 "lease_owner": None,
                 "lease_expires_at": None,
                 "updated_at": self._clock(),
