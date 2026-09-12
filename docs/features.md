@@ -83,6 +83,12 @@ Document rows show only a concise format label such as **PDF**, **DOCX**,
 **Markdown**, or **Text**. Raw MIME types and modification timestamps remain
 available as source metadata but do not clutter the inventory.
 
+Assessed document rows keep only the finding count, highest urgency, and review
+action visible. On wide screens, **Review findings** opens a dedicated inline
+detail panel beside the document list. On narrow screens, the same complete
+finding explanations, agent impact, evidence, and review requirements open in a
+modal detail view rather than expanding the table row vertically.
+
 SharePoint registrations record whether synchronization should use the signed-in
 user's delegated access or an organization-managed application connection.
 Application credentials are configured by an administrator outside the browser;

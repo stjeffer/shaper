@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-plan-status-check-tabs" />
+    <link rel="stylesheet" href="styles.css?v=20260912-findings-panel" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -342,17 +342,42 @@
               </div>
             </div>
             <div id="discoverySummary" class="metrics" hidden></div>
-            <div class="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col"><span class="sr-only">Select</span></th>
-                    <th scope="col">Document</th>
-                    <th scope="col">Findings</th>
-                  </tr>
-                </thead>
-                <tbody id="documentRows"></tbody>
-              </table>
+            <div id="discoveryReviewLayout" class="discovery-review-layout">
+              <div class="table-scroll discovery-table-region">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col"><span class="sr-only">Select</span></th>
+                      <th scope="col">Document</th>
+                      <th scope="col">Findings</th>
+                    </tr>
+                  </thead>
+                  <tbody id="documentRows"></tbody>
+                </table>
+              </div>
+              <aside
+                id="documentFindingsPanel"
+                class="document-findings-panel"
+                aria-labelledby="documentFindingsTitle"
+                hidden
+              >
+                <div class="findings-panel-heading">
+                  <div>
+                    <p class="eyebrow">DOCUMENT FINDINGS</p>
+                    <h3 id="documentFindingsTitle" tabindex="-1">Findings</h3>
+                    <p id="documentFindingsSummary"></p>
+                  </div>
+                  <button
+                    class="icon-button"
+                    type="button"
+                    data-action="close-findings"
+                    aria-label="Close document findings"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div id="documentFindingsBody" class="findings-panel-body"></div>
+              </aside>
             </div>
             <div id="documentEmpty" class="empty-state compact" hidden>
               <h3>No inventoried documents</h3>
@@ -607,6 +632,29 @@
       <pre id="documentContent" class="document-content" tabindex="0"></pre>
     </dialog>
 
+    <dialog
+      id="documentFindingsDialog"
+      class="document-dialog findings-dialog"
+      aria-labelledby="documentFindingsDialogTitle"
+    >
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">DOCUMENT FINDINGS</p>
+          <h2 id="documentFindingsDialogTitle" tabindex="-1">Findings</h2>
+          <p id="documentFindingsDialogSummary"></p>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          data-action="close-findings"
+          aria-label="Close document findings"
+        >
+          ×
+        </button>
+      </div>
+      <div id="documentFindingsDialogBody" class="findings-panel-body"></div>
+    </dialog>
+
     <dialog id="deleteDialog" class="confirm-dialog" aria-labelledby="deleteTitle">
       <form id="deleteForm">
         <div class="dialog-heading">
@@ -686,6 +734,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-plan-status-check-tabs"></script>
+    <script src="app.js?v=20260912-findings-panel"></script>
   </body>
 </html>

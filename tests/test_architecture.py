@@ -69,7 +69,7 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert '<th scope="col">Readiness</th>' not in markup
     assert "Reshaping effort" not in markup
     assert "report.effort_band" not in script
-    assert "documentFindings(report)" in script
+    assert "documentFindings(report, documentValue.title)" in script
     assert "classifyFindings(report).length" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
@@ -84,7 +84,15 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert "report.readiness_score" not in script
     assert 'id="documentDialog"' in markup
     assert "checks run" in script
-    assert "findings-disclosure" in script
+    assert 'id="documentFindingsPanel"' in markup
+    assert 'id="documentFindingsDialog"' in markup
+    assert "function openDocumentFindings(button)" in script
+    assert "button.dataset.reviewFindings = documentValue.document_id" in script
+    assert 'window.matchMedia("(max-width: 1240px)")' in script
+    assert 'findingsDialogMedia.addEventListener("change"' in script
+    assert "moveOpenFindingsToCurrentLayout" in script
+    assert ".discovery-review-layout.has-findings" in styles
+    assert ".findings-review-button:focus-visible" in styles
     assert 'class="assessment-note"' in markup
     assert "result-evidence" in styles
     assert ".result-item.high" in styles
@@ -230,7 +238,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "function requestedEstateRoute()" in browser_app
     assert "formatShortDate(estate.updated_at)" in browser_app
     assert "function fileFormatLabel(documentValue)" in browser_app
-    assert "text(\"p\", fileFormatLabel(documentValue))" in browser_app
+    assert 'text("p", fileFormatLabel(documentValue))' in browser_app
     assert "documentValue.media_type} ·" not in browser_app
     assert 'partially_assessed: "Assessed"' in browser_app
     assert '"Partially assessed"' not in browser_app

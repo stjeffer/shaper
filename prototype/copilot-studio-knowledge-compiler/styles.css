@@ -3093,6 +3093,21 @@ h2 {
   min-width: 0;
 }
 
+.discovery-review-layout {
+  display: grid;
+  align-items: start;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.discovery-review-layout.has-findings {
+  grid-template-columns: minmax(480px, 1fr) minmax(320px, 420px);
+}
+
+.discovery-table-region {
+  min-width: 0;
+}
+
 .checks-completed {
   margin: 0 0 6px;
   color: var(--color-neutral-foreground-3);
@@ -3101,40 +3116,42 @@ h2 {
   line-height: 16px;
 }
 
-.findings-disclosure {
-  overflow: hidden;
-  background: var(--color-neutral-background-1);
-  border: 1px solid var(--color-neutral-stroke-1);
-  border-radius: var(--border-radius-medium);
-}
-
-.findings-disclosure > summary {
+.findings-review-button {
   display: grid;
-  min-height: 52px;
+  width: 100%;
+  height: 52px;
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
+  text-align: left;
+  background: var(--color-neutral-background-1);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
   cursor: pointer;
-  list-style: none;
   grid-template-columns: minmax(0, 1fr) 20px;
 }
 
-.findings-disclosure > summary::-webkit-details-marker {
-  display: none;
-}
-
-.findings-disclosure > summary:hover {
+.findings-review-button:hover,
+.findings-review-button[aria-pressed="true"] {
   background: var(--color-neutral-background-2);
 }
 
-.findings-disclosure > summary:focus-visible {
+.findings-review-button:focus-visible {
   outline: 2px solid var(--color-brand-background);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .findings-summary-copy {
   display: grid;
+  min-width: 0;
   gap: 1px;
+}
+
+.findings-summary-copy strong,
+.findings-summary-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .findings-summary-copy strong {
@@ -3157,8 +3174,69 @@ h2 {
   transition: transform 100ms ease;
 }
 
-.findings-disclosure[open] .findings-chevron {
-  transform: rotate(90deg);
+.findings-review-button[aria-pressed="true"] .findings-chevron {
+  transform: translateX(2px);
+}
+
+.no-findings {
+  color: var(--color-neutral-foreground-3);
+  font-size: 13px;
+}
+
+.document-findings-panel {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+  background: var(--color-neutral-background-1);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-large);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+}
+
+.findings-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
+}
+
+.findings-panel-heading h3 {
+  margin: 2px 0 0;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.findings-panel-heading [tabindex="-1"]:focus,
+.findings-dialog .dialog-heading [tabindex="-1"]:focus {
+  outline: none;
+}
+
+.findings-panel-heading > div > p:last-child {
+  margin: 4px 0 0;
+  color: var(--color-neutral-foreground-3);
+  font-size: 12px;
+}
+
+.findings-panel-body {
+  max-height: calc(100vh - 230px);
+  padding: 8px 20px 20px;
+  overflow-y: auto;
+}
+
+.findings-panel-body .result-list {
+  padding: 0;
+}
+
+.findings-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+}
+
+.findings-dialog .findings-panel-body {
+  max-height: calc(100vh - 150px);
 }
 
 .result-list {
@@ -3348,6 +3426,16 @@ h2 {
   }
 }
 
+@media (max-width: 1240px) {
+  .discovery-review-layout.has-findings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .document-findings-panel {
+    display: none;
+  }
+}
+
 @media (max-width: 960px) {
   body {
     padding: 0;
@@ -3375,6 +3463,7 @@ h2 {
   .registered-sources-panel {
     margin-top: 0;
   }
+
 }
 
 @media (max-width: 760px) {
@@ -3731,7 +3820,7 @@ h2 {
     padding: 14px 12px;
   }
 
-  .findings-disclosure > summary {
+  .findings-review-button {
     padding: 8px 10px;
   }
 

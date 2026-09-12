@@ -13,6 +13,10 @@ const state = {
   decisions: new Map(),
   artifacts: [],
   selectedDocuments: new Set(),
+  activeFindingDocumentId: null,
+  findingTrigger: null,
+  restoreFindingFocus: true,
+  transitioningFindingPresentation: false,
   assessmentChecks: null,
   assessmentCheckCategory: 0,
   evaluationSuggestions: [],
@@ -155,7 +159,17 @@ const elements = {
   documentDownload: document.querySelector("#documentDownload"),
   documentSourceStatus: document.querySelector("#documentSourceStatus"),
   documentContent: document.querySelector("#documentContent"),
+  discoveryReviewLayout: document.querySelector("#discoveryReviewLayout"),
+  documentFindingsPanel: document.querySelector("#documentFindingsPanel"),
+  documentFindingsTitle: document.querySelector("#documentFindingsTitle"),
+  documentFindingsSummary: document.querySelector("#documentFindingsSummary"),
+  documentFindingsBody: document.querySelector("#documentFindingsBody"),
+  documentFindingsDialog: document.querySelector("#documentFindingsDialog"),
+  documentFindingsDialogTitle: document.querySelector("#documentFindingsDialogTitle"),
+  documentFindingsDialogSummary: document.querySelector("#documentFindingsDialogSummary"),
+  documentFindingsDialogBody: document.querySelector("#documentFindingsDialogBody"),
 };
+const findingsDialogMedia = window.matchMedia("(max-width: 1240px)");
 
 function announce(message) {
   elements.status.textContent = "";
@@ -572,11 +586,11 @@ function classifyFindings(report = {}) {
   return classified;
 }
 
-function documentFindings(report) {
+function documentFindings(report, documentTitle = "Document") {
   const classified = classifyFindings(report);
   const results = document.createElement("ul");
   results.className = "result-list";
-  results.setAttribute("aria-label", "Content quality findings");
+  results.setAttribute("aria-label", `${documentTitle} content quality findings`);
   results.append(...classified.map(resultItem));
   if (classified.length === 0) {
     results.append(
@@ -590,10 +604,30 @@ function documentFindings(report) {
     return results;
   }
 
+  return results;
+}
+
+function findingReviewButton(report, documentValue) {
+  const classified = classifyFindings(report);
+  if (classified.length === 0) {
+    return text("span", "No findings", "no-findings");
+  }
   const highPriority = classified.filter((finding) => finding.tone === "high").length;
-  const disclosure = document.createElement("details");
-  disclosure.className = "findings-disclosure";
-  const summary = document.createElement("summary");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "findings-review-button";
+  button.dataset.reviewFindings = documentValue.document_id;
+  button.setAttribute(
+    "aria-label",
+    `Review ${classified.length} finding${
+      classified.length === 1 ? "" : "s"
+    } for ${documentValue.title}`,
+  );
+  button.setAttribute("aria-controls", "documentFindingsPanel documentFindingsDialog");
+  button.setAttribute(
+    "aria-pressed",
+    `${state.activeFindingDocumentId === documentValue.document_id}`,
+  );
   const summaryCopy = document.createElement("span");
   summaryCopy.className = "findings-summary-copy";
   summaryCopy.append(
@@ -608,9 +642,121 @@ function documentFindings(report) {
         : "Review agent impact and evidence",
     ),
   );
-  summary.append(summaryCopy, text("span", "›", "findings-chevron"));
-  disclosure.append(summary, results);
-  return disclosure;
+  button.append(summaryCopy, text("span", "›", "findings-chevron"));
+  return button;
+}
+
+function populateFindingsDetail(documentValue, report, title, summary, body) {
+  const findings = classifyFindings(report);
+  title.textContent = documentValue.title;
+  summary.textContent = `${findings.length} finding${
+    findings.length === 1 ? "" : "s"
+  } · ${report.checks_completed?.length ?? 7} checks run`;
+  body.replaceChildren(documentFindings(report, documentValue.title));
+}
+
+function updateFindingButtons() {
+  elements.documentRows.querySelectorAll("[data-review-findings]").forEach((button) => {
+    const active = button.dataset.reviewFindings === state.activeFindingDocumentId;
+    button.setAttribute("aria-pressed", `${active}`);
+    button.closest("tr")?.classList.toggle("findings-active", active);
+  });
+}
+
+function closeDocumentFindings({ restoreFocus = true } = {}) {
+  if (elements.documentFindingsDialog.open) {
+    state.restoreFindingFocus = restoreFocus;
+    elements.documentFindingsDialog.close();
+    return;
+  }
+  elements.documentFindingsPanel.hidden = true;
+  elements.discoveryReviewLayout.classList.remove("has-findings");
+  state.activeFindingDocumentId = null;
+  updateFindingButtons();
+  if (restoreFocus && state.findingTrigger?.isConnected) state.findingTrigger.focus();
+  state.findingTrigger = null;
+}
+
+function openDocumentFindings(button) {
+  const documentId = button.dataset.reviewFindings;
+  if (
+    state.activeFindingDocumentId === documentId &&
+    !elements.documentFindingsPanel.hidden
+  ) {
+    closeDocumentFindings();
+    return;
+  }
+  const documentRecord = state.documents.find(
+    (record) => recordValue(record).document_id === documentId,
+  );
+  const documentValue = documentRecord ? recordValue(documentRecord) : null;
+  const report = state.reports.get(documentId);
+  if (!documentValue || !report) return;
+  state.activeFindingDocumentId = documentId;
+  state.findingTrigger = button;
+  updateFindingButtons();
+  if (findingsDialogMedia.matches) {
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsDialogTitle,
+      elements.documentFindingsDialogSummary,
+      elements.documentFindingsDialogBody,
+    );
+    elements.documentFindingsDialog.showModal();
+    elements.documentFindingsDialogTitle.focus();
+    return;
+  }
+  populateFindingsDetail(
+    documentValue,
+    report,
+    elements.documentFindingsTitle,
+    elements.documentFindingsSummary,
+    elements.documentFindingsBody,
+  );
+  elements.documentFindingsPanel.hidden = false;
+  elements.discoveryReviewLayout.classList.add("has-findings");
+  elements.documentFindingsTitle.focus();
+}
+
+function moveOpenFindingsToCurrentLayout() {
+  const documentId = state.activeFindingDocumentId;
+  if (!documentId) return;
+  const documentRecord = state.documents.find(
+    (record) => recordValue(record).document_id === documentId,
+  );
+  const documentValue = documentRecord ? recordValue(documentRecord) : null;
+  const report = state.reports.get(documentId);
+  if (!documentValue || !report) {
+    closeDocumentFindings({ restoreFocus: false });
+    return;
+  }
+  if (findingsDialogMedia.matches && !elements.documentFindingsDialog.open) {
+    elements.documentFindingsPanel.hidden = true;
+    elements.discoveryReviewLayout.classList.remove("has-findings");
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsDialogTitle,
+      elements.documentFindingsDialogSummary,
+      elements.documentFindingsDialogBody,
+    );
+    elements.documentFindingsDialog.showModal();
+    elements.documentFindingsDialogTitle.focus();
+  } else if (!findingsDialogMedia.matches && elements.documentFindingsDialog.open) {
+    state.transitioningFindingPresentation = true;
+    elements.documentFindingsDialog.close();
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsTitle,
+      elements.documentFindingsSummary,
+      elements.documentFindingsBody,
+    );
+    elements.documentFindingsPanel.hidden = false;
+    elements.discoveryReviewLayout.classList.add("has-findings");
+    elements.documentFindingsTitle.focus();
+  }
 }
 
 function fileFormatLabel(documentValue) {
@@ -1236,6 +1382,9 @@ function switchSourceInputTab(name, focus = true) {
 }
 
 function renderDocuments() {
+  if (state.activeFindingDocumentId) {
+    closeDocumentFindings({ restoreFocus: false });
+  }
   elements.documentRows.replaceChildren(
     ...state.documents
       .filter((record) => !recordValue(record).deleted)
@@ -1274,7 +1423,7 @@ function renderDocuments() {
               `${report.checks_completed?.length ?? 7} checks run`,
               "checks-completed",
             ),
-            documentFindings(report),
+            findingReviewButton(report, documentValue),
           );
         } else {
           findingsCell.append(text("span", "Run discovery to assess this source version.", "pending-result"));
@@ -2359,6 +2508,10 @@ document.addEventListener("click", async (event) => {
     elements.purgeDialog.close();
   } else if (target.dataset.action === "close-document") {
     elements.documentDialog.close();
+  } else if (target.dataset.action === "close-findings") {
+    closeDocumentFindings();
+  } else if (target.dataset.reviewFindings) {
+    openDocumentFindings(target);
   } else if (target.dataset.viewDocument) {
     await openDocument(
       target.dataset.viewDocument,
@@ -2506,5 +2659,35 @@ elements.documentRows.addEventListener("change", (event) => {
   }
   updateSelection();
 });
+elements.documentFindingsDialog.addEventListener("close", () => {
+  if (state.transitioningFindingPresentation) {
+    state.transitioningFindingPresentation = false;
+    return;
+  }
+  state.activeFindingDocumentId = null;
+  updateFindingButtons();
+  if (state.restoreFindingFocus && state.findingTrigger?.isConnected) {
+    state.findingTrigger.focus();
+  }
+  state.restoreFindingFocus = true;
+  state.findingTrigger = null;
+});
+elements.documentFindingsDialog.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeDocumentFindings();
+});
+document.addEventListener("keydown", (event) => {
+  if (
+    event.key === "Escape" &&
+    state.activeFindingDocumentId &&
+    !elements.documentFindingsDialog.open &&
+    !elements.documentFindingsPanel.hidden
+  ) {
+    event.preventDefault();
+    closeDocumentFindings();
+  }
+});
+findingsDialogMedia.addEventListener("change", moveOpenFindingsToCurrentLayout);
 
 initialize();
