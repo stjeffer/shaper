@@ -348,6 +348,15 @@ def test_given_scanned_files_when_ingested_then_each_file_becomes_inventory(
 
         # Assert
         assert {item.value.filename for item in documents} == {"travel.md", "leave.txt"}
+        repository = SQLiteEstateRepository(store)
+        travel = next(item.value for item in documents if item.value.filename == "travel.md")
+        assert (
+            repository.load_document_source(travel.document_id, travel.source_version)
+            == b"# Travel\n\nBook centrally."
+        )
+        assert repository.load_document_content(travel.document_id, travel.source_version) == (
+            "# Travel\n\nBook centrally."
+        )
     finally:
         store.close()
 

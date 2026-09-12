@@ -248,6 +248,17 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert all(finding["evidence"] for finding in report["findings"])
         assert all(finding["agent_impact"] for finding in report["findings"])
 
+        source_response = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/source",
+            params={"source_version": source_version},
+            headers=headers,
+        )
+        assert source_response.status_code == 200
+        assert source_response.content == (
+            b"# Leave policy\n\nEmployees must request annual leave from their manager."
+        )
+        assert source_response.headers["content-disposition"].startswith("attachment;")
+
         recommendation_response = client.post(
             f"/v1/estates/{estate_id}/recommendation-runs",
             headers=headers,
@@ -327,6 +338,23 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert content_response.status_code == 200
         assert "<!doctype html>" in content_response.text
         assert "Employees must request annual leave" in content_response.text
+
+        store.connection.execute(
+            "DELETE FROM records WHERE category = 'document_source' AND record_id = ?",
+            (f"{document_id}:{source_version}",),
+        )
+        legacy_documents = client.get(
+            f"/v1/estates/{estate_id}/documents",
+            headers=headers,
+        )
+        assert legacy_documents.json()["items"][0]["source_retained"] is False
+        legacy_source = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/source",
+            params={"source_version": source_version},
+            headers=headers,
+        )
+        assert legacy_source.status_code == 409
+        assert "re-upload" in legacy_source.json()["detail"]
 
         document_record = repository.get_document(document_id)
         assert document_record is not None

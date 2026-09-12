@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-improvement-plan" />
+    <link rel="stylesheet" href="styles.css?v=20260912-source-preservation" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -524,8 +524,8 @@
     >
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">NORMALIZED SOURCE</p>
-          <h2 id="documentDialogTitle">Document content</h2>
+          <p class="eyebrow">EXTRACTED TEXT</p>
+          <h2 id="documentDialogTitle">Extracted document text</h2>
         </div>
         <button
           class="icon-button"
@@ -536,10 +536,13 @@
           ×
         </button>
       </div>
-      <p class="hint">
-        Findings quote this exact source version. Review the original file before approving
-        policy meaning.
+      <p id="documentSourceStatus" class="hint">
+        Findings use this lossless text derivative. The exact uploaded file is retained separately
+        as the source of record.
       </p>
+      <a id="documentDownload" class="button secondary document-download" href="#">
+        Download original file
+      </a>
       <pre id="documentContent" class="document-content" tabindex="0"></pre>
     </dialog>
 
@@ -622,6 +625,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-improvement-plan"></script>
+    <script src="app.js?v=20260912-source-preservation"></script>
   </body>
 </html>

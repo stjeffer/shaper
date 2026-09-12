@@ -24,7 +24,7 @@ estate governance, but it does not affect Findings or transformation actions.
 | File and ZIP upload | Implemented | Bounded uploads with scanning and inventory controls |
 | Document assessment | Implemented | 29 deterministic, read-only checks per document |
 | Evidence-grounded Findings | Implemented | Content-quality findings with agent impact and quoted evidence |
-| Full-document review | Implemented | Authorized, version-pinned normalized source viewer |
+| Full-document review | Implemented | Exact original-file download plus an authorized, version-pinned extracted-text viewer |
 | Transformation recommendations | Implemented | Generated only for selected documents |
 | Human approval | Implemented | Required before transformation and publication |
 | Semantic HTML output | Implemented | Escaped, versioned, estate-owned artifacts |
@@ -239,8 +239,9 @@ When estate evaluations are enabled, each artifact receives versioned checks for
 citation coverage, structure, and validation. A second human review is required
 before publication approval.
 
-The Outputs view places the exact normalized source version and the generated
-agent-ready HTML in labelled **Before reshaping** and **After reshaping** panels.
+The Outputs view places the complete extracted text from the exact retained
+source version and the generated agent-ready HTML in labelled **Before
+reshaping** and **After reshaping** panels.
 The panels appear side by side when space permits and stack on narrow screens.
 The generated preview is sandboxed, and each panel reports loading failures
 independently so reviewers can still inspect the available side of the

@@ -136,6 +136,8 @@ const elements = {
   purgePhrase: document.querySelector("#purgePhrase"),
   documentDialog: document.querySelector("#documentDialog"),
   documentDialogTitle: document.querySelector("#documentDialogTitle"),
+  documentDownload: document.querySelector("#documentDownload"),
+  documentSourceStatus: document.querySelector("#documentSourceStatus"),
   documentContent: document.querySelector("#documentContent"),
 };
 
@@ -883,11 +885,12 @@ function renderDocuments() {
           text("strong", documentValue.title),
           text("p", `${documentValue.media_type} · ${formatDate(documentValue.modified_at)}`),
         );
-        const viewDocument = text("button", "View source", "text-button");
+        const viewDocument = text("button", "Review extracted text", "text-button");
         viewDocument.type = "button";
         viewDocument.dataset.viewDocument = documentValue.document_id;
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
+        viewDocument.dataset.sourceRetained = `${record.source_retained === true}`;
         documentCell.append(viewDocument);
         const findingsCell = document.createElement("td");
         findingsCell.className = "results-cell";
@@ -1337,7 +1340,7 @@ function renderArtifacts() {
       comparison.append(
         comparisonPanel(
           "Before reshaping",
-          "Original normalized source used for this transformation.",
+          "Complete extracted text from the retained source file.",
           sourceContent,
         ),
         comparisonPanel(
@@ -1800,9 +1803,16 @@ async function approveArtifact(artifactId, revision) {
   }
 }
 
-async function openDocument(documentId, sourceVersion, title) {
+async function openDocument(documentId, sourceVersion, title, sourceRetained) {
   clearAlert();
   elements.documentDialogTitle.textContent = title;
+  elements.documentDownload.hidden = !sourceRetained;
+  elements.documentSourceStatus.textContent = sourceRetained
+    ? "Findings use this lossless text derivative. The exact uploaded file is retained separately as the source of record."
+    : "This document predates source retention. Re-upload the original file to retain it; the extracted text below remains available.";
+  elements.documentDownload.href =
+    `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
+    `${encodeURIComponent(documentId)}/source?source_version=${encodeURIComponent(sourceVersion)}`;
   elements.documentContent.textContent = "Loading document content…";
   elements.documentDialog.showModal();
   try {
@@ -1912,6 +1922,7 @@ document.addEventListener("click", async (event) => {
       target.dataset.viewDocument,
       target.dataset.sourceVersion,
       target.dataset.documentTitle,
+      target.dataset.sourceRetained === "true",
     );
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);

@@ -8,10 +8,11 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from jwt import PyJWTError
 from pydantic import BaseModel, ConfigDict, Field
@@ -523,7 +524,15 @@ def create_app(services: HttpServices) -> FastAPI:
         ) -> dict[str, object]:
             estate_service.get(estate_id, principal=actor)
             items = estate_repository.list_documents(estate_id)
-            return {"items": [_versioned_payload(item) for item in items]}
+            payloads = []
+            for item in items:
+                payload = _versioned_payload(item)
+                payload["source_retained"] = estate_repository.has_document_source(
+                    item.value.document_id,
+                    item.value.source_version,
+                )
+                payloads.append(payload)
+            return {"items": payloads}
 
         @app.get(
             "/v1/estates/{estate_id}/documents/{document_id}/content",
@@ -543,6 +552,35 @@ def create_app(services: HttpServices) -> FastAPI:
                 raise ValueError("Requested source version is not current")
             content = estate_repository.load_document_content(document_id, source_version)
             return PlainTextResponse(content)
+
+        @app.get("/v1/estates/{estate_id}/documents/{document_id}/source")
+        def get_document_source(
+            estate_id: str,
+            document_id: str,
+            source_version: str,
+            actor: Principal = Depends(principal),
+        ) -> Response:
+            estate_service.get(estate_id, principal=actor)
+            document = estate_repository.get_document(document_id)
+            if document is None or document.value.estate_id != estate_id or document.value.deleted:
+                raise KeyError(f"Estate document does not exist: {document_id}")
+            if document.value.source_version != source_version:
+                raise ValueError("Requested source version is not current")
+            if not estate_repository.has_document_source(document_id, source_version):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "The original file was ingested before source retention was enabled; "
+                        "re-upload it to retain and download the exact source"
+                    ),
+                )
+            content = estate_repository.load_document_source(document_id, source_version)
+            filename = quote(document.value.filename, safe="")
+            return Response(
+                content,
+                media_type=document.value.media_type,
+                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+            )
 
         @app.post("/v1/estates/{estate_id}/discovery-runs")
         def start_discovery(

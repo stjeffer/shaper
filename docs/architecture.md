@@ -549,7 +549,8 @@ impact statement for an unknown future finding type.
 ```mermaid
 flowchart TB
     source["`**Immutable document version**
-    Normalized text and metadata`"]
+    Exact source bytes, extracted text,
+    and metadata`"]
     checks["`**Deterministic checks**
     Baseline and document-quality rules`"]
     finding["`**Structured finding**
@@ -574,6 +575,12 @@ and oversized paragraph can all lower content suitability for different reasons
 and require different remediation. Findings preserve that causal information so
 the reviewer can see what could fail, why agent behavior could degrade, and
 which source evidence supports the conclusion.
+
+The exact uploaded or connector-provided bytes are retained as the immutable
+source of record for each version. Extracted text is a reviewable derivative used
+for assessment and transformation; it never replaces the source file. Ingestion
+fails with an actionable error when a supported file cannot yield enough readable
+content, rather than persisting a metadata-only derivative as if it were complete.
 
 Transformation evaluation remains separate from source assessment. Its
 artifact-quality measures describe deterministic checks applied after shaping.

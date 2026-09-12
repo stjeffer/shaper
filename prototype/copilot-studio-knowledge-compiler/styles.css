@@ -3004,6 +3004,12 @@ h2 {
   line-height: 16px;
 }
 
+.document-download {
+  display: inline-flex;
+  width: fit-content;
+  margin: 12px 24px 0;
+}
+
 .document-content {
   margin: 12px 24px 24px;
   padding: 16px;

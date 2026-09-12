@@ -71,7 +71,75 @@ def test_given_docx_when_parsed_then_paragraph_and_table_are_addressable() -> No
     )
 
     # Assert
-    assert [span.text for span in spans] == ["Employees receive leave.", "Region | Days"]
+    assert [span.text for span in spans] == ["Employees receive leave.", "Region", "Days"]
+
+
+def test_given_docx_nested_content_when_parsed_then_no_policy_text_is_omitted() -> None:
+    # Arrange
+    document = DocxDocument()
+    document.add_heading("Information security policy", level=1)
+    outer = document.add_table(rows=1, cols=1)
+    outer.cell(0, 0).paragraphs[0].text = "Policy owner: Security"
+    nested = outer.cell(0, 0).add_table(rows=1, cols=1)
+    nested.cell(0, 0).text = (
+        "Employees must report suspected incidents within 30 minutes "
+        "and preserve all relevant evidence."
+    )
+    section = document.sections[0]
+    section.header.paragraphs[0].text = "Controlled policy"
+    stream = io.BytesIO()
+    document.save(stream)
+    content = stream.getvalue()
+
+    # Act
+    spans = SupportedDocumentParser().parse(
+        document_for(
+            content,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        content,
+    )
+
+    # Assert
+    extracted = "\n".join(span.text for span in spans)
+    assert "Policy owner: Security" in extracted
+    assert "Employees must report suspected incidents within 30 minutes" in extracted
+    assert "preserve all relevant evidence" in extracted
+    assert "Controlled policy" in extracted
+
+
+def test_given_image_pdf_with_token_text_when_parsed_then_lossy_ingestion_is_rejected() -> None:
+    # Arrange
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Policy")
+    image = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 10, 10), 0)
+    image.clear_with(255)
+    page.insert_image(page.rect, stream=image.tobytes("png"))
+    content = document.tobytes()
+    document.close()
+
+    # Act & Assert
+    with pytest.raises(DocumentParseError, match="run OCR"):
+        SupportedDocumentParser().parse(document_for(content, "application/pdf"), content)
+
+
+def test_given_short_pdf_with_logo_when_parsed_then_readable_text_is_retained() -> None:
+    # Arrange
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Approved policy statement.")
+    image = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 10, 10), 0)
+    image.clear_with(255)
+    page.insert_image(pymupdf.Rect(72, 100, 120, 148), stream=image.tobytes("png"))
+    content = document.tobytes()
+    document.close()
+
+    # Act
+    spans = SupportedDocumentParser().parse(document_for(content, "application/pdf"), content)
+
+    # Assert
+    assert [span.text for span in spans] == ["Approved policy statement."]
 
 
 def test_given_pdf_when_parsed_then_page_location_is_preserved() -> None:

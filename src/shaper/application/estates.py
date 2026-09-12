@@ -115,16 +115,22 @@ class EstateRepository(EstateLifecycleRepository, Protocol):
         source_version: str,
         text: str,
     ) -> None:
-        """Store normalized source text for deterministic analysis."""
+        """Store extracted source text for deterministic analysis."""
 
     def load_document_content(self, document_id: str, source_version: str) -> str:
-        """Load exact-version normalized source text."""
+        """Load exact-version extracted text."""
+
+    def load_document_source(self, document_id: str, source_version: str) -> bytes:
+        """Load the exact immutable source bytes for a document version."""
+
+    def has_document_source(self, document_id: str, source_version: str) -> bool:
+        """Return whether exact source bytes are retained for a document version."""
 
     def save_inventory(
         self,
-        items: Sequence[tuple[EstateDocument, str]],
+        items: Sequence[PreparedInventoryItem],
     ) -> Sequence[VersionedRecord[EstateDocument]]:
-        """Atomically save document inventory rows and normalized text."""
+        """Atomically save inventory rows, source bytes, and extracted text."""
 
     def save_run(
         self,
@@ -667,8 +673,17 @@ class InventoryInput:
     logical_id: str | None = None
 
 
+@dataclass(frozen=True)
+class PreparedInventoryItem:
+    """One immutable source version and its derived extracted text."""
+
+    document: EstateDocument
+    source_content: bytes
+    extracted_text: str
+
+
 class EstateInventoryService:
-    """Normalize scanned files into immutable estate document versions."""
+    """Preserve scanned files and extract text into immutable document versions."""
 
     def __init__(
         self,
@@ -740,7 +755,7 @@ class EstateInventoryService:
         estate: KnowledgeEstate,
         source: EstateSource,
         item: InventoryInput,
-    ) -> tuple[EstateDocument, str]:
+    ) -> PreparedInventoryItem:
         logical_id = item.logical_id or item.filename
         document_id = self.document_id(source.source_id, logical_id)
         modified_at = item.modified_at or self._clock()
@@ -757,7 +772,7 @@ class EstateInventoryService:
             parser=self._parser,
             observed_at=modified_at,
         )
-        normalized_text = _normalized_content(ingested.spans)
+        extracted_text = _normalized_content(ingested.spans)
         document = EstateDocument(
             document_id=document_id,
             estate_id=estate.estate_id,
@@ -767,12 +782,16 @@ class EstateInventoryService:
             title=item.filename,
             filename=item.filename,
             media_type=item.media_type,
-            content_locator=f"repository:{document_id}:{ingested.document.source_version}",
+            content_locator=f"repository-source:{document_id}:{ingested.document.source_version}",
             modified_at=modified_at,
             discovered_at=self._clock(),
             owner=item.owner,
         )
-        return document, normalized_text
+        return PreparedInventoryItem(
+            document=document,
+            source_content=item.content,
+            extracted_text=extracted_text,
+        )
 
 
 class EstateDiscoveryService:
