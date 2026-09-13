@@ -87,7 +87,10 @@ managed identity.
 6. Verify health, MCP initialization, authorization, current release, and logs.
 7. Run one Knowledge Estate discovery and verify that findings expose agent
    impact and evidence without a readiness score.
-8. Retain the prior revision until the observation window completes.
+8. Approve one current improvement plan and verify that transformation progress
+   reports complete-content, preservation, grounding, and optional quality-check
+   results before opening the generated output.
+9. Retain the prior revision until the observation window completes.
 
 The regression gate permits no deterministic pass-rate decrease, at most a
 5-percentage-point model-assisted pass-rate decrease, and at most a 20-percent

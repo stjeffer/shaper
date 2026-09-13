@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterable
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from openai import AzureOpenAI
+from openai import APIConnectionError, AzureOpenAI, OpenAIError
 
 from shaper.application.ports import ModelResult
 
@@ -146,6 +146,16 @@ class AzureOpenAIModelGateway:
             )
         except ModelProviderError:
             raise
+        except OpenAIError as error:
+            status_code = getattr(error, "status_code", None)
+            retryable = isinstance(error, APIConnectionError) or (
+                isinstance(status_code, int)
+                and (status_code in {408, 409, 429} or status_code >= 500)
+            )
+            raise ModelProviderError(
+                "Azure OpenAI request failed",
+                retryable=retryable,
+            ) from error
         except (json.JSONDecodeError, IndexError, KeyError, TypeError, ValueError) as error:
             raise ModelProviderError(
                 "Azure OpenAI returned malformed structured output",

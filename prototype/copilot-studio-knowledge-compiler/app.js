@@ -23,6 +23,9 @@ const state = {
   evaluationSuggestions: [],
   selectedEvaluationSuggestions: new Set(),
   evaluationSuggestionErrors: [],
+  transformationProgress: new Map(),
+  transformationOperationId: null,
+  transformationAbortController: null,
   actionEstate: null,
   openEstateMenuId: null,
 };
@@ -152,6 +155,11 @@ const elements = {
   approvalSummary: document.querySelector("#approvalSummary"),
   generateEvaluations: document.querySelector("#generateEvaluations"),
   transformButton: document.querySelector("#transformButton"),
+  transformationProgress: document.querySelector("#transformationProgress"),
+  transformationProgressAnnouncement: document.querySelector(
+    "#transformationProgressAnnouncement",
+  ),
+  transformationProgressList: document.querySelector("#transformationProgressList"),
   artifactList: document.querySelector("#artifactList"),
   artifactEmpty: document.querySelector("#artifactEmpty"),
   archiveButton: document.querySelector("#archiveButton"),
@@ -489,6 +497,58 @@ async function apiText(path) {
     throw new Error(`Request failed with HTTP ${response.status}`);
   }
   return response.text();
+}
+
+async function streamTransformation(estateId, ids, onEvent, signal) {
+  const response = await fetch(
+    `/v1/estates/${estateId}/transformation-runs/stream`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: {
+        Accept: "application/x-ndjson",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+      signal,
+    },
+  );
+  if (response.status === 401 || response.type === "opaqueredirect") {
+    await redirectToSignIn();
+  }
+  if (!response.ok) {
+    throw new Error(`Transformation request failed with HTTP ${response.status}`);
+  }
+  if (!response.body) {
+    throw new Error("Transformation progress stream is unavailable");
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalEvent = null;
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      onEvent(event);
+      if (["run_completed", "run_failed"].includes(event.type)) finalEvent = event;
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) {
+    finalEvent = JSON.parse(buffer);
+    onEvent(finalEvent);
+  }
+  if (!finalEvent) throw new Error("Transformation ended without a final status");
+  if (finalEvent.type === "run_failed") {
+    throw new Error(finalEvent.detail || "Transformation failed");
+  }
+  return finalEvent;
 }
 
 function setBusy(container, busy, message = "Working…") {
@@ -1146,6 +1206,7 @@ function switchAssessmentCheckCategory(index, focus = true) {
 
 async function openEstate(estateId, targetTab = "sources") {
   clearAlert();
+  resetTransformationProgress();
   showView("estate");
   setBusy(elements.estateView, true, "Loading estate…");
   try {
@@ -1491,6 +1552,7 @@ function invalidateAssessmentEvidence() {
   state.discoveryRunId = null;
   state.reports = new Map();
   state.selectedDocuments.clear();
+  resetTransformationProgress();
   state.proposalRunId = null;
   state.proposals = [];
   state.evaluationSuggestions = [];
@@ -2334,16 +2396,158 @@ async function decide(proposalId, outcome) {
   }
 }
 
+const TRANSFORMATION_CHECK_LABELS = {
+  reshape: "Create complete reshaped content",
+  source_preservation: "Preserve source facts, numbers, and operative clauses",
+  grounding: "Validate claims against the version-pinned source",
+  quality: "Run deterministic citation, structure, and validation checks",
+};
+
+function resetTransformationProgress() {
+  state.transformationAbortController?.abort();
+  state.transformationAbortController = null;
+  state.transformationOperationId = null;
+  state.transformationProgress.clear();
+  elements.transformationProgress.hidden = true;
+  elements.transformationProgress.removeAttribute("data-status");
+  elements.transformationProgressAnnouncement.textContent =
+    "Preparing transformation checks…";
+  elements.transformationProgressList.replaceChildren();
+}
+
+function initializeTransformationProgress(documentIds) {
+  state.transformationProgress = new Map(
+    documentIds.map((documentId) => [
+      documentId,
+      {
+        checks: new Map(
+          Object.keys(TRANSFORMATION_CHECK_LABELS).map((check) => [
+            check,
+            {
+              status:
+                check === "quality" && !elements.generateEvaluations.checked
+                  ? "skipped"
+                  : "waiting",
+              detail:
+                check === "quality" && !elements.generateEvaluations.checked
+                  ? "Optional checks were not selected."
+                  : "Waiting to run.",
+            },
+          ]),
+        ),
+      },
+    ]),
+  );
+  elements.transformationProgress.hidden = false;
+  elements.transformationProgress.dataset.status = "running";
+  elements.transformationProgressAnnouncement.textContent =
+    "Preparing approved documents and their validation checks.";
+  renderTransformationProgress();
+}
+
+function renderTransformationProgress() {
+  const statusSymbols = {
+    waiting: "○",
+    running: "◌",
+    passed: "✓",
+    review: "!",
+    failed: "×",
+    skipped: "–",
+  };
+  const documents = [...state.transformationProgress.entries()].map(
+    ([documentId, progress]) => {
+      const documentValue = recordValue(
+        state.documents.find(
+          (documentRecord) => recordValue(documentRecord).document_id === documentId,
+        ),
+      );
+      const section = document.createElement("section");
+      section.className = "transformation-progress-document";
+      section.append(text("h4", documentValue?.title || documentId));
+      const list = document.createElement("ul");
+      list.className = "transformation-check-list";
+      progress.checks.forEach((result, check) => {
+        const item = document.createElement("li");
+        item.className = "transformation-check";
+        item.dataset.status = result.status;
+        const symbol = text("span", statusSymbols[result.status] || "○");
+        symbol.setAttribute("aria-hidden", "true");
+        const content = document.createElement("span");
+        content.append(
+          text("strong", TRANSFORMATION_CHECK_LABELS[check]),
+          text("span", result.detail, "transformation-check-status"),
+        );
+        item.append(symbol, content);
+        list.append(item);
+      });
+      section.append(list);
+      return section;
+    },
+  );
+  elements.transformationProgressList.replaceChildren(...documents);
+}
+
+function updateTransformationProgress(event) {
+  const progress = event.document_id
+    ? state.transformationProgress.get(event.document_id)
+    : null;
+  if (event.type === "run_started") {
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation started for ${event.document_count} approved document${
+        event.document_count === 1 ? "" : "s"
+      }.`;
+  } else if (event.type === "document_started" && progress) {
+    progress.checks.get("reshape").status = "running";
+    progress.checks.get("reshape").detail = "Creating a complete reshaped document.";
+    elements.transformationProgressAnnouncement.textContent =
+      `Transforming ${event.artifact_name}.`;
+  } else if (event.type === "check_updated" && progress) {
+    progress.checks.set(event.check, {
+      status: event.status,
+      detail: event.detail,
+    });
+    elements.transformationProgressAnnouncement.textContent =
+      `${TRANSFORMATION_CHECK_LABELS[event.check]}: ${event.detail}`;
+  } else if (event.type === "document_completed") {
+    elements.transformationProgressAnnouncement.textContent =
+      `${event.artifact_name} completed and is ready for review.`;
+  } else if (event.type === "document_failed" && progress) {
+    const active =
+      [...progress.checks.values()].find((result) => result.status === "running") ||
+      progress.checks.get("reshape");
+    active.status = "failed";
+    active.detail = event.detail;
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation failed for one document: ${event.detail}`;
+  } else if (event.type === "run_completed") {
+    elements.transformationProgress.dataset.status = event.status;
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation ${event.status}. ${event.completed_document_ids.length} document${
+        event.completed_document_ids.length === 1 ? "" : "s"
+      } ready for review.`;
+  }
+  renderTransformationProgress();
+}
+
 async function transformApproved() {
   clearAlert();
-  const approvedIds = state.proposals
+  const estateId = recordValue(state.estate).estate_id;
+  const operationId = crypto.randomUUID();
+  const abortController = new AbortController();
+  state.transformationOperationId = operationId;
+  state.transformationAbortController = abortController;
+  const isCurrentOperation = () =>
+    state.transformationOperationId === operationId &&
+    recordValue(state.estate).estate_id === estateId;
+  const approvedProposals = state.proposals
     .filter(
       (proposal) =>
         state.decisions.get(proposal.document_id)?.outcome === "approve",
-    )
-    .map((proposal) => proposal.recommendation_id);
-  const panel = document.querySelector('[data-panel="recommend"]');
-  setBusy(panel, true, "Creating approved agent-ready HTML…");
+    );
+  const approvedIds = approvedProposals.map((proposal) => proposal.recommendation_id);
+  initializeTransformationProgress(approvedProposals.map((proposal) => proposal.document_id));
+  elements.transformButton.disabled = true;
+  elements.generateEvaluations.disabled = true;
   try {
     const estateRecord = state.estate;
     const estate = recordValue(estateRecord);
@@ -2363,26 +2567,40 @@ async function transformApproved() {
       );
       if (estateIndex >= 0) state.estates[estateIndex] = state.estate;
     }
-    const result = await api(
-      `/v1/estates/${recordValue(state.estate).estate_id}/transformation-runs`,
-      {
-        method: "POST",
-        body: JSON.stringify({ ids: approvedIds }),
+    const result = await streamTransformation(
+      estateId,
+      approvedIds,
+      (event) => {
+        if (isCurrentOperation()) updateTransformationProgress(event);
       },
+      abortController.signal,
     );
-    await waitForRun(recordValue(result.run).run_id);
+    if (!isCurrentOperation()) return;
+    if (!["completed", "partial"].includes(result.status)) {
+      throw new Error(result.error || `Transformation ended with status ${result.status}`);
+    }
     state.artifacts = await api(
-      `/v1/estates/${recordValue(state.estate).estate_id}/artifacts`,
+      `/v1/estates/${estateId}/artifacts`,
     ).then((payload) => payload.items);
+    if (!isCurrentOperation()) return;
     renderArtifacts();
     switchTab("transform");
     announce(
-      `Transformation ${recordValue(result.run).status}. ${state.artifacts.length} artifact records available.`,
+      `Transformation ${result.status}. ${state.artifacts.length} artifact records available.`,
     );
   } catch (error) {
+    if (!isCurrentOperation()) return;
+    elements.transformationProgress.dataset.status = "failed";
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation stopped: ${error.message}`;
     showAlert(error.message);
   } finally {
-    setBusy(panel, false);
+    if (isCurrentOperation()) {
+      state.transformationAbortController = null;
+      state.transformationOperationId = null;
+      elements.generateEvaluations.disabled = false;
+      updateApprovals();
+    }
   }
 }
 

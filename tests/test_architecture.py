@@ -214,6 +214,17 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'id="evaluationSetPanel"' in html
     assert "function switchApprovalReviewTab(name, focus = true)" in browser_app
     assert 'elements.approvalReviewTabs.addEventListener("keydown"' in browser_app
+    assert html.index('id="transformButton"') < html.index('id="approvalReviewTabs"')
+    assert 'id="transformationProgress"' in html
+    assert 'id="transformationProgressAnnouncement"' in html
+    assert "async function streamTransformation(estateId, ids, onEvent, signal)" in browser_app
+    assert "function updateTransformationProgress(event)" in browser_app
+    assert "function resetTransformationProgress()" in browser_app
+    assert "state.transformationAbortController?.abort()" in browser_app
+    assert "const operationId = crypto.randomUUID()" in browser_app
+    assert "if (!isCurrentOperation()) return;" in browser_app
+    assert 'panel.setAttribute("aria-busy", "true")' not in browser_app
+    assert "/transformation-runs/stream" in browser_app
     assert "Microsoft Foundry JSONL" in html
     assert "Copilot Studio CSV" in html
     assert "function suggestedEvaluations(" in browser_app

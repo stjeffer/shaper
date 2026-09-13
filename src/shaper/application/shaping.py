@@ -64,7 +64,7 @@ class ShapingBudget:
     maximum_tool_calls: int = 8
     maximum_tokens: int = 8_000
     maximum_seconds: float = 120
-    maximum_candidates: int = 2
+    maximum_candidates: int = 4
 
 
 @dataclass(frozen=True)
@@ -295,10 +295,10 @@ class ShapingLoop:
             raise ShapingCancelled("Shaping run was cancelled before the next model action")
         elapsed = self._monotonic() - started
         limits = (
+            ("candidates", candidates, self._budget.maximum_candidates),
             ("model calls", model_calls, self._budget.maximum_model_calls),
             ("tool calls", tool_calls, self._budget.maximum_tool_calls),
             ("tokens", tokens, self._budget.maximum_tokens),
-            ("candidates", candidates, self._budget.maximum_candidates),
         )
         for name, current, maximum in limits:
             if current >= maximum:

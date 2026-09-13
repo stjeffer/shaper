@@ -8,7 +8,7 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260912-approval-tabs" />
+    <link rel="stylesheet" href="styles.css?v=20260913-transform-progress" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -402,6 +402,35 @@
                 </p>
               </div>
             </div>
+            <div class="transformation-actions">
+              <div>
+                <span id="approvalSummary">0 approved transformations</span>
+                <label class="checkbox-option" for="generateEvaluations">
+                  <input id="generateEvaluations" type="checkbox" />
+                  Run deterministic quality checks on reshaped content
+                </label>
+              </div>
+              <button id="transformButton" class="button primary" type="button" disabled>
+                Transform approved documents
+              </button>
+            </div>
+            <section
+              id="transformationProgress"
+              class="transformation-progress"
+              aria-labelledby="transformationProgressTitle"
+              hidden
+            >
+              <div class="transformation-progress-heading">
+                <span class="spinner" aria-hidden="true"></span>
+                <div>
+                  <h3 id="transformationProgressTitle">Transforming approved content</h3>
+                  <p id="transformationProgressAnnouncement" role="status" aria-live="polite">
+                    Preparing transformation checks…
+                  </p>
+                </div>
+              </div>
+              <div id="transformationProgressList" class="transformation-progress-list"></div>
+            </section>
             <div
               id="approvalReviewTabs"
               class="approval-review-tabs"
@@ -505,18 +534,6 @@
                 <p>Create an improvement plan to generate source-grounded evaluation drafts.</p>
               </div>
             </section>
-            <div class="sticky-actions">
-              <div>
-                <span id="approvalSummary">0 approved transformations</span>
-                <label class="checkbox-option" for="generateEvaluations">
-                  <input id="generateEvaluations" type="checkbox" />
-                  Run deterministic quality checks on reshaped content
-                </label>
-              </div>
-              <button id="transformButton" class="button primary" type="button" disabled>
-                Transform approved documents
-              </button>
-            </div>
           </section>
 
           <section class="panel" data-panel="transform" hidden aria-labelledby="transformTitle">
@@ -786,6 +803,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260912-approval-tabs"></script>
+    <script src="app.js?v=20260913-transform-progress"></script>
   </body>
 </html>

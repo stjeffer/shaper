@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 
 from shaper.application.agent_tools import EvidenceContext, ReadOnlyToolRegistry
 from shaper.application.estates import EstateRepository, EstateService, VersionedRecord
+from shaper.application.model import ModelProviderError
 from shaper.application.ports import ModelGateway, Validator
 from shaper.application.review import ReviewRecord, ReviewService
 from shaper.application.shaping import (
@@ -42,6 +43,8 @@ from shaper.domain import (
     WorkflowStatus,
 )
 from shaper.domain.models import ReviewOutcome, canonical_hash
+
+TransformationProgress = Callable[[dict[str, object]], None]
 
 
 class HtmlArtifactRenderer:
@@ -241,6 +244,8 @@ class EstateTransformationService:
         recommendation_ids: Sequence[str],
         *,
         principal: Principal,
+        progress: TransformationProgress | None = None,
+        cancelled: Callable[[], bool] = lambda: False,
     ) -> VersionedRecord[WorkflowRun]:
         """Transform approved proposals and place generated outputs in review."""
         if not recommendation_ids or len(recommendation_ids) > 100:
@@ -269,27 +274,80 @@ class EstateTransformationService:
             )
         )
         running = self._running(queued)
-        completed = []
-        failed = []
-        failure_messages = []
-        for proposal in proposals:
+        self._report_progress(
+            progress,
+            {
+                "type": "run_started",
+                "run_id": running.value.run_id,
+                "document_count": len(proposals),
+            },
+        )
+        completed: list[str] = []
+        failed: list[str] = []
+        failure_messages: list[str] = []
+        cancelled_run = False
+        for index, proposal in enumerate(proposals):
+            if cancelled():
+                failed.extend(item.document_id for item in proposals[index:])
+                failure_messages.append("Transformation was cancelled by the requesting client")
+                cancelled_run = True
+                break
+            self._report_progress(
+                progress,
+                {
+                    "type": "document_started",
+                    "document_id": proposal.document_id,
+                    "artifact_name": proposal.expected_artifact,
+                },
+            )
             try:
-                self._transform(running.value.run_id, proposal, principal)
+                self._transform(
+                    running.value.run_id,
+                    proposal,
+                    principal,
+                    progress=progress,
+                    cancelled=cancelled,
+                )
                 completed.append(proposal.document_id)
+            except ShapingCancelled as error:
+                detail = self._failure_detail(error)
+                failed.extend(item.document_id for item in proposals[index:])
+                failure_messages.append(f"{proposal.document_id}: {detail}")
+                self._report_progress(
+                    progress,
+                    {
+                        "type": "document_failed",
+                        "document_id": proposal.document_id,
+                        "detail": detail,
+                    },
+                )
+                cancelled_run = True
+                break
             except (
                 KeyError,
+                ModelProviderError,
                 PermissionError,
                 ValueError,
                 ShapingBudgetExceeded,
-                ShapingCancelled,
             ) as error:
+                detail = self._failure_detail(error)
                 failed.append(proposal.document_id)
-                failure_messages.append(f"{proposal.document_id}: {error}")
+                failure_messages.append(f"{proposal.document_id}: {detail}")
+                self._report_progress(
+                    progress,
+                    {
+                        "type": "document_failed",
+                        "document_id": proposal.document_id,
+                        "detail": detail,
+                    },
+                )
         values = running.value.model_dump()
         values.update(
             {
                 "status": (
-                    WorkflowStatus.FAILED
+                    WorkflowStatus.CANCELLED
+                    if cancelled_run
+                    else WorkflowStatus.FAILED
                     if not completed
                     else WorkflowStatus.PARTIAL
                     if failed
@@ -303,10 +361,22 @@ class EstateTransformationService:
                 "error": "; ".join(failure_messages)[:2000] if failed else None,
             }
         )
-        return self._repository.save_run(
+        final = self._repository.save_run(
             WorkflowRun.model_validate(values),
             expected_revision=running.revision,
         )
+        self._report_progress(
+            progress,
+            {
+                "type": "run_completed",
+                "run_id": final.value.run_id,
+                "status": final.value.status.value,
+                "completed_document_ids": list(final.value.completed_document_ids),
+                "failed_document_ids": list(final.value.failed_document_ids),
+                "error": final.value.error,
+            },
+        )
+        return final
 
     def approve(
         self,
@@ -405,6 +475,9 @@ class EstateTransformationService:
         run_id: str,
         proposal: TransformationProposal,
         principal: Principal,
+        *,
+        progress: TransformationProgress | None = None,
+        cancelled: Callable[[], bool] = lambda: False,
     ) -> None:
         decision = self._repository.latest_decision(proposal.document_id)
         if decision is None or not decision.permits(proposal):
@@ -452,6 +525,16 @@ class EstateTransformationService:
             text=text,
             text_hash=hashlib.sha256(text.encode()).hexdigest(),
         )
+        self._report_progress(
+            progress,
+            {
+                "type": "check_updated",
+                "document_id": proposal.document_id,
+                "check": "reshape",
+                "status": "running",
+                "detail": "Creating a complete reshaped document.",
+            },
+        )
         started = self._monotonic()
         try:
             outcome = ShapingLoop(
@@ -473,6 +556,7 @@ class EstateTransformationService:
                 spans=(span,),
                 principal=principal,
                 transformation_requirements=proposal.proposed_changes,
+                cancelled=cancelled,
             )
         except ShapingBudgetExceeded as error:
             self._append_usage(
@@ -495,7 +579,48 @@ class EstateTransformationService:
         )
         if outcome.unit is None:
             raise ValueError(f"Transformation abstained: {outcome.reason}")
+        self._report_progress(
+            progress,
+            {
+                "type": "check_updated",
+                "document_id": proposal.document_id,
+                "check": "reshape",
+                "status": "passed",
+                "detail": "Complete reshaped content was generated.",
+            },
+        )
         findings = self._validator.validate(outcome.unit, (span,))
+        blocking = sum(1 for finding in findings if finding.severity.value == "blocking")
+        warnings = sum(1 for finding in findings if finding.severity.value == "warning")
+        self._report_progress(
+            progress,
+            {
+                "type": "check_updated",
+                "document_id": proposal.document_id,
+                "check": "source_preservation",
+                "status": "passed" if blocking == 0 else "failed",
+                "detail": (
+                    "Source coverage, material facts, numbers, and operative clauses "
+                    "were preserved."
+                    if blocking == 0
+                    else f"{blocking} blocking preservation finding(s) remain."
+                ),
+            },
+        )
+        self._report_progress(
+            progress,
+            {
+                "type": "check_updated",
+                "document_id": proposal.document_id,
+                "check": "grounding",
+                "status": "passed" if blocking == 0 else "failed",
+                "detail": (
+                    "Claims remain grounded in the version-pinned source."
+                    if blocking == 0
+                    else "One or more claims are not adequately grounded."
+                ),
+            },
+        )
         review = self._reviews.submit(outcome.unit, findings)
         evaluated_at = self._clock()
         evaluation = (
@@ -507,6 +632,28 @@ class EstateTransformationService:
             )
             if self._required_estate(proposal).generate_evaluations
             else None
+        )
+        self._report_progress(
+            progress,
+            {
+                "type": "check_updated",
+                "document_id": proposal.document_id,
+                "check": "quality",
+                "status": (
+                    "skipped"
+                    if evaluation is None
+                    else "passed"
+                    if evaluation.passed and warnings == 0
+                    else "review"
+                ),
+                "detail": (
+                    "Optional deterministic output checks were not selected."
+                    if evaluation is None
+                    else "Citation, structure, and validation checks passed."
+                    if evaluation.passed and warnings == 0
+                    else f"Checks completed with {warnings} warning finding(s) for review."
+                ),
+            },
         )
         content = self._renderer.render(
             title=document.value.title,
@@ -534,6 +681,52 @@ class EstateTransformationService:
             created_at=evaluated_at,
         )
         self._repository.save_artifact_bundle(artifact, content)
+        self._report_progress(
+            progress,
+            {
+                "type": "document_completed",
+                "document_id": proposal.document_id,
+                "artifact_name": artifact.filename,
+            },
+        )
+
+    @staticmethod
+    def _report_progress(
+        progress: TransformationProgress | None,
+        event: dict[str, object],
+    ) -> None:
+        if progress is not None:
+            progress(event)
+
+    @staticmethod
+    def _failure_detail(error: Exception) -> str:
+        message = str(error)
+        if isinstance(error, ShapingBudgetExceeded) and "candidates" in message:
+            return (
+                "The reshaped document did not pass source-preservation checks after four "
+                "bounded attempts. Review the source and improvement plan before retrying."
+            )
+        return message
+
+    def fail_running(self, run_id: str, detail: str) -> VersionedRecord[WorkflowRun] | None:
+        """Terminalize an unexpected streamed transformation failure."""
+        current = self._repository.get_run(run_id)
+        if current is None or current.value.status is not WorkflowStatus.RUNNING:
+            return current
+        values = current.value.model_dump()
+        values.update(
+            {
+                "status": WorkflowStatus.FAILED,
+                "lease_owner": None,
+                "lease_expires_at": None,
+                "updated_at": self._clock(),
+                "error": detail[:2000],
+            }
+        )
+        return self._repository.save_run(
+            WorkflowRun.model_validate(values),
+            expected_revision=current.revision,
+        )
 
     def _append_usage(
         self,

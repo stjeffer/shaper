@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
+from shaper.application.model import ModelProviderError
 from shaper.application.ports import ModelResult
 from shaper.application.review import ReviewService
 from shaper.application.token_estimation import ESTIMATOR_VERSION
@@ -94,6 +95,27 @@ class ThirdAttemptModel(GroundedModel):
                 output_tokens=8,
             )
         return super().generate(prompt=prompt, schema=schema)
+
+
+class ProviderFailureModel:
+    """Raise a classified provider failure."""
+
+    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+        del prompt, schema
+        raise ModelProviderError("Provider unavailable", retryable=True)
+
+
+class InvalidPayloadModel:
+    """Return schema-invalid responses until the model-call budget is exhausted."""
+
+    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+        del prompt, schema
+        return ModelResult(
+            payload={"status": "invalid"},
+            response_id="invalid",
+            input_tokens=1,
+            output_tokens=1,
+        )
 
 
 def _principal() -> Principal:
@@ -270,6 +292,7 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
     # Arrange
     store, repository, proposal = _setup(tmp_path / "state.db", approved=True)
     model = GroundedModel()
+    progress_events: list[dict[str, object]] = []
     service = EstateTransformationService(
         repository,
         model=model,
@@ -282,7 +305,11 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
     )
     try:
         # Act
-        run = service.start((proposal.recommendation_id,), principal=_principal())
+        run = service.start(
+            (proposal.recommendation_id,),
+            principal=_principal(),
+            progress=progress_events.append,
+        )
         artifact = repository.list_artifacts("estate-1")[0]
         preview = service.preview(artifact.artifact_id, principal=_principal())
         review, published = service.approve(
@@ -305,6 +332,11 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert preview == content
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
+        assert progress_events[0]["type"] == "run_started"
+        assert progress_events[-1]["type"] == "run_completed"
+        assert {
+            event.get("check") for event in progress_events if event["type"] == "check_updated"
+        } == {"reshape", "source_preservation", "grounding", "quality"}
     finally:
         store.close()
 
@@ -333,6 +365,87 @@ def test_given_recoverable_model_responses_when_transformed_then_bounded_retry_s
         assert run.value.status.value == "completed"
         assert model.calls == 3
         assert repository.list_artifacts("estate-1")
+    finally:
+        store.close()
+
+
+def test_given_provider_failure_when_transformed_then_run_is_terminal(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(tmp_path / "state.db", approved=True)
+    service = EstateTransformationService(
+        repository,
+        model=ProviderFailureModel(),
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "failed"
+        assert run.value.lease_owner is None
+        assert run.value.lease_expires_at is None
+        assert run.value.error == "document-1: Provider unavailable"
+    finally:
+        store.close()
+
+
+def test_given_invalid_model_protocol_when_budget_exhausts_then_error_is_not_preservation(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        enforced_maximum=10_000,
+    )
+    service = EstateTransformationService(
+        repository,
+        model=InvalidPayloadModel(),
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "failed"
+        assert run.value.error is not None
+        assert "model calls budget exhausted" in run.value.error
+        assert "source-preservation checks" not in run.value.error
+    finally:
+        store.close()
+
+
+def test_given_client_cancellation_when_transformation_starts_then_run_is_cancelled(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(tmp_path / "state.db", approved=True)
+    model = GroundedModel()
+    service = EstateTransformationService(
+        repository,
+        model=model,
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start(
+            (proposal.recommendation_id,),
+            principal=_principal(),
+            cancelled=lambda: True,
+        )
+
+        assert run.value.status.value == "cancelled"
+        assert run.value.failed_document_ids == ("document-1",)
+        assert run.value.lease_owner is None
+        assert model.calls == 0
     finally:
         store.close()
 
@@ -395,7 +508,9 @@ def test_given_lossy_summary_when_transformed_then_no_artifact_is_created(
 
         assert run.value.status.value == "failed"
         assert run.value.error is not None
-        assert "budget exhausted" in run.value.error
+        assert "did not pass source-preservation checks after four bounded attempts" in (
+            run.value.error
+        )
         assert not repository.list_artifacts("estate-1")
     finally:
         store.close()

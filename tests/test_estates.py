@@ -766,7 +766,7 @@ def test_given_one_source_exceeds_quota_when_recommended_then_partial_run_is_act
     recommendations = EstateRecommendationService(
         SQLiteEstateRepository(store),
         transformation_agent=TransformationAgent(),
-        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=15_000),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=30_000),
         clock=lambda: NOW,
         id_factory=lambda: "partial-quota",
     )

@@ -216,7 +216,8 @@ The recommendation stage:
 * Uses the enforced maximum as the shared chart scale and processing guardrail
 * States the estimate confidence and planned output filename
 * Derives overhead from the active shaping prompt and response schema, then reserves
-  one bounded repair attempt rather than allowing an unapproved overrun
+  an initial candidate and up to three bounded repair attempts rather than allowing
+  an unapproved overrun
 * Requires a fresh recommendation and approval when the estimator version changes
 * Enforces the configured maximum before model use
 * Records an append-only approve or decline decision
@@ -246,6 +247,12 @@ into keyboard-operable tabs. Assessment findings and proposed transformations
 remain the default view; evaluation drafts have a dedicated view instead of
 adding length above every assessment result.
 
+Transformation controls appear above both review tabs so reviewers receive
+immediate feedback after activation. While approved content is transformed, a
+live progress surface names the complete-content, source-preservation,
+grounding, and optional deterministic quality checks and reports their actual
+results as the service completes each stage.
+
 After approval, the proposal card changes to an explicit **Transformation
 approved** state, shows that the document is ready to transform, and disables
 duplicate approval. The transformation action becomes available immediately.
@@ -270,7 +277,7 @@ permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
 definitions, procedure steps, escalation paths, and material examples.
 Deterministic gates reject outputs with insufficient source-word coverage,
 missing values or durations, or omitted operative clauses. A rejected candidate
-gets at most one bounded repair attempt. If preservation still fails, the run
+gets up to three bounded repair attempts. If preservation still fails, the run
 fails visibly and no artifact is saved.
 
 When estate evaluations are enabled, each artifact receives versioned checks for

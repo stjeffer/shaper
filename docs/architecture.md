@@ -599,7 +599,7 @@ flowchart TB
 Proposed changes for one immutable source version`"]
     estimate["`**Versioned estimate**
 Prompt, schema, context, output,
-one repair, and safety margin`"]
+three repairs, and safety margin`"]
     approval["`**Exact human approval**
 Recommendation and estimate identities`"]
     preflight["`**Transformation preflight**
@@ -620,22 +620,24 @@ Preview before publication`"]
     shaping --> preservation
     preservation -->|"`pass`"| artifact
     preservation -->|"`block with feedback;
-one bounded repair`"| shaping
+up to three bounded repairs`"| shaping
 ```
 
 The estimator derives fixed request overhead from the active shaping prompt and
 structured-response schema. It adds the source, request-envelope, and expected
-output ranges, then reserves the initial response, one bounded repair, and a
-safety margin. The shaping loop accounts for provider-reported input and output
-tokens after every response and stops when the approved maximum is exceeded.
+output ranges, then reserves the initial response, up to three bounded repairs,
+and a safety margin. The shaping loop accounts for provider-reported input and
+output tokens after every response and stops when the approved maximum is
+exceeded.
 
 The shaping request includes the exact approved transformation requirements and
 requires a complete-document result rather than a summary. After each candidate,
 the deterministic preservation gate checks lexical source coverage, exact
 retention of numeric and duration facts, and semantic overlap for operative
 clauses such as duties, prohibitions, and constrained permissions. A blocking
-finding is returned to the bounded loop for one repair attempt. If the repaired
-candidate still fails, transformation stops and no artifact is persisted.
+finding is returned to the bounded loop for up to three repair attempts. If no
+candidate passes within the approved limit, transformation stops and no artifact
+is persisted.
 
 An estimator-version change invalidates an earlier approval for execution.
 The service rejects the stale estimate before calling the model and tells the
@@ -654,6 +656,15 @@ per-document reports. Those reports are persisted as complete JSON records in
 the configured estate store. The Assess experience renders their structured
 findings and agent-impact explanations, while recommendations remain a separate,
 selection-scoped workflow.
+
+The approval workspace starts transformations through an authenticated NDJSON
+stream. A process-local worker performs the synchronous transformation while the
+response reports actual document and validation stages as they complete. This
+stream supports immediate browser feedback and signals cancellation when the
+client disconnects. Cancellation takes effect before the next model action or
+document, so an in-flight provider request may finish first. This is not a
+durable job queue: distributed, restart-safe transformation workers remain part
+of the production target architecture.
 
 The platform-analysis Transformation Agent is proposal-only and reports that
 estate-wide execution is unavailable. The Knowledge Estate workflow can execute

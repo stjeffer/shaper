@@ -4,8 +4,36 @@ from __future__ import annotations
 
 import json
 
-from shaper.application.model import strict_response_schema
+import httpx
+import pytest
+from openai import APIConnectionError
+
+from shaper.application.model import (
+    AzureOpenAIModelGateway,
+    ModelProviderError,
+    strict_response_schema,
+)
 from shaper.application.shaping import CandidatePayload
+
+
+class FailingCompletions:
+    """Raise a provider transport failure."""
+
+    def create(self, **kwargs: object) -> None:
+        del kwargs
+        raise APIConnectionError(request=httpx.Request("POST", "https://example.invalid"))
+
+
+class FailingChat:
+    """Expose failing chat completions."""
+
+    completions = FailingCompletions()
+
+
+class FailingClient:
+    """Expose a failing chat boundary."""
+
+    chat = FailingChat()
 
 
 def test_given_optional_nested_fields_when_schema_strict_then_all_properties_are_required() -> None:
@@ -65,3 +93,17 @@ def test_given_provider_json_arrays_when_parsed_then_strict_tuples_are_preserved
 
     # Assert
     assert candidate.applicability.audiences == ("employees",)
+
+
+def test_given_openai_transport_failure_when_generated_then_error_is_classified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = object.__new__(AzureOpenAIModelGateway)
+    monkeypatch.setattr(gateway, "_client", FailingClient(), raising=False)
+    monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+
+    with pytest.raises(ModelProviderError) as captured:
+        gateway.generate(prompt="test", schema={"type": "object"})
+
+    assert captured.value.retryable
+    assert str(captured.value) == "Azure OpenAI request failed"

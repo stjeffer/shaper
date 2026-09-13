@@ -4,15 +4,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from queue import Empty, Queue
+from threading import Event, Thread
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from jwt import PyJWTError
 from pydantic import BaseModel, ConfigDict, Field
@@ -75,6 +84,8 @@ from shaper.infrastructure.uploads import (
     UploadRejectedError,
 )
 from shaper.interfaces.auth import Authenticator, RequestPrincipalResolver
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CompileRequest(BaseModel):
@@ -787,6 +798,79 @@ def create_app(services: HttpServices) -> FastAPI:
                     for item in estate_repository.list_usage(run.value.run_id)
                 ],
             }
+
+        @app.post("/v1/estates/{estate_id}/transformation-runs/stream")
+        def stream_transformations(
+            estate_id: str,
+            request: SelectionRequest,
+            actor: Principal = Depends(principal),
+        ) -> StreamingResponse:
+            proposals = tuple(estate_repository.get_proposal(item) for item in request.ids)
+            if any(proposal is None or proposal.estate_id != estate_id for proposal in proposals):
+                raise KeyError("A recommendation does not belong to this estate")
+
+            def events() -> Iterator[str]:
+                event_queue: Queue[dict[str, object] | None] = Queue()
+                cancel_event = Event()
+                active_run_id: str | None = None
+
+                def report(event: dict[str, object]) -> None:
+                    nonlocal active_run_id
+                    if event.get("type") == "run_started":
+                        run_id = event.get("run_id")
+                        if isinstance(run_id, str):
+                            active_run_id = run_id
+                    event_queue.put(event)
+
+                def transform() -> None:
+                    try:
+                        transformation_service.start(
+                            request.ids,
+                            principal=actor,
+                            progress=report,
+                            cancelled=cancel_event.is_set,
+                        )
+                    except Exception as error:
+                        LOGGER.exception("Transformation stream failed")
+                        if active_run_id is not None:
+                            try:
+                                transformation_service.fail_running(
+                                    active_run_id,
+                                    "Transformation stopped unexpectedly. Review service logs "
+                                    "before retrying.",
+                                )
+                            except Exception:
+                                LOGGER.exception("Could not terminalize failed transformation")
+                        event_queue.put(
+                            {
+                                "type": "run_failed",
+                                "detail": str(error),
+                            }
+                        )
+                    finally:
+                        event_queue.put(None)
+
+                worker = Thread(
+                    target=transform,
+                    name=f"transform-{estate_id}",
+                    daemon=True,
+                )
+                worker.start()
+                try:
+                    while True:
+                        try:
+                            event = event_queue.get(timeout=0.25)
+                        except Empty:
+                            yield "\n"
+                            continue
+                        if event is None:
+                            break
+                        yield f"{json.dumps(jsonable_encoder(event), sort_keys=True)}\n"
+                finally:
+                    cancel_event.set()
+                    worker.join(timeout=1)
+
+            return StreamingResponse(events(), media_type="application/x-ndjson")
 
         @app.get("/v1/estates/{estate_id}/artifacts")
         def list_artifacts(

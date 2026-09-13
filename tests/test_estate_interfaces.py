@@ -285,12 +285,21 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert decision_response.json()["document_id"] == document_id
 
         transformation_response = client.post(
-            f"/v1/estates/{estate_id}/transformation-runs",
+            f"/v1/estates/{estate_id}/transformation-runs/stream",
             headers=headers,
             json={"ids": [proposal["recommendation_id"]]},
         )
         assert transformation_response.status_code == 200
-        assert transformation_response.json()["run"]["value"]["status"] == "completed"
+        transformation_events = [
+            json.loads(line) for line in transformation_response.text.splitlines() if line.strip()
+        ]
+        assert transformation_events[-1]["type"] == "run_completed"
+        assert transformation_events[-1]["status"] == "completed"
+        assert {
+            event.get("check")
+            for event in transformation_events
+            if event["type"] == "check_updated"
+        } == {"reshape", "source_preservation", "grounding", "quality"}
 
         artifacts_response = client.get(
             f"/v1/estates/{estate_id}/artifacts",

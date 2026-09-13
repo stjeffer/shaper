@@ -160,16 +160,33 @@ sign-in; all session and estate APIs remain protected. The bootstrap principal
 receives an administrator grant for the configured collection; subsequent
 access is resolved exclusively from persistent collection grants.
 
-## Deploy the findings-led assessment update
+## Deploy Knowledge Estate workflow updates
 
-The findings-led assessment ships in the application image. Deploy it through
-the standard revision workflow above; no separate front-end deployment is
-required because the Container App serves the workspace assets.
+Knowledge Estate assessment, approval, progress streaming, and transformation
+logic ship in the application image. Deploy them through the standard revision
+workflow above. No separate front-end deployment is required because the
+Container App serves the workspace assets.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
+
+The transformation estimator is version `1.3`. It reserves an initial candidate
+and up to three bounded repair attempts. Proposals created by estimator version
+`1.2` remain stored, but the new revision rejects them before model use because
+their approved token maximum covered only two calls. Run **Create improvement
+plan** again and obtain a new approval before transforming those documents. No
+database migration is required.
+
+The authenticated
+`POST /v1/estates/{estate_id}/transformation-runs/stream` endpoint returns
+newline-delimited JSON events for actual document and validation stages. The
+browser uses this stream to report complete-content, source-preservation,
+grounding, and optional deterministic quality-check results. Processing remains
+inside the application process. A client disconnect requests cancellation before
+the next model action or document; an in-flight provider request may finish
+first. This endpoint is not a durable background queue.
 
 After the revision becomes ready:
 
@@ -182,6 +199,14 @@ After the revision becomes ready:
 5. Select a document and request recommendations.
 6. Confirm the proposal rationale describes the number and likely impact of
    content findings without a score out of 100.
+7. Approve the new proposal and confirm the transformation controls appear above
+   the **Assessment results** and **Evaluation set** tabs.
+8. Start transformation and confirm the live progress surface names each check,
+   updates results as stages complete, and opens the generated output when the run
+   completes.
+9. If the estate contains a proposal created with estimator version `1.2`,
+   confirm transformation stops before model use and instructs the reviewer to
+   create and approve a current improvement plan.
 
 Forward compatibility is automatic: the newer revision reads reports that do
 not contain `agent_impact`. The reverse direction is not automatic because
@@ -190,6 +215,11 @@ predates `agent_impact`, stop new discovery work and either retain the newer
 revision for report reads or restore the estate store to a compatible
 pre-deployment snapshot. Reports created by an older revision remain valid in
 the newer application.
+
+Rollback does not require a schema restore for this update. A revision using
+estimator version `1.2` rejects proposals created with version `1.3`; recreate
+and approve the improvement plan after rollback rather than attempting to reuse
+the newer token estimate.
 
 ## Roll back
 

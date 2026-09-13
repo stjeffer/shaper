@@ -362,6 +362,7 @@ h3 {
 .section-heading,
 .collection-heading,
 .sticky-actions,
+.transformation-actions,
 .dialog-heading,
 .dialog-actions,
 .item-row,
@@ -1271,6 +1272,97 @@ td input[type="checkbox"] {
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: blur(10px);
+}
+
+.transformation-actions {
+  margin: 12px 0 20px;
+  padding: 16px;
+  background: var(--color-brand-background-soft);
+  border: 1px solid var(--color-brand-stroke);
+  border-radius: 12px;
+}
+
+.transformation-actions > div {
+  display: grid;
+  gap: 8px;
+}
+
+.transformation-actions #approvalSummary {
+  font-weight: 700;
+}
+
+.transformation-progress {
+  margin: 0 0 20px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: 12px;
+}
+
+.transformation-progress-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.transformation-progress-heading h3,
+.transformation-progress-heading p {
+  margin: 0;
+}
+
+.transformation-progress[data-status="failed"] .spinner {
+  display: none;
+}
+
+.transformation-progress-heading p {
+  margin-top: 4px;
+  color: var(--color-neutral-foreground-3);
+}
+
+.transformation-progress-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.transformation-progress-document {
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.transformation-progress-document h4 {
+  margin: 0 0 8px;
+}
+
+.transformation-check-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transformation-check {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.transformation-check-status {
+  display: block;
+  color: var(--color-neutral-foreground-3);
+  font-size: 13px;
+}
+
+.transformation-check[data-status="passed"] .transformation-check-status {
+  color: var(--green);
+}
+
+.transformation-check[data-status="failed"] .transformation-check-status,
+.transformation-check[data-status="review"] .transformation-check-status {
+  color: var(--red);
 }
 
 .proposal-heading,
@@ -3883,6 +3975,7 @@ h2 {
   }
 
   .sticky-actions,
+  .transformation-actions,
   .item-row,
   .proposal-heading,
   .artifact-heading {

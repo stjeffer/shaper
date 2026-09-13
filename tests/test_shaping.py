@@ -173,6 +173,22 @@ def test_given_blocking_feedback_when_shaped_then_candidate_is_repaired(
     assert "candidate_rejected" in checkpoints.states
 
 
+def test_given_three_rejected_candidates_when_shaped_then_fourth_candidate_can_pass(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    outcome, checkpoints = run_loop(
+        [candidate_payload() for _ in range(4)],
+        source_document,
+        source_span,
+        validator=Validator(rejections=3),
+    )
+
+    assert outcome.model_calls == 4
+    assert checkpoints.states.count("candidate_rejected") == 3
+    assert checkpoints.states[-1] == "candidate_accepted"
+
+
 def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(
     source_document: SourceDocument,
     source_span: SourceSpan,
