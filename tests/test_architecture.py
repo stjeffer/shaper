@@ -286,15 +286,26 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "function selectedActionEstate()" in browser_app
 
 
-def test_given_workspace_controls_when_inspected_then_teams_fluent_theme_is_fixed() -> None:
+def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_applied() -> None:
     concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
     html = (concept_root / "index.html").read_text(encoding="utf-8")
     browser_app = (concept_root / "app.js").read_text(encoding="utf-8")
+    fluent_theme = (concept_root / "fluent-theme.js").read_text(encoding="utf-8")
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
     assert 'id="themePicker"' not in html
     assert "<legend>Theme</legend>" not in html
-    assert "@fluentui/web-components@2.6.1/dist/web-components.min.js" in html
+    assert 'src="fluent-theme.js?v=20260913-fluent-product-v8"' in html
+    assert 'href="styles.css?v=20260913-fluent-product-v8"' in html
+    assert './vendor/fluent-web-components-2.6.1.min.js"' in fluent_theme
+    assert (concept_root / "vendor/fluent-web-components-2.6.1.min.js").is_file()
+    assert "MIT License" in (concept_root / "vendor/fluentui-LICENSE.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "Copyright (c) 2015 David Clark" in (
+        concept_root / "vendor/tabbable-LICENSE.txt"
+    ).read_text(encoding="utf-8")
+    assert 'await import("./app.js?v=20260913-fluent-product-v8")' in fluent_theme
     assert 'id="fluentProvider"' in html
     assert 'accent-base-color="#5b5fc7"' in html
     assert 'neutral-base-color="#808080"' in html
@@ -312,17 +323,32 @@ def test_given_workspace_controls_when_inspected_then_teams_fluent_theme_is_fixe
     assert "#0f6cbd" not in styles
     assert ':root[data-theme="teams"]' not in styles
     assert ':root[data-theme="office"]' not in styles
+    assert "baseLayerLuminance.setValueFor" in fluent_theme
+    assert "StandardLuminance.DarkMode" in fluent_theme
+    assert "StandardLuminance.LightMode" in fluent_theme
+    assert 'matchMedia("(prefers-color-scheme: dark)")' in fluent_theme
+    for token in (
+        "accentStrokeControlRest",
+        "accentStrokeControlHover",
+        "accentStrokeControlActive",
+        "accentStrokeControlFocus",
+    ):
+        assert token in fluent_theme
+    assert 'token.setValueFor(provider, "transparent")' in fluent_theme
     assert "--color-brand-background: var(--accent-fill-rest);" in styles
     assert "--color-control-background: var(--neutral-fill-rest);" in styles
-    assert 'fluent-button[appearance="accent"]::part(control)' in styles
-    assert 'fluent-button[appearance="neutral"]::part(control)' in styles
-    assert 'fluent-button[appearance="lightweight"]::part(control)' in styles
-    assert "background: var(--accent-fill-rest);" in styles
-    assert "border-color: var(--neutral-stroke-rest);" in styles
+    assert "::part(control)" not in styles
+    assert "--spacingHorizontalXXXL: 32px;" in styles
+    assert "--borderRadiusMedium: 4px;" in styles
+    assert "--shadow8:" in styles
+    assert "--shadow28:" in styles
+    assert "background: var(--neutral-fill-input-rest);" in styles
+    assert "background: var(--neutral-layer-3);" in styles
+    assert "@media (prefers-color-scheme: dark)" in styles
     assert "--color-control-background:" in styles
     assert "--color-control-border: #d1d1d1;" in styles
     assert "--color-input-border: #8a8886;" in styles
-    assert "border-color: transparent;" in styles
+    assert "text-transform: none;" in styles
     assert 'class="button ' not in html
     assert ".button {" not in styles
     assert "@media (forced-colors: active)" in styles

@@ -105,19 +105,28 @@ knowledge estate and opening the assessment-check catalogue. Internal
 environment indicators and opaque identity fragments are not shown because
 they do not help people complete either task.
 
-The workspace uses the official `@fluentui/web-components` package and a
-`fluent-design-system-provider`. The provider applies the documented adaptive
-colour recipes, Segoe UI type ramp, four-pixel control radius, eight-pixel layer
-radius, and standard control density. The provider uses the Microsoft Teams
-`#5b5fc7` accent as the single application theme and invokes the Fluent Design
-Token API instead of overriding generated token properties in CSS.
+The workspace ships the pinned `@fluentui/web-components` 2.6.1 bundle with the
+application and uses a `fluent-design-system-provider`. The provider applies the
+documented adaptive colour recipes, Segoe UI type ramp, four-pixel control
+radius, eight-pixel layer radius, and standard control density. The provider
+uses the Microsoft Teams `#5b5fc7` accent as the single brand theme. It follows
+the operating-system light or dark preference through Fluent's
+`baseLayerLuminance` token and retains Windows forced-colours behavior. A local
+theme bootstrap initializes those tokens before it loads the application.
 
 Action controls use `fluent-button` with the documented `accent`, `neutral`, and
 `lightweight` appearances. Primary actions use a flat adaptive accent fill with
 a transparent stroke, secondary actions use one subtle adaptive neutral stroke,
-and lightweight actions have no persistent stroke. Tabs use the Fluent
-borderless treatment and brand selection indicator instead of outlining every
-tab. Windows forced-colours mode remains authoritative.
+and lightweight actions have no persistent stroke. The transparent accent
+stroke is applied through the Fluent Design Token API rather than CSS selectors
+that reach into component shadow parts.
+
+The shell uses comfortable spacing for navigation and forms, with compact rows
+for estate and findings data. Neutral adaptive layers define the canvas, panels,
+inputs, and tables. Teams purple is reserved for primary actions and active
+selection. Ordinary cards remain flat; elevation is limited to menus and modal
+dialogs. Tabs use the Fluent borderless treatment and brand selection indicator
+instead of outlining every tab.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph

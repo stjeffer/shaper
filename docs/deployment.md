@@ -167,17 +167,21 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet uses a versioned `teams-fluent-v7` asset query,
-and the script uses a versioned `fluent-components` query. These versions
-prevent a new revision from reusing the previous control palette from a browser
-or edge cache. The Microsoft Teams Fluent theme is fixed in the shipped assets,
-so no browser preference or server-side theme configuration is required.
+The workspace stylesheet and local theme bootstrap use the versioned
+`fluent-product-v8` asset query. The bootstrap loads the application module with
+the same version. These versions prevent a new revision from reusing an older
+control palette or application bundle from a browser or edge cache. The
+Microsoft Teams accent is fixed in the shipped assets. Fluent light and dark
+recipes follow the operating-system preference, so no theme selector or
+server-side theme configuration is required.
 
-The workspace loads the pinned
-`@fluentui/web-components@2.6.1/dist/web-components.min.js` module from the CDN
-documented in the Microsoft Fluent UI Web Components quickstart. Confirm that
-the deployment's content-security and outbound-access policies permit
-`https://unpkg.com` before promoting the revision.
+The local `fluent-theme.js` bootstrap loads the pinned
+`@fluentui/web-components` 2.6.1 module from the workspace `vendor` directory.
+The image also includes the Fluent UI and bundled `tabbable` MIT license
+notices. The bootstrap sets the provider luminance and flat accent-stroke tokens
+through the public Fluent Design Token API before loading `app.js`. The
+workspace therefore does not depend on a public CDN or a corresponding
+content-security exception at runtime.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
@@ -206,20 +210,26 @@ After the revision becomes ready:
 2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
    theme selector, and renders flat primary and lightweight actions without a
    persistent blue stroke.
-3. Run discovery for an estate with at least one known content issue.
-4. Confirm the Assess table contains **Document** and **Findings**, with no
+3. Confirm the shell, forms, and data surfaces use adaptive Fluent neutral
+   layers in both the operating-system light and dark modes.
+4. Confirm the estate list reflows without horizontal scrolling at a 320-pixel
+   viewport and remains usable at 200% browser zoom.
+5. Confirm keyboard focus remains visible on actions and tabs, then verify
+   controls remain distinguishable in Windows forced-colours mode.
+6. Run discovery for an estate with at least one known content issue.
+7. Confirm the Assess table contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
-5. Expand a finding and confirm it shows the detected condition, **Agent
+8. Expand a finding and confirm it shows the detected condition, **Agent
    impact**, review status, and source evidence.
-6. Select a document and request recommendations.
-7. Confirm the proposal rationale describes the number and likely impact of
+9. Select a document and request recommendations.
+10. Confirm the proposal rationale describes the number and likely impact of
    content findings without a score out of 100.
-8. Approve the new proposal and confirm the transformation controls appear above
+11. Approve the new proposal and confirm the transformation controls appear above
    the **Assessment results** and **Evaluation set** tabs.
-9. Start transformation and confirm the live progress surface names each check,
+12. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-10. If the estate contains a proposal created with estimator version `1.2`,
+13. If the estate contains a proposal created with estimator version `1.2`,
    confirm transformation stops before model use and instructs the reviewer to
    create and approve a current improvement plan.
 
