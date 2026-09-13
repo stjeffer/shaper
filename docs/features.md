@@ -108,18 +108,16 @@ they do not help people complete either task.
 The workspace uses the official `@fluentui/web-components` package and a
 `fluent-design-system-provider`. The provider applies the documented adaptive
 colour recipes, Segoe UI type ramp, four-pixel control radius, eight-pixel layer
-radius, and standard control density. Theme changes set `accent-base-color` on
-the provider, which invokes the Fluent Design Token API instead of overriding
-the generated token properties in CSS. The Microsoft Web theme uses Fluent's
-default `#0078d4` accent; Teams and Office supply their published brand accents.
+radius, and standard control density. The provider uses the Microsoft Teams
+`#5b5fc7` accent as the single application theme and invokes the Fluent Design
+Token API instead of overriding generated token properties in CSS.
 
 Action controls use `fluent-button` with the documented `accent`, `neutral`, and
 `lightweight` appearances. Primary actions use a flat adaptive accent fill with
 a transparent stroke, secondary actions use one subtle adaptive neutral stroke,
 and lightweight actions have no persistent stroke. Tabs use the Fluent
 borderless treatment and brand selection indicator instead of outlining every
-tab. Shaper remembers the selected theme in the browser, while Windows
-forced-colours mode remains authoritative.
+tab. Windows forced-colours mode remains authoritative.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph

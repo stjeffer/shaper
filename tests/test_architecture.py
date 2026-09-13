@@ -286,32 +286,30 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "function selectedActionEstate()" in browser_app
 
 
-def test_given_colour_theme_controls_when_inspected_then_fluent_states_are_persistent() -> None:
+def test_given_workspace_controls_when_inspected_then_teams_fluent_theme_is_fixed() -> None:
     concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
     html = (concept_root / "index.html").read_text(encoding="utf-8")
     browser_app = (concept_root / "app.js").read_text(encoding="utf-8")
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
-    assert 'id="themePicker"' in html
-    assert "<legend>Theme</legend>" in html
+    assert 'id="themePicker"' not in html
+    assert "<legend>Theme</legend>" not in html
     assert "@fluentui/web-components@2.6.1/dist/web-components.min.js" in html
     assert 'id="fluentProvider"' in html
-    assert 'accent-base-color="#0078d4"' in html
+    assert 'accent-base-color="#5b5fc7"' in html
     assert 'neutral-base-color="#808080"' in html
     assert 'control-corner-radius="4"' in html
     assert '<fluent-button\n              class="primary"' in html
     assert 'appearance="accent"' in html
     assert 'appearance="neutral"' in html
     assert 'appearance="lightweight"' in html
-    for theme in ("web", "teams", "office"):
-        assert f'name="color-theme" value="{theme}"' in html
-    assert 'localStorage.getItem("shaper-color-theme")' in html
-    assert 'const COLOR_THEME_STORAGE_KEY = "shaper-color-theme"' in browser_app
-    assert 'web: "#0078d4"' in browser_app
-    assert "function applyColorTheme(" in browser_app
-    assert "document.documentElement.dataset.theme = selectedTheme" in browser_app
-    assert '"accent-base-color"' in browser_app
-    assert 'elements.themePicker.addEventListener("change"' in browser_app
+    assert 'name="color-theme"' not in html
+    assert "shaper-color-theme" not in html
+    assert "COLOR_THEME_STORAGE_KEY" not in browser_app
+    assert "applyColorTheme(" not in browser_app
+    assert "themePicker" not in browser_app
+    assert "#0078d4" not in styles
+    assert "#0f6cbd" not in styles
     assert ':root[data-theme="teams"]' not in styles
     assert ':root[data-theme="office"]' not in styles
     assert "--color-brand-background: var(--accent-fill-rest);" in styles

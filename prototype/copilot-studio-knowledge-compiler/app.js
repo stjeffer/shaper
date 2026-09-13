@@ -88,20 +88,11 @@ const RESULT_PRESENTATION = Object.freeze({
 });
 
 const ACCOUNTABILITY_ONLY_FINDINGS = new Set(["missing_owner"]);
-const COLOR_THEME_STORAGE_KEY = "shaper-color-theme";
-const COLOR_THEMES = new Set(["web", "teams", "office"]);
-const COLOR_THEME_ACCENTS = Object.freeze({
-  web: "#0078d4",
-  teams: "#5b5fc7",
-  office: "#d83b01",
-});
 
 const elements = {
-  fluentProvider: document.querySelector("#fluentProvider"),
   workspace: document.querySelector("#workspace"),
   status: document.querySelector("#status"),
   alert: document.querySelector("#alert"),
-  themePicker: document.querySelector("#themePicker"),
   loading: document.querySelector("#loadingView"),
   noAccess: document.querySelector("#noAccessView"),
   assessmentChecksView: document.querySelector("#assessmentChecksView"),
@@ -192,31 +183,6 @@ const elements = {
   documentFindingsDialogBody: document.querySelector("#documentFindingsDialogBody"),
 };
 
-function applyColorTheme(theme, { persist = false, announceChange = false } = {}) {
-  const selectedTheme = COLOR_THEMES.has(theme) ? theme : "web";
-  document.documentElement.dataset.theme = selectedTheme;
-  elements.fluentProvider.setAttribute(
-    "accent-base-color",
-    COLOR_THEME_ACCENTS[selectedTheme],
-  );
-  const themeInput = elements.themePicker.querySelector(
-    `input[name="color-theme"][value="${selectedTheme}"]`,
-  );
-  if (themeInput) themeInput.checked = true;
-  if (persist) {
-    try {
-      localStorage.setItem(COLOR_THEME_STORAGE_KEY, selectedTheme);
-    } catch (error) {
-      console.warn("Shaper could not save the colour theme.", error);
-    }
-  }
-  if (announceChange) {
-    const label = themeInput?.closest("label")?.querySelector(".sr-only")?.textContent;
-    announce(`${label ?? "Colour theme"} applied`);
-  }
-}
-
-applyColorTheme(document.documentElement.dataset.theme ?? "web");
 const findingsDialogMedia = window.matchMedia("(max-width: 1240px)");
 
 function announce(message) {
@@ -2877,10 +2843,6 @@ elements.createForm.addEventListener("submit", createEstate);
 elements.editForm.addEventListener("submit", editEstate);
 elements.deleteForm.addEventListener("submit", deleteEstate);
 elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
-elements.themePicker.addEventListener("change", (event) => {
-  const input = event.target.closest('input[name="color-theme"]');
-  if (input) applyColorTheme(input.value, { persist: true, announceChange: true });
-});
 elements.sourceInputTabs.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-source-input-tab]");
   if (tab) switchSourceInputTab(tab.dataset.sourceInputTab, false);

@@ -167,11 +167,11 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet uses a versioned `fluent-controls-v6` asset query,
+The workspace stylesheet uses a versioned `teams-fluent-v7` asset query,
 and the script uses a versioned `fluent-components` query. These versions
 prevent a new revision from reusing the previous control palette from a browser
-or edge cache. No database or server configuration change is required for
-colour theme preferences because each browser stores its selection locally.
+or edge cache. The Microsoft Teams Fluent theme is fixed in the shipped assets,
+so no browser preference or server-side theme configuration is required.
 
 The workspace loads the pinned
 `@fluentui/web-components@2.6.1/dist/web-components.min.js` module from the CDN
@@ -203,9 +203,9 @@ first. This endpoint is not a durable background queue.
 After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
-2. Confirm the theme control offers the Microsoft Web, Teams, and Office
-   palettes, persists a selection after reload, and visibly updates primary
-   actions, selected tabs, focus indicators, and bounded secondary controls.
+2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
+   theme selector, and renders flat primary and lightweight actions without a
+   persistent blue stroke.
 3. Run discovery for an estate with at least one known content issue.
 4. Confirm the Assess table contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
