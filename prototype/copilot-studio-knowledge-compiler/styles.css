@@ -30,7 +30,10 @@
   --color-control-background: #fff;
   --color-control-background-hover: #f5f5f5;
   --color-control-background-pressed: #e8e8e8;
-  --color-control-border: #8a8886;
+  --color-control-border: #d1d1d1;
+  --color-control-border-hover: #c7c7c7;
+  --color-control-border-pressed: #b3b3b3;
+  --color-input-border: #8a8886;
   --color-control-disabled-background: #f0f0f0;
   --color-control-disabled-border: #d1d1d1;
   --color-control-disabled-foreground: #707070;
@@ -113,8 +116,8 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex="-1"]:focus-visible {
-  outline: 3px solid var(--color-focus-stroke);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-focus-stroke);
+  outline-offset: 2px;
 }
 
 .skip-link {
@@ -2163,7 +2166,7 @@ body {
   margin: 0;
   padding: 8px 5px;
   background: var(--color-control-background);
-  border: 1px solid var(--color-control-border);
+  border: 1px solid var(--color-neutral-stroke-1);
   border-radius: var(--border-radius-medium);
 }
 
@@ -3398,11 +3401,12 @@ h2 {
 
 .button:hover:not(:disabled) {
   background: var(--color-control-background-hover);
-  border-color: var(--color-neutral-foreground-2);
+  border-color: var(--color-control-border-hover);
 }
 
 .button:active:not(:disabled) {
   background: var(--color-control-background-pressed);
+  border-color: var(--color-control-border-pressed);
 }
 
 .button.primary,
@@ -3410,7 +3414,7 @@ h2 {
 .list-toolbar .button.primary {
   color: #fff;
   background: var(--color-brand-background);
-  border-color: var(--color-brand-background);
+  border-color: transparent;
 }
 
 .button.primary:hover:not(:disabled),
@@ -3418,14 +3422,14 @@ h2 {
 .list-toolbar .button.primary:hover:not(:disabled) {
   color: #fff;
   background: var(--color-brand-background-hover);
-  border-color: var(--color-brand-background-hover);
+  border-color: transparent;
 }
 
 .button.primary:active:not(:disabled),
 .portfolio-hero .button.primary:active:not(:disabled),
 .list-toolbar .button.primary:active:not(:disabled) {
   background: var(--color-brand-background-pressed);
-  border-color: var(--color-brand-background-pressed);
+  border-color: transparent;
 }
 
 .button.secondary {
@@ -3441,7 +3445,7 @@ h2 {
 
 .button.quiet:hover:not(:disabled) {
   background: var(--color-brand-background-soft);
-  border-color: var(--color-brand-stroke);
+  border-color: transparent;
 }
 
 .button:disabled {
@@ -3454,7 +3458,7 @@ h2 {
 .workflow,
 .source-input-tabs {
   background: var(--color-neutral-background-3);
-  border: 1px solid var(--color-neutral-stroke-1);
+  border: 0;
 }
 
 .workflow button,
@@ -3473,14 +3477,13 @@ h2 {
 .source-input-tabs button[aria-selected="true"] {
   color: var(--color-brand-foreground);
   background: var(--color-brand-background-soft);
-  border-color: var(--color-brand-stroke);
+  border-color: transparent;
   box-shadow: inset 0 -3px var(--color-brand-background);
 }
 
 .approval-review-tabs [role="tab"],
 .assessment-check-tabs [role="tab"] {
-  border: 1px solid transparent;
-  border-bottom: 0;
+  border: 0;
 }
 
 .approval-review-tabs [role="tab"]:hover,
@@ -3490,13 +3493,8 @@ h2 {
 
 .approval-review-tabs [role="tab"][aria-selected="true"],
 .assessment-check-tabs [role="tab"][aria-selected="true"] {
-  color: var(--color-brand-foreground);
-  background: var(--color-brand-background-soft);
-  border-color: var(--color-brand-stroke);
-}
-
-.nav-item.active {
-  border: 1px solid var(--color-brand-stroke);
+  color: var(--color-neutral-foreground-1);
+  background: transparent;
 }
 
 input,
@@ -3506,7 +3504,7 @@ textarea,
 .form-card select,
 .form-card textarea {
   background: var(--color-control-background);
-  border-color: var(--color-control-border);
+  border-color: var(--color-input-border);
 }
 
 input:hover,
@@ -3534,7 +3532,6 @@ textarea:hover {
   .assessment-check-tabs [role="tab"][aria-selected="true"],
   .nav-item.active {
     color: Highlight;
-    border-color: Highlight;
   }
 }
 

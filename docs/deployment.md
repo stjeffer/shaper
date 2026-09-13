@@ -167,10 +167,11 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet and script use a versioned `fluent-themes` asset query
-so a new revision does not reuse the previous control palette from a browser or
-edge cache. No database or server configuration change is required for colour
-theme preferences because each browser stores its selection locally.
+The workspace stylesheet uses a versioned `fluent-controls` asset query, and the
+script uses a versioned `fluent-themes` query. These versions prevent a new
+revision from reusing the previous control palette from a browser or edge cache.
+No database or server configuration change is required for colour theme
+preferences because each browser stores its selection locally.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no

@@ -304,7 +304,9 @@ def test_given_colour_theme_controls_when_inspected_then_fluent_states_are_persi
     assert ':root[data-theme="teams"]' in styles
     assert ':root[data-theme="office"]' in styles
     assert "--color-control-background:" in styles
-    assert "--color-control-border:" in styles
+    assert "--color-control-border: #d1d1d1;" in styles
+    assert "--color-input-border: #8a8886;" in styles
+    assert "border-color: transparent;" in styles
     assert ".button:disabled" in styles
     assert "@media (forced-colors: active)" in styles
 

@@ -108,10 +108,12 @@ they do not help people complete either task.
 The rail also provides Microsoft Fluent product-aligned colour themes based on
 the published Web, Teams, and Office brand ramps. Shaper remembers the selected
 theme in the browser. Each theme uses the same semantic control states:
-brand-filled primary actions, bounded secondary actions, visibly filled selected
-tabs, explicit hover and pressed states, and a high-contrast focus indicator.
-Selected controls also use borders, underlines, or weight so colour is not the
-only indication. Windows forced-colours mode remains authoritative.
+brand-filled primary actions, subtly outlined secondary actions, borderless
+minor actions, explicit hover and pressed states, and a high-contrast focus
+indicator. Tabs follow the Fluent pattern of using a brand selection indicator
+instead of outlining every tab. Selected controls also use background, indicator,
+or weight changes so colour is not the only indication. Windows forced-colours
+mode remains authoritative.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph
