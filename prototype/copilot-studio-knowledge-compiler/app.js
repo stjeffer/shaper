@@ -90,8 +90,14 @@ const RESULT_PRESENTATION = Object.freeze({
 const ACCOUNTABILITY_ONLY_FINDINGS = new Set(["missing_owner"]);
 const COLOR_THEME_STORAGE_KEY = "shaper-color-theme";
 const COLOR_THEMES = new Set(["web", "teams", "office"]);
+const COLOR_THEME_ACCENTS = Object.freeze({
+  web: "#0078d4",
+  teams: "#5b5fc7",
+  office: "#d83b01",
+});
 
 const elements = {
+  fluentProvider: document.querySelector("#fluentProvider"),
   workspace: document.querySelector("#workspace"),
   status: document.querySelector("#status"),
   alert: document.querySelector("#alert"),
@@ -189,6 +195,10 @@ const elements = {
 function applyColorTheme(theme, { persist = false, announceChange = false } = {}) {
   const selectedTheme = COLOR_THEMES.has(theme) ? theme : "web";
   document.documentElement.dataset.theme = selectedTheme;
+  elements.fluentProvider.setAttribute(
+    "accent-base-color",
+    COLOR_THEME_ACCENTS[selectedTheme],
+  );
   const themeInput = elements.themePicker.querySelector(
     `input[name="color-theme"][value="${selectedTheme}"]`,
   );
@@ -2741,7 +2751,7 @@ document.addEventListener("click", async (event) => {
   if (!event.target.closest(".estate-actions")) {
     closeEstateMenus();
   }
-  const target = event.target.closest("button, a");
+  const target = event.target.closest("button, a, fluent-button, fluent-anchor");
   if (!target) return;
   if (target.dataset.action === "home") {
     event.preventDefault();

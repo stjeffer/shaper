@@ -18,15 +18,15 @@
   --amber-soft: #fff4ce;
   --red: #a4262c;
   --red-soft: #fde7e9;
-  --blue: #0f6cbd;
+  --blue: #0078d4;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 8%);
   --shadow-lg: 0 8px 24px rgb(0 0 0 / 14%);
-  --color-brand-background: #0f6cbd;
-  --color-brand-background-hover: #115ea3;
-  --color-brand-background-pressed: #0e4775;
-  --color-brand-background-soft: #ebf3fc;
-  --color-brand-foreground: #0f548c;
-  --color-brand-stroke: #0f6cbd;
+  --color-brand-background: #0078d4;
+  --color-brand-background-hover: #006cbe;
+  --color-brand-background-pressed: #005a9e;
+  --color-brand-background-soft: transparent;
+  --color-brand-foreground: #005a9e;
+  --color-brand-stroke: #0078d4;
   --color-control-background: #fff;
   --color-control-background-hover: #f5f5f5;
   --color-control-background-pressed: #e8e8e8;
@@ -58,26 +58,28 @@
   font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
 }
 
-:root[data-theme="teams"] {
-  --blue: #5b5fc7;
-  --color-brand-background: #5b5fc7;
-  --color-brand-background-hover: #4f52b2;
-  --color-brand-background-pressed: #3d3e78;
-  --color-brand-background-soft: #e8ebfa;
-  --color-brand-foreground: #444791;
-  --color-brand-stroke: #5b5fc7;
-  --color-focus-stroke: #5b5fc7;
-}
-
-:root[data-theme="office"] {
-  --blue: #d83b01;
-  --color-brand-background: #d83b01;
-  --color-brand-background-hover: #c33400;
-  --color-brand-background-pressed: #a52c00;
-  --color-brand-background-soft: #f9dcd1;
-  --color-brand-foreground: #a52c00;
-  --color-brand-stroke: #d83b01;
-  --color-focus-stroke: #d83b01;
+fluent-design-system-provider {
+  display: contents;
+  --blue: var(--accent-fill-rest);
+  --color-brand-background: var(--accent-fill-rest);
+  --color-brand-background-hover: var(--accent-fill-hover);
+  --color-brand-background-pressed: var(--accent-fill-active);
+  --color-brand-background-soft: var(--neutral-fill-stealth-rest);
+  --color-brand-foreground: var(--accent-foreground-rest);
+  --color-brand-stroke: var(--accent-fill-rest);
+  --color-control-background: var(--neutral-fill-rest);
+  --color-control-background-hover: var(--neutral-fill-hover);
+  --color-control-background-pressed: var(--neutral-fill-active);
+  --color-control-border: var(--neutral-stroke-rest);
+  --color-control-border-hover: var(--neutral-stroke-hover);
+  --color-control-border-pressed: var(--neutral-stroke-active);
+  --color-focus-stroke: var(--focus-stroke-outer);
+  --color-neutral-background-1: var(--neutral-layer-1);
+  --color-neutral-background-2: var(--neutral-layer-2);
+  --color-neutral-background-3: var(--neutral-layer-3);
+  --color-neutral-stroke-1: var(--neutral-stroke-rest);
+  --color-neutral-foreground-1: var(--neutral-foreground-rest);
+  --color-neutral-foreground-3: var(--neutral-foreground-hint);
 }
 
 * {
@@ -495,78 +497,6 @@ h3 {
   margin: 0 0 3px;
   color: var(--muted);
   font-size: 14px;
-}
-
-.button {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 5px 12px;
-  color: var(--ink);
-  background: #fff;
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  box-shadow: none;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.button:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #adadad;
-}
-
-.button.primary {
-  color: #fff;
-  background: var(--blue);
-  border-color: var(--blue);
-}
-
-.button.primary:hover:not(:disabled) {
-  background: #115ea3;
-  border-color: #115ea3;
-}
-
-.portfolio-hero .button.primary {
-  color: #fff;
-  background: var(--blue);
-  border-color: var(--blue);
-}
-
-.button.secondary {
-  color: var(--ink);
-  border-color: var(--line-strong);
-}
-
-.button.danger {
-  color: var(--red);
-  border-color: #e5aeb7;
-}
-
-.button.destructive {
-  color: #fff;
-  background: var(--red);
-  border-color: var(--red);
-}
-
-.button.destructive:hover:not(:disabled) {
-  background: #8b1e25;
-  border-color: #8b1e25;
-}
-
-.button.quiet {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
 }
 
 .estate-grid {
@@ -1878,18 +1808,6 @@ dialog form {
   border-top: 1px solid #d6d6d6;
 }
 
-.dialog-actions .button {
-  min-height: 44px;
-  padding: 0 24px;
-  border-radius: 14px;
-  font-size: 16px;
-}
-
-.dialog-actions .button.quiet {
-  background: #fff;
-  border-color: #b7b7b7;
-}
-
 .confirm-dialog {
   width: min(560px, calc(100% - 32px));
 }
@@ -2265,27 +2183,6 @@ h2 {
   justify-content: flex-end;
   gap: 24px;
   margin-bottom: 24px;
-}
-
-.list-toolbar .button.primary {
-  min-height: 52px;
-  padding: 0 28px;
-  color: #4f52e8;
-  background: #f0f1ff;
-  border-color: transparent;
-  border-radius: 999px;
-  font-size: 16px;
-}
-
-.button.primary:hover:not(:disabled) {
-  background: #3f49cc;
-  border-color: #3f49cc;
-}
-
-.list-toolbar .button.primary:hover:not(:disabled) {
-  color: #4145cf;
-  background: #e4e6ff;
-  border-color: transparent;
 }
 
 .estate-list-shell {
@@ -2968,10 +2865,8 @@ h2 {
   padding-right: 4px;
 }
 
-.estate-state .button {
-  min-height: 36px;
+.estate-state fluent-button {
   margin-right: 12px;
-  border-radius: 10px;
 }
 
 .workflow {
@@ -3128,17 +3023,12 @@ h2 {
   line-height: 16px;
 }
 
-.form-card .button {
-  min-height: 36px;
+.form-card fluent-button {
   margin-top: 4px;
 }
 
 .section-heading {
   margin-top: 16px;
-}
-
-.button {
-  border-radius: 10px;
 }
 
 .badge,
@@ -3182,19 +3072,8 @@ h2 {
   line-height: 20px;
 }
 
-[data-panel="discover"] .panel-heading .button {
-  min-height: 32px;
+[data-panel="discover"] .panel-heading fluent-button {
   flex: 0 0 auto;
-  padding: 5px 12px;
-  background: var(--color-brand-background);
-  border-color: var(--color-brand-background);
-  border-radius: var(--border-radius-small);
-  font-size: 14px;
-}
-
-[data-panel="discover"] .panel-heading .button:hover:not(:disabled) {
-  background: var(--color-brand-background-hover);
-  border-color: var(--color-brand-background-hover);
 }
 
 .assessment-note {
@@ -3392,67 +3271,14 @@ h2 {
   outline-offset: 2px;
 }
 
-/* Fluent semantic control states keep actions and selection distinct from canvas surfaces. */
-.button {
-  color: var(--color-neutral-foreground-1);
-  background: var(--color-control-background);
-  border-color: var(--color-control-border);
+fluent-button.danger:not([disabled])::part(control) {
+  color: var(--color-status-danger-foreground);
 }
 
-.button:hover:not(:disabled) {
-  background: var(--color-control-background-hover);
-  border-color: var(--color-control-border-hover);
-}
-
-.button:active:not(:disabled) {
-  background: var(--color-control-background-pressed);
-  border-color: var(--color-control-border-pressed);
-}
-
-.button.primary,
-.portfolio-hero .button.primary,
-.list-toolbar .button.primary {
+fluent-button.destructive:not([disabled])::part(control) {
   color: #fff;
-  background: var(--color-brand-background);
+  background: var(--color-status-danger-foreground);
   border-color: transparent;
-}
-
-.button.primary:hover:not(:disabled),
-.portfolio-hero .button.primary:hover:not(:disabled),
-.list-toolbar .button.primary:hover:not(:disabled) {
-  color: #fff;
-  background: var(--color-brand-background-hover);
-  border-color: transparent;
-}
-
-.button.primary:active:not(:disabled),
-.portfolio-hero .button.primary:active:not(:disabled),
-.list-toolbar .button.primary:active:not(:disabled) {
-  background: var(--color-brand-background-pressed);
-  border-color: transparent;
-}
-
-.button.secondary {
-  background: var(--color-control-background);
-  border-color: var(--color-control-border);
-}
-
-.button.quiet {
-  color: var(--color-brand-foreground);
-  background: transparent;
-  border-color: transparent;
-}
-
-.button.quiet:hover:not(:disabled) {
-  background: var(--color-brand-background-soft);
-  border-color: transparent;
-}
-
-.button:disabled {
-  color: var(--color-control-disabled-foreground);
-  background: var(--color-control-disabled-background);
-  border-color: var(--color-control-disabled-border);
-  opacity: 1;
 }
 
 .workflow,
@@ -3909,7 +3735,7 @@ textarea:hover {
     grid-template-columns: 1fr;
   }
 
-  .portfolio-hero .button {
+  .portfolio-hero fluent-button {
     width: fit-content;
   }
 
@@ -3941,7 +3767,7 @@ textarea:hover {
     min-width: 0;
   }
 
-  .evaluation-options-footer .button {
+  .evaluation-options-footer fluent-button {
     width: 100%;
   }
 
@@ -3950,7 +3776,7 @@ textarea:hover {
     flex-direction: column;
   }
 
-  .list-toolbar .button.primary {
+  .list-toolbar fluent-button {
     width: fit-content;
   }
 
@@ -4027,7 +3853,7 @@ textarea:hover {
     grid-template-columns: 1fr;
   }
 
-  [data-panel="discover"] .panel-heading .button {
+  [data-panel="discover"] .panel-heading fluent-button {
     width: fit-content;
     align-self: flex-start;
   }

@@ -105,15 +105,19 @@ knowledge estate and opening the assessment-check catalogue. Internal
 environment indicators and opaque identity fragments are not shown because
 they do not help people complete either task.
 
-The rail also provides Microsoft Fluent product-aligned colour themes based on
-the published Web, Teams, and Office brand ramps. Shaper remembers the selected
-theme in the browser. Each theme uses the same semantic control states:
-brand-filled primary actions, subtly outlined secondary actions, borderless
-minor actions, explicit hover and pressed states, and a high-contrast focus
-indicator. Tabs follow the Fluent pattern of using a brand selection indicator
-instead of outlining every tab. Selected controls also use background, indicator,
-or weight changes so colour is not the only indication. Windows forced-colours
-mode remains authoritative.
+The workspace uses the official `@fluentui/web-components` package and a
+`fluent-design-system-provider`. The provider applies the documented adaptive
+colour recipes, Segoe UI type ramp, four-pixel control radius, eight-pixel layer
+radius, and standard control density. Theme changes set `accent-base-color` on
+the provider, which invokes the Fluent Design Token API instead of overriding
+the generated token properties in CSS. The Microsoft Web theme uses Fluent's
+default `#0078d4` accent; Teams and Office supply their published brand accents.
+
+Action controls use `fluent-button` with the documented `accent`, `neutral`, and
+`lightweight` appearances. Tabs use the Fluent borderless treatment and brand
+selection indicator instead of outlining every tab. Shaper remembers the
+selected theme in the browser, while Windows forced-colours mode remains
+authoritative.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph

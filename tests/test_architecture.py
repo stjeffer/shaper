@@ -294,20 +294,34 @@ def test_given_colour_theme_controls_when_inspected_then_fluent_states_are_persi
 
     assert 'id="themePicker"' in html
     assert "<legend>Theme</legend>" in html
+    assert "@fluentui/web-components@2.6.1/dist/web-components.min.js" in html
+    assert 'id="fluentProvider"' in html
+    assert 'accent-base-color="#0078d4"' in html
+    assert 'neutral-base-color="#808080"' in html
+    assert 'control-corner-radius="4"' in html
+    assert '<fluent-button\n              class="primary"' in html
+    assert 'appearance="accent"' in html
+    assert 'appearance="neutral"' in html
+    assert 'appearance="lightweight"' in html
     for theme in ("web", "teams", "office"):
         assert f'name="color-theme" value="{theme}"' in html
     assert 'localStorage.getItem("shaper-color-theme")' in html
     assert 'const COLOR_THEME_STORAGE_KEY = "shaper-color-theme"' in browser_app
+    assert 'web: "#0078d4"' in browser_app
     assert "function applyColorTheme(" in browser_app
     assert "document.documentElement.dataset.theme = selectedTheme" in browser_app
+    assert '"accent-base-color"' in browser_app
     assert 'elements.themePicker.addEventListener("change"' in browser_app
-    assert ':root[data-theme="teams"]' in styles
-    assert ':root[data-theme="office"]' in styles
+    assert ':root[data-theme="teams"]' not in styles
+    assert ':root[data-theme="office"]' not in styles
+    assert "--color-brand-background: var(--accent-fill-rest);" in styles
+    assert "--color-control-background: var(--neutral-fill-rest);" in styles
     assert "--color-control-background:" in styles
     assert "--color-control-border: #d1d1d1;" in styles
     assert "--color-input-border: #8a8886;" in styles
     assert "border-color: transparent;" in styles
-    assert ".button:disabled" in styles
+    assert 'class="button ' not in html
+    assert ".button {" not in styles
     assert "@media (forced-colors: active)" in styles
 
 

@@ -21,11 +21,23 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260913-fluent-controls" />
+    <script
+      type="module"
+      src="https://unpkg.com/@fluentui/web-components@2.6.1/dist/web-components.min.js"
+    ></script>
+    <link rel="stylesheet" href="styles.css?v=20260913-fluent-web-components-v4" />
   </head>
   <body>
-    <a class="skip-link" href="#workspace">Skip to workspace</a>
-    <div class="app-shell">
+    <fluent-design-system-provider
+      id="fluentProvider"
+      no-paint
+      accent-base-color="#0078d4"
+      neutral-base-color="#808080"
+      control-corner-radius="4"
+      layer-corner-radius="8"
+    >
+      <a class="skip-link" href="#workspace">Skip to workspace</a>
+      <div class="app-shell">
       <nav class="sidebar" aria-label="Primary navigation">
         <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
           <span class="brand-mark" aria-hidden="true">S</span>
@@ -158,9 +170,14 @@
             </div>
           </div>
           <div class="list-toolbar">
-            <button class="button primary" type="button" data-action="open-create">
+            <fluent-button
+              class="primary"
+              appearance="accent"
+              type="button"
+              data-action="open-create"
+            >
               New estate
-            </button>
+            </fluent-button>
           </div>
           <div class="estate-list-shell">
             <div class="estate-list-header" aria-hidden="true">
@@ -177,9 +194,14 @@
             <span aria-hidden="true">◇</span>
             <h2>No knowledge estates yet</h2>
             <p>Create an estate, add its sources, then run a read-only discovery.</p>
-            <button class="button primary" type="button" data-action="open-create">
+            <fluent-button
+              class="primary"
+              appearance="accent"
+              type="button"
+              data-action="open-create"
+            >
               Create your first estate
-            </button>
+            </fluent-button>
           </div>
         </section>
 
@@ -196,9 +218,14 @@
               </div>
             </div>
             <div class="estate-state">
-              <button class="button danger" type="button" data-action="open-delete">
+              <fluent-button
+                class="danger"
+                appearance="lightweight"
+                type="button"
+                data-action="open-delete"
+              >
                 Delete estate
-              </button>
+              </fluent-button>
               <span>Lifecycle</span>
               <strong id="estateStatus" class="badge">Active</strong>
             </div>
@@ -287,7 +314,9 @@
                         in this form.
                       </p>
                     </div>
-                    <button class="button secondary" type="submit">Add location</button>
+                    <fluent-button class="secondary" appearance="neutral" type="submit">
+                      Add location
+                    </fluent-button>
                   </form>
                   <form
                     id="uploadForm"
@@ -316,7 +345,9 @@
                       multiple
                       required
                     />
-                    <button class="button secondary" type="submit">Upload and inventory</button>
+                    <fluent-button class="secondary" appearance="neutral" type="submit">
+                      Upload and inventory
+                    </fluent-button>
                   </form>
                 </div>
               </div>
@@ -337,12 +368,23 @@
                 </p>
               </div>
               <div class="lifecycle-actions">
-                <button id="archiveButton" class="button danger" type="button">
+                <fluent-button
+                  id="archiveButton"
+                  class="danger"
+                  appearance="lightweight"
+                  type="button"
+                >
                   Archive estate
-                </button>
-                <button id="purgeButton" class="button danger" type="button" disabled>
+                </fluent-button>
+                <fluent-button
+                  id="purgeButton"
+                  class="danger"
+                  appearance="lightweight"
+                  type="button"
+                  disabled
+                >
                   Purge archived estate
-                </button>
+                </fluent-button>
               </div>
             </section>
           </section>
@@ -358,9 +400,14 @@
                   an assessment-backed improvement plan.
                 </p>
               </div>
-              <button id="discoverButton" class="button primary" type="button">
+              <fluent-button
+                id="discoverButton"
+                class="primary"
+                appearance="accent"
+                type="button"
+              >
                 Run discovery
-              </button>
+              </fluent-button>
             </div>
             <div class="assessment-note" role="note">
               <span class="assessment-note-icon" aria-hidden="true">i</span>
@@ -416,9 +463,15 @@
             </div>
             <div class="sticky-actions">
               <span id="selectionSummary">0 documents selected for improvement planning</span>
-              <button id="recommendButton" class="button primary" type="button" disabled>
+              <fluent-button
+                id="recommendButton"
+                class="primary"
+                appearance="accent"
+                type="button"
+                disabled
+              >
                 Create improvement plan
-              </button>
+              </fluent-button>
             </div>
           </section>
 
@@ -441,9 +494,15 @@
                   Run deterministic quality checks on reshaped content
                 </label>
               </div>
-              <button id="transformButton" class="button primary" type="button" disabled>
+              <fluent-button
+                id="transformButton"
+                class="primary"
+                appearance="accent"
+                type="button"
+                disabled
+              >
                 Transform approved documents
-              </button>
+              </fluent-button>
             </div>
             <section
               id="transformationProgress"
@@ -550,14 +609,15 @@
                 <div id="evaluationSuggestionList" class="evaluation-suggestion-list"></div>
                 <div class="evaluation-options-footer">
                   <span id="evaluationSelectionSummary">0 suggested evaluations selected</span>
-                  <button
+                  <fluent-button
                     id="downloadEvaluations"
-                    class="button secondary"
+                    class="secondary"
+                    appearance="neutral"
                     type="button"
                     disabled
                   >
                     Download selected test set
-                  </button>
+                  </fluent-button>
                 </div>
               </section>
               <div id="evaluationSetEmpty" class="empty-state compact">
@@ -642,8 +702,17 @@
           </label>
         </div>
         <div class="dialog-actions">
-          <button class="button quiet" type="button" data-action="close-create">Cancel</button>
-          <button class="button primary" type="submit">Create estate</button>
+          <fluent-button
+            class="quiet"
+            appearance="lightweight"
+            type="button"
+            data-action="close-create"
+          >
+            Cancel
+          </fluent-button>
+          <fluent-button class="primary" appearance="accent" type="submit">
+            Create estate
+          </fluent-button>
         </div>
       </form>
     </dialog>
@@ -695,10 +764,22 @@
           <p id="editError" class="dialog-error" role="alert" hidden></p>
         </div>
         <div class="dialog-actions">
-          <button class="button quiet" type="button" data-action="close-edit">Cancel</button>
-          <button id="editConfirmButton" class="button primary" type="submit">
+          <fluent-button
+            class="quiet"
+            appearance="lightweight"
+            type="button"
+            data-action="close-edit"
+          >
+            Cancel
+          </fluent-button>
+          <fluent-button
+            id="editConfirmButton"
+            class="primary"
+            appearance="accent"
+            type="submit"
+          >
             Save changes
-          </button>
+          </fluent-button>
         </div>
       </form>
     </dialog>
@@ -726,9 +807,14 @@
         Findings use this lossless text derivative. The exact uploaded file is retained separately
         as the source of record.
       </p>
-      <a id="documentDownload" class="button secondary document-download" href="#">
+      <fluent-anchor
+        id="documentDownload"
+        class="secondary document-download"
+        appearance="neutral"
+        href="#"
+      >
         Download original file
-      </a>
+      </fluent-anchor>
       <pre id="documentContent" class="document-content" tabindex="0"></pre>
     </dialog>
 
@@ -786,10 +872,23 @@
           <p id="deleteError" class="dialog-error" role="alert" hidden></p>
         </div>
         <div class="dialog-actions">
-          <button class="button quiet" type="button" data-action="close-delete">Cancel</button>
-          <button id="deleteConfirmButton" class="button destructive" type="submit" disabled>
+          <fluent-button
+            class="quiet"
+            appearance="lightweight"
+            type="button"
+            data-action="close-delete"
+          >
+            Cancel
+          </fluent-button>
+          <fluent-button
+            id="deleteConfirmButton"
+            class="destructive"
+            appearance="accent"
+            type="submit"
+            disabled
+          >
             Delete estate
-          </button>
+          </fluent-button>
         </div>
       </form>
     </dialog>
@@ -821,8 +920,17 @@
         <label for="purgeReason">Reason</label>
         <textarea id="purgeReason" name="reason" required maxlength="1000" rows="3"></textarea>
         <div class="dialog-actions">
-          <button class="button quiet" type="button" data-action="close-purge">Cancel</button>
-          <button class="button danger" type="submit">Permanently purge estate</button>
+          <fluent-button
+            class="quiet"
+            appearance="lightweight"
+            type="button"
+            data-action="close-purge"
+          >
+            Cancel
+          </fluent-button>
+          <fluent-button class="danger" appearance="lightweight" type="submit">
+            Permanently purge estate
+          </fluent-button>
         </div>
       </form>
     </dialog>
@@ -834,6 +942,7 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260913-fluent-themes"></script>
+    </fluent-design-system-provider>
+    <script src="app.js?v=20260913-fluent-components"></script>
   </body>
 </html>

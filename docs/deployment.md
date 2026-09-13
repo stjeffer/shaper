@@ -167,11 +167,17 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet uses a versioned `fluent-controls` asset query, and the
-script uses a versioned `fluent-themes` query. These versions prevent a new
-revision from reusing the previous control palette from a browser or edge cache.
-No database or server configuration change is required for colour theme
-preferences because each browser stores its selection locally.
+The workspace stylesheet uses a versioned `fluent-web-components-v4` asset query,
+and the script uses a versioned `fluent-components` query. These versions
+prevent a new revision from reusing the previous control palette from a browser
+or edge cache. No database or server configuration change is required for
+colour theme preferences because each browser stores its selection locally.
+
+The workspace loads the pinned
+`@fluentui/web-components@2.6.1/dist/web-components.min.js` module from the CDN
+documented in the Microsoft Fluent UI Web Components quickstart. Confirm that
+the deployment's content-security and outbound-access policies permit
+`https://unpkg.com` before promoting the revision.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
