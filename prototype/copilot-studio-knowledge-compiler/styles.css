@@ -24,7 +24,8 @@
   --color-brand-background: #5b5fc7;
   --color-brand-background-hover: #4f52b2;
   --color-brand-background-pressed: #3d3e78;
-  --color-brand-background-soft: transparent;
+  --color-brand-background-soft: #e8ebfa;
+  --color-brand-background-subtle: #f5f5ff;
   --color-brand-foreground: #444791;
   --color-brand-stroke: #5b5fc7;
   --color-control-background: #fff;
@@ -55,7 +56,9 @@
   --border-radius-small: 4px;
   --border-radius-medium: 8px;
   --border-radius-large: 12px;
-  font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+  --body-font: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  font-family: var(--body-font);
 }
 
 :root[data-color-scheme="dark"] {
@@ -83,7 +86,8 @@ fluent-design-system-provider {
   --color-brand-background: var(--accent-fill-rest);
   --color-brand-background-hover: var(--accent-fill-hover);
   --color-brand-background-pressed: var(--accent-fill-active);
-  --color-brand-background-soft: var(--neutral-fill-stealth-rest);
+  --color-brand-background-soft: #e8ebfa;
+  --color-brand-background-subtle: #f5f5ff;
   --color-brand-foreground: var(--accent-foreground-rest);
   --color-brand-stroke: var(--accent-fill-rest);
   --color-control-background: var(--neutral-fill-rest);
@@ -3999,6 +4003,7 @@ textarea:hover {
 
 /* Fluent 2 product system: semantic tokens own the final rendered surface. */
 fluent-design-system-provider {
+  --body-font: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   --spacingHorizontalXS: 4px;
   --spacingHorizontalS: 8px;
   --spacingHorizontalM: 12px;
@@ -4027,15 +4032,16 @@ fluent-design-system-provider {
 
 body {
   padding: 0;
-  color: CanvasText;
-  background: Canvas;
+  color: var(--neutral-foreground-rest);
+  background: var(--color-brand-background-subtle);
+  font-family: var(--body-font);
 }
 
 .app-shell {
   min-height: 100dvh;
   overflow: visible;
   color: var(--neutral-foreground-rest);
-  background: var(--neutral-layer-1);
+  background: var(--color-brand-background-subtle);
   border: 0;
   border-radius: 0;
   grid-template-columns: 72px minmax(0, 1fr);
@@ -4045,7 +4051,7 @@ body {
   height: 100dvh;
   align-items: center;
   padding: var(--spacingVerticalL) var(--spacingHorizontalS);
-  background: var(--neutral-layer-3);
+  background: var(--color-brand-background-soft);
   border: 0;
   border-inline-end: calc(var(--stroke-width) * 1px) solid var(--neutral-stroke-divider-rest);
 }
@@ -4099,12 +4105,12 @@ body {
 }
 
 .nav-item:focus-visible {
-  outline-color: var(--focus-stroke-outer);
+  outline: none;
 }
 
 .workspace {
   padding: var(--spacingVerticalXXXL) var(--spacingHorizontalXXXL) 48px;
-  background: var(--neutral-layer-1);
+  background: var(--color-brand-background-subtle);
 }
 
 h1,
@@ -4177,7 +4183,7 @@ h3 {
 
 .estate-list-header,
 [data-panel="discover"] th {
-  background: var(--neutral-layer-3);
+  background: var(--color-brand-background-soft);
   border-color: var(--neutral-stroke-divider-rest);
 }
 
@@ -4185,22 +4191,48 @@ h3 {
   border-color: var(--neutral-stroke-divider-rest);
 }
 
-.estate-open-button {
+.estate-row {
+  position: relative;
+  display: grid;
   min-height: 52px;
+  align-items: center;
+  gap: var(--spacingHorizontalM);
   padding: var(--spacingVerticalS) var(--spacingHorizontalL);
+  grid-template-columns:
+    minmax(180px, 1fr)
+    96px
+    minmax(140px, 180px)
+    84px
+    128px
+    48px;
   transition: background-color var(--durationFaster) var(--curveEasyEase);
 }
 
-.estate-open-button:hover,
+.estate-list-header {
+  grid-template-columns:
+    minmax(180px, 1fr)
+    96px
+    minmax(140px, 180px)
+    84px
+    128px
+    48px;
+}
+
+.estate-row:hover,
 [data-panel="discover"] tbody tr:hover {
   background: var(--neutral-fill-stealth-hover);
+}
+
+.estate-name-button {
+  max-width: 100%;
+  justify-self: start;
 }
 
 .estate-row-icon,
 .entity-icon,
 .file-drop > span {
-  color: var(--neutral-foreground-rest);
-  background: var(--neutral-fill-strong-rest);
+  color: var(--foreground-on-accent-rest);
+  background: var(--accent-fill-rest);
   border-radius: var(--borderRadiusMedium);
   box-shadow: none;
 }
@@ -4274,7 +4306,7 @@ h3 {
 .token-grid > div,
 .assessment-note,
 .lifecycle-card {
-  background: var(--neutral-layer-2);
+  background: var(--neutral-layer-1);
   border: 0;
   border-radius: var(--borderRadiusXLarge);
   box-shadow: none;
@@ -4371,6 +4403,44 @@ textarea:focus-visible {
   padding: var(--spacingVerticalM) var(--spacingHorizontalM);
 }
 
+.documents-grid {
+  width: 100%;
+  color: var(--neutral-foreground-rest);
+}
+
+.documents-grid fluent-data-grid-row {
+  min-height: 64px;
+  border-bottom: calc(var(--stroke-width) * 1px) solid var(--neutral-stroke-divider-rest);
+}
+
+.documents-grid fluent-data-grid-row:last-child {
+  border-bottom: 0;
+}
+
+.documents-grid fluent-data-grid-row[row-type="header"] {
+  min-height: 44px;
+  color: var(--neutral-foreground-hint);
+  background: var(--color-brand-background-soft);
+  font-size: var(--type-ramp-minus-1-font-size);
+  font-weight: 600;
+  line-height: var(--type-ramp-minus-1-line-height);
+}
+
+.documents-grid fluent-data-grid-row[data-document-row]:hover {
+  background: var(--neutral-fill-stealth-hover);
+}
+
+.documents-grid fluent-data-grid-cell {
+  min-width: 0;
+  align-content: center;
+  padding: var(--spacingVerticalM) var(--spacingHorizontalM);
+}
+
+.documents-grid fluent-data-grid-cell.select-cell {
+  justify-content: center;
+  padding-inline: var(--spacingHorizontalS);
+}
+
 .assessment-note {
   gap: var(--spacingHorizontalM);
   padding: var(--spacingVerticalM) var(--spacingHorizontalL);
@@ -4378,8 +4448,8 @@ textarea:focus-visible {
 }
 
 .assessment-note-icon {
-  color: var(--neutral-foreground-rest);
-  background: var(--neutral-fill-strong-rest);
+  color: var(--accent-foreground-rest);
+  background: transparent;
 }
 
 .transformation-progress {
@@ -4455,6 +4525,53 @@ textarea:focus-visible {
   background: var(--neutral-fill-stealth-hover);
 }
 
+fluent-button:focus-visible,
+fluent-anchor:focus-visible {
+  outline: none;
+}
+
+.fluent-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: currentcolor;
+  stroke: none;
+  vertical-align: middle;
+}
+
+.fluent-icon-large {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+}
+
+.nav-icon {
+  fill: currentcolor;
+  stroke: none;
+}
+
+.result-item-icon {
+  margin-top: var(--spacingVerticalXS);
+  color: currentcolor;
+}
+
+.transformation-check-icon {
+  color: var(--neutral-foreground-hint);
+}
+
+.transformation-check[data-status="passed"] .transformation-check-icon {
+  color: var(--color-status-success-foreground);
+}
+
+.transformation-check[data-status="review"] .transformation-check-icon {
+  color: var(--color-status-warning-foreground);
+}
+
+.transformation-check[data-status="failed"] .transformation-check-icon {
+  color: var(--color-status-danger-foreground);
+}
+
 .document-findings-panel {
   top: var(--spacingVerticalL);
   background: var(--neutral-layer-2);
@@ -4510,17 +4627,27 @@ textarea:focus-visible {
   border-radius: var(--borderRadiusMedium);
 }
 
-dialog,
-.document-dialog {
+fluent-dialog {
+  --dialog-height: auto;
+  --dialog-width: min(920px, calc(100vw - (var(--spacingHorizontalXXL) * 2)));
+
   color: var(--neutral-foreground-rest);
-  background: var(--neutral-layer-3);
-  border: calc(var(--stroke-width) * 1px) solid var(--neutral-stroke-divider-rest);
-  border-radius: var(--borderRadiusXLarge);
-  box-shadow: var(--shadow28);
 }
 
-dialog::backdrop {
-  background: rgb(0 0 0 / 40%);
+fluent-dialog.document-dialog {
+  --dialog-width: min(900px, calc(100vw - var(--spacingHorizontalXXXL)));
+
+  width: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+fluent-dialog form {
+  display: grid;
+  max-height: calc(100vh - (var(--spacingVerticalXXL) * 2));
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .dialog-heading,
@@ -4528,22 +4655,21 @@ dialog::backdrop {
   border-color: var(--neutral-stroke-divider-rest);
 }
 
-@media (prefers-color-scheme: dark) {
-  fluent-design-system-provider {
-    --red: #f1707b;
-    --amber: #fce100;
-    --color-status-danger-background: #442726;
-    --color-status-danger-foreground: #f1707b;
-    --color-status-warning-background: #4a3f00;
-    --color-status-warning-foreground: #fce100;
-    --color-status-success-background: #0e3d23;
-    --color-status-success-foreground: #54b054;
-  }
-}
-
 @media (max-width: 960px) {
   .workspace {
     padding: var(--spacingVerticalXXL) var(--spacingHorizontalXXL) 48px;
+  }
+}
+
+@media (max-width: 760px) {
+  .estate-row {
+    gap: var(--spacingVerticalMNudge);
+    padding: var(--spacingVerticalL);
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .estate-row .estate-name {
+    grid-column: 1 / -1;
   }
 }
 
@@ -4557,9 +4683,8 @@ dialog::backdrop {
     border-radius: var(--borderRadiusXLarge);
   }
 
-  .estate-open-button {
+  .estate-row {
     padding-inline-end: 48px;
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .estate-actions {
@@ -4570,5 +4695,49 @@ dialog::backdrop {
 
   [data-panel="discover"] .metric {
     padding: var(--spacingVerticalS) var(--spacingHorizontalS);
+  }
+
+  .documents-grid {
+    display: grid;
+    gap: var(--spacingVerticalM);
+  }
+
+  .documents-grid fluent-data-grid-row[row-type="header"] {
+    display: none;
+  }
+
+  .documents-grid fluent-data-grid-row[data-document-row] {
+    display: grid;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: var(--spacingVerticalL);
+    background: var(--neutral-layer-2);
+    border: calc(var(--stroke-width) * 1px) solid var(--neutral-stroke-divider-rest);
+    border-radius: var(--borderRadiusXLarge);
+    grid-template-columns: 32px minmax(0, 1fr) !important;
+  }
+
+  .documents-grid fluent-data-grid-cell {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .documents-grid .select-cell {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .documents-grid .document-cell {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  .documents-grid .results-cell {
+    margin-top: var(--spacingVerticalL);
+    padding-top: var(--spacingVerticalM);
+    border-top: calc(var(--stroke-width) * 1px) solid var(--neutral-stroke-divider-rest);
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
   }
 }

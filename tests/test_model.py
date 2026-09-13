@@ -14,6 +14,7 @@ from shaper.application.model import (
     strict_response_schema,
 )
 from shaper.application.shaping import CandidatePayload
+from shaper.prompts import EVALUATION_PROMPT
 
 
 class FailingCompletions:
@@ -34,6 +35,41 @@ class FailingClient:
     """Expose a failing chat boundary."""
 
     chat = FailingChat()
+
+
+class CapturingCompletions:
+    """Capture Azure chat-completion parameters."""
+
+    def __init__(self) -> None:
+        self.kwargs: dict[str, object] | None = None
+
+    def create(self, **kwargs: object) -> object:
+        self.kwargs = kwargs
+        message = type("Message", (), {"content": "{}"})()
+        choice = type("Choice", (), {"message": message})()
+        return type(
+            "Response",
+            (),
+            {
+                "choices": [choice],
+                "id": "response-1",
+                "usage": None,
+            },
+        )()
+
+
+class CapturingChat:
+    """Expose capturing chat completions."""
+
+    def __init__(self) -> None:
+        self.completions = CapturingCompletions()
+
+
+class CapturingClient:
+    """Expose a captured chat boundary."""
+
+    def __init__(self) -> None:
+        self.chat = CapturingChat()
 
 
 def test_given_optional_nested_fields_when_schema_strict_then_all_properties_are_required() -> None:
@@ -103,7 +139,32 @@ def test_given_openai_transport_failure_when_generated_then_error_is_classified(
     monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
 
     with pytest.raises(ModelProviderError) as captured:
-        gateway.generate(prompt="test", schema={"type": "object"})
+        gateway.generate(
+            system_prompt=EVALUATION_PROMPT,
+            prompt="test",
+            schema={"type": "object"},
+        )
 
     assert captured.value.retryable
     assert str(captured.value) == "Azure OpenAI request failed"
+
+
+def test_given_caller_system_prompt_when_generated_then_azure_sends_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = object.__new__(AzureOpenAIModelGateway)
+    client = CapturingClient()
+    monkeypatch.setattr(gateway, "_client", client, raising=False)
+    monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+
+    gateway.generate(
+        system_prompt=EVALUATION_PROMPT,
+        prompt="candidate and source",
+        schema={"type": "object"},
+    )
+
+    assert client.chat.completions.kwargs is not None
+    assert client.chat.completions.kwargs["messages"] == [
+        {"role": "system", "content": EVALUATION_PROMPT},
+        {"role": "user", "content": "candidate and source"},
+    ]

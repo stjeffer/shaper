@@ -40,8 +40,10 @@ class GroundedModel:
     def __init__(self) -> None:
         self.calls = 0
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, schema
         self.calls += 1
         span = json.loads(prompt)["source"][0]
         return ModelResult(
@@ -61,8 +63,10 @@ class GroundedModel:
 class SummaryModel:
     """Return a lossy summary instead of a complete reshaped document."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del prompt, schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, prompt, schema
         return ModelResult(
             payload={
                 "status": "candidate",
@@ -85,7 +89,9 @@ class SummaryModel:
 class ThirdAttemptModel(GroundedModel):
     """Return two malformed responses before a grounded candidate."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
         if self.calls < 2:
             self.calls += 1
             return ModelResult(
@@ -94,22 +100,30 @@ class ThirdAttemptModel(GroundedModel):
                 input_tokens=12,
                 output_tokens=8,
             )
-        return super().generate(prompt=prompt, schema=schema)
+        return super().generate(
+            system_prompt=system_prompt,
+            prompt=prompt,
+            schema=schema,
+        )
 
 
 class ProviderFailureModel:
     """Raise a classified provider failure."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del prompt, schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, prompt, schema
         raise ModelProviderError("Provider unavailable", retryable=True)
 
 
 class InvalidPayloadModel:
     """Return schema-invalid responses until the model-call budget is exhausted."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del prompt, schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, prompt, schema
         return ModelResult(
             payload={"status": "invalid"},
             response_id="invalid",
@@ -520,6 +534,7 @@ def test_given_structured_document_when_rendered_then_semantic_content_is_preser
     store, repository, proposal = _setup(Path(":memory:"), approved=True)
     try:
         unit = GroundedModel().generate(
+            system_prompt="test",
             prompt=json.dumps(
                 {
                     "source": [

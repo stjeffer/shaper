@@ -36,7 +36,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Core topic and content metadata is incomplete.",
     agentImpact:
       "Weak metadata gives retrieval systems less context for filtering and ranking the right passage.",
-    icon: "◇",
+    icon: "info-20",
     tone: "info",
   },
   structure_gap: {
@@ -44,21 +44,21 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Headings or focused content sections are missing.",
     agentImpact:
       "Weak section boundaries make it harder to create focused chunks and retrieve the right passage.",
-    icon: "▤",
+    icon: "checklist-20",
     tone: "info",
   },
   stale: {
     label: "Freshness risk",
     detail: "The source is beyond the three-year review threshold.",
     agentImpact: "Outdated guidance can cause an agent to return obsolete rules as current.",
-    icon: "◷",
+    icon: "sync-circle-20",
     tone: "warning",
   },
   long_paragraph: {
     label: "Long paragraph",
     detail: "A passage exceeds 150 words and may reduce retrieval precision.",
     agentImpact: "Oversized passages mix ideas and can reduce chunk and retrieval precision.",
-    icon: "↔",
+    icon: "document-24",
     tone: "warning",
   },
   cross_policy_reference: {
@@ -66,7 +66,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "A reference to another governed source needs explicit context.",
     agentImpact:
       "A reference without local context can leave the agent with an incomplete rule.",
-    icon: "↗",
+    icon: "document-24",
     tone: "warning",
   },
   faq_gap: {
@@ -74,7 +74,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "No FAQ or question-shaped content was detected.",
     agentImpact:
       "Missing question-shaped content can reduce direct matches for common user requests.",
-    icon: "?",
+    icon: "info-20",
     tone: "info",
   },
   procedure_gap: {
@@ -82,12 +82,13 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Procedural language is not organized into explicit steps.",
     agentImpact:
       "Implicit steps make it harder for an agent to extract and present a reliable sequence.",
-    icon: "1·",
+    icon: "checklist-20",
     tone: "warning",
   },
 });
 
 const ACCOUNTABILITY_ONLY_FINDINGS = new Set(["missing_owner"]);
+const dialogOpeners = new WeakMap();
 
 const elements = {
   workspace: document.querySelector("#workspace"),
@@ -101,6 +102,7 @@ const elements = {
   estateView: document.querySelector("#estateView"),
   estateList: document.querySelector("#estateList"),
   estateEmpty: document.querySelector("#estateEmpty"),
+  estateListToolbar: document.querySelector("#estateListToolbar"),
   estateListCount: document.querySelector("#estateListCount"),
   estateTotal: document.querySelector("#estateTotal"),
   estateActive: document.querySelector("#estateActive"),
@@ -115,6 +117,7 @@ const elements = {
   editEvaluations: document.querySelector("#editEvaluations"),
   editConfirmButton: document.querySelector("#editConfirmButton"),
   editError: document.querySelector("#editError"),
+  workflowTabs: document.querySelector(".workflow"),
   sourceInputTabs: document.querySelector(".source-input-tabs"),
   deleteDialog: document.querySelector("#deleteDialog"),
   deleteForm: document.querySelector("#deleteForm"),
@@ -132,6 +135,7 @@ const elements = {
   sourceList: document.querySelector("#sourceList"),
   sourceCount: document.querySelector("#sourceCount"),
   documentRows: document.querySelector("#documentRows"),
+  documentRowsHeader: document.querySelector("#documentRowsHeader"),
   documentEmpty: document.querySelector("#documentEmpty"),
   discoverySummary: document.querySelector("#discoverySummary"),
   discoverButton: document.querySelector("#discoverButton"),
@@ -167,6 +171,10 @@ const elements = {
   purgeDialog: document.querySelector("#purgeDialog"),
   purgeForm: document.querySelector("#purgeForm"),
   purgePhrase: document.querySelector("#purgePhrase"),
+  archiveDialog: document.querySelector("#archiveDialog"),
+  archiveDescription: document.querySelector("#archiveDescription"),
+  archiveConfirmButton: document.querySelector("#archiveConfirmButton"),
+  chooseFilesButton: document.querySelector("#chooseFilesButton"),
   documentDialog: document.querySelector("#documentDialog"),
   documentDialogTitle: document.querySelector("#documentDialogTitle"),
   documentDownload: document.querySelector("#documentDownload"),
@@ -182,6 +190,46 @@ const elements = {
   documentFindingsDialogSummary: document.querySelector("#documentFindingsDialogSummary"),
   documentFindingsDialogBody: document.querySelector("#documentFindingsDialogBody"),
 };
+
+function showDialog(dialog, focusTarget) {
+  if (document.activeElement instanceof HTMLElement) {
+    dialogOpeners.set(dialog, document.activeElement);
+  }
+  dialog.hidden = false;
+  window.requestAnimationFrame(() => (focusTarget ?? dialog).focus?.());
+}
+
+function hideDialog(dialog, { restoreFocus = true } = {}) {
+  if (dialog.hidden) return;
+  dialog.hidden = true;
+  dialog.dispatchEvent(new Event("close"));
+  const opener = dialogOpeners.get(dialog);
+  dialogOpeners.delete(dialog);
+  if (restoreFocus && opener?.isConnected) {
+    window.requestAnimationFrame(() => opener.focus());
+  }
+}
+
+function isDialogOpen(dialog) {
+  return !dialog.hidden;
+}
+
+function fluentButton(label, appearance = "neutral", className = "") {
+  const button = text("fluent-button", label, className);
+  button.type = "button";
+  button.setAttribute("appearance", appearance);
+  return button;
+}
+
+function fluentDisclosure(label, content, className) {
+  const accordion = document.createElement("fluent-accordion");
+  accordion.className = className;
+  const item = document.createElement("fluent-accordion-item");
+  item.setAttribute("heading", label);
+  item.append(content);
+  accordion.append(item);
+  return accordion;
+}
 
 const findingsDialogMedia = window.matchMedia("(max-width: 1240px)");
 
@@ -322,8 +370,7 @@ function renderEvaluationOptions() {
   const items = state.evaluationSuggestions.map((suggestion) => {
     const item = document.createElement("article");
     item.className = "evaluation-suggestion";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
+    const checkbox = document.createElement("fluent-checkbox");
     checkbox.checked = state.selectedEvaluationSuggestions.has(suggestion.id);
     checkbox.dataset.evaluationSuggestion = suggestion.id;
     checkbox.setAttribute("aria-label", `Include evaluation: ${suggestion.query}`);
@@ -381,6 +428,7 @@ function switchApprovalReviewTab(name, focus = true) {
     const selected = tab.dataset.approvalReviewTab === name;
     tab.setAttribute("aria-selected", `${selected}`);
     tab.tabIndex = selected ? 0 : -1;
+    if (selected) elements.approvalReviewTabs.setAttribute("activeid", tab.id);
     if (selected && focus) tab.focus();
   });
   elements.assessmentResultsPanel.hidden = name !== "assessment";
@@ -576,10 +624,23 @@ function text(tag, value, className) {
   return node;
 }
 
+function fluentIcon(name, className = "") {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.classList.add("fluent-icon");
+  if (className) icon.classList.add(...className.split(" "));
+  icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("focusable", "false");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `./vendor/fluent-system-icons.svg#${name}`);
+  icon.append(use);
+  return icon;
+}
+
 function resultItem({
   label,
   detail,
   agentImpact,
+  icon = "warning-20",
   tone,
   evidence = [],
   review_required = false,
@@ -614,17 +675,17 @@ function resultItem({
     copy.append(text("span", "Content owner review required", "review-required"));
   }
   if (evidence.length > 0) {
-    const details = document.createElement("details");
-    details.className = "result-evidence";
-    details.append(text("summary", `Evidence (${evidence.length})`));
+    const evidenceContent = document.createElement("div");
     evidence.forEach((entry) => {
       const figure = document.createElement("figure");
       figure.append(text("blockquote", entry.quote), text("figcaption", entry.location));
-      details.append(figure);
+      evidenceContent.append(figure);
     });
-    copy.append(details);
+    copy.append(
+      fluentDisclosure(`Evidence (${evidence.length})`, evidenceContent, "result-evidence"),
+    );
   }
-  item.append(copy);
+  item.append(fluentIcon(icon, "result-item-icon"), copy);
   return item;
 }
 
@@ -639,7 +700,7 @@ function classifyFindings(report = {}) {
           finding.agent_impact ??
           presentation.agentImpact ??
           "This issue can make agent answers less reliable or complete.",
-        icon: presentation.icon ?? "!",
+        icon: presentation.icon ?? "warning-20",
         tone: presentation.tone ?? finding.severity ?? "warning",
         evidence: finding.evidence ?? [],
         review_required: finding.review_required,
@@ -659,7 +720,7 @@ function classifyFindings(report = {}) {
       detail: "This assessment includes a result this version cannot display yet.",
       agentImpact:
         "The effect on agent responses is unknown until this result type is supported.",
-      icon: "!",
+      icon: "warning-20",
       tone: "unknown",
     });
   }
@@ -677,7 +738,7 @@ function documentFindings(report, documentTitle = "Document") {
       resultItem({
         label: "No content issues detected",
         detail: "No supported reshaping issues were found in this source version.",
-        icon: "✓",
+        icon: "checkmark-circle-20",
         tone: "clear",
       }),
     );
@@ -693,8 +754,8 @@ function findingReviewButton(report, documentValue) {
     return text("span", "No findings", "no-findings");
   }
   const highPriority = classified.filter((finding) => finding.tone === "high").length;
-  const button = document.createElement("button");
-  button.type = "button";
+  const button = document.createElement("fluent-button");
+  button.setAttribute("appearance", "lightweight");
   button.className = "findings-review-button";
   button.dataset.reviewFindings = documentValue.document_id;
   button.setAttribute(
@@ -739,14 +800,14 @@ function updateFindingButtons() {
   elements.documentRows.querySelectorAll("[data-review-findings]").forEach((button) => {
     const active = button.dataset.reviewFindings === state.activeFindingDocumentId;
     button.setAttribute("aria-pressed", `${active}`);
-    button.closest("tr")?.classList.toggle("findings-active", active);
+    button.closest("fluent-data-grid-row")?.classList.toggle("findings-active", active);
   });
 }
 
 function closeDocumentFindings({ restoreFocus = true } = {}) {
-  if (elements.documentFindingsDialog.open) {
+  if (isDialogOpen(elements.documentFindingsDialog)) {
     state.restoreFindingFocus = restoreFocus;
-    elements.documentFindingsDialog.close();
+    hideDialog(elements.documentFindingsDialog, { restoreFocus: false });
     return;
   }
   elements.documentFindingsPanel.hidden = true;
@@ -783,8 +844,7 @@ function openDocumentFindings(button) {
       elements.documentFindingsDialogSummary,
       elements.documentFindingsDialogBody,
     );
-    elements.documentFindingsDialog.showModal();
-    elements.documentFindingsDialogTitle.focus();
+    showDialog(elements.documentFindingsDialog, elements.documentFindingsDialogTitle);
     return;
   }
   populateFindingsDetail(
@@ -811,7 +871,7 @@ function moveOpenFindingsToCurrentLayout() {
     closeDocumentFindings({ restoreFocus: false });
     return;
   }
-  if (findingsDialogMedia.matches && !elements.documentFindingsDialog.open) {
+  if (findingsDialogMedia.matches && !isDialogOpen(elements.documentFindingsDialog)) {
     elements.documentFindingsPanel.hidden = true;
     elements.discoveryReviewLayout.classList.remove("has-findings");
     populateFindingsDetail(
@@ -821,11 +881,10 @@ function moveOpenFindingsToCurrentLayout() {
       elements.documentFindingsDialogSummary,
       elements.documentFindingsDialogBody,
     );
-    elements.documentFindingsDialog.showModal();
-    elements.documentFindingsDialogTitle.focus();
-  } else if (!findingsDialogMedia.matches && elements.documentFindingsDialog.open) {
+    showDialog(elements.documentFindingsDialog, elements.documentFindingsDialogTitle);
+  } else if (!findingsDialogMedia.matches && isDialogOpen(elements.documentFindingsDialog)) {
     state.transitioningFindingPresentation = true;
-    elements.documentFindingsDialog.close();
+    hideDialog(elements.documentFindingsDialog, { restoreFocus: false });
     populateFindingsDetail(
       documentValue,
       report,
@@ -961,22 +1020,26 @@ function renderEstates() {
     ...state.estates.map((record) => {
       const estate = recordValue(record);
       const article = document.createElement("article");
-      article.className = "estate-card";
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "estate-open-button";
-      button.dataset.estateId = estate.estate_id;
-      button.setAttribute("aria-label", `Open ${estate.name}`);
+      article.className = "estate-card estate-row";
       const lifecycle = text("span", estate.status, `badge ${estate.status}`);
       lifecycle.dataset.label = "Lifecycle";
       const nameCell = document.createElement("div");
       nameCell.className = "estate-name";
       const nameCopy = document.createElement("div");
+      const openButton = fluentButton(estate.name, "lightweight", "estate-name-button");
+      openButton.dataset.estateId = estate.estate_id;
+      openButton.setAttribute("aria-label", `Open ${estate.name}`);
+      const title = document.createElement("h2");
+      title.append(openButton);
       nameCopy.append(
-        text("h2", estate.name),
+        title,
         text("p", estate.description || "No estate description has been added."),
       );
-      nameCell.append(text("span", "K", "estate-row-icon"), nameCopy);
+      const estateIcon = document.createElement("span");
+      estateIcon.className = "estate-row-icon";
+      estateIcon.setAttribute("aria-hidden", "true");
+      estateIcon.append(fluentIcon("folder-24", "fluent-icon-large"));
+      nameCell.append(estateIcon, nameCopy);
       const footer = document.createElement("footer");
       footer.dataset.label = "Last modified";
       footer.append(text("span", formatShortDate(estate.updated_at)));
@@ -988,7 +1051,7 @@ function renderEstates() {
       documentCount.dataset.label = "Documents";
       const assessment = assessmentStatus(record);
       assessment.dataset.label = "Assessment";
-      button.append(
+      article.append(
         nameCell,
         documentCount,
         assessment,
@@ -998,42 +1061,38 @@ function renderEstates() {
       );
       const actions = document.createElement("div");
       actions.className = "estate-actions";
-      const menuButton = document.createElement("button");
-      menuButton.type = "button";
+      const menuButton = document.createElement("fluent-button");
+      menuButton.setAttribute("appearance", "lightweight");
       menuButton.className = "estate-menu-trigger";
       menuButton.dataset.estateMenuToggle = estate.estate_id;
       menuButton.setAttribute("aria-label", `Actions for ${estate.name}`);
       menuButton.setAttribute("aria-haspopup", "menu");
       menuButton.setAttribute("aria-expanded", "false");
-      menuButton.textContent = "⋯";
-      const menu = document.createElement("div");
+      menuButton.append(fluentIcon("more-horizontal-20"));
+      const menu = document.createElement("fluent-menu");
       menu.className = "estate-menu";
       menu.dataset.estateMenu = estate.estate_id;
-      menu.setAttribute("role", "menu");
       menu.setAttribute("aria-label", `Actions for ${estate.name}`);
       menu.hidden = true;
-      const editButton = document.createElement("button");
-      editButton.type = "button";
-      editButton.setAttribute("role", "menuitem");
+      const editButton = document.createElement("fluent-menu-item");
       editButton.dataset.estateEdit = estate.estate_id;
       editButton.textContent = "Edit";
       editButton.disabled = estate.status === "archived";
       if (editButton.disabled) {
         editButton.title = "Archived estates cannot be edited";
       }
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
+      const deleteButton = document.createElement("fluent-menu-item");
       deleteButton.className = "destructive-menu-item";
-      deleteButton.setAttribute("role", "menuitem");
       deleteButton.dataset.estateDelete = estate.estate_id;
       deleteButton.textContent = "Delete";
       menu.append(editButton, deleteButton);
       actions.append(menuButton, menu);
-      article.append(button, actions);
+      article.append(actions);
       return article;
     }),
   );
   elements.estateEmpty.hidden = estates.length !== 0;
+  elements.estateListToolbar.hidden = estates.length === 0;
   elements.estateList.closest(".estate-list-shell").hidden = estates.length === 0;
 }
 
@@ -1122,27 +1181,22 @@ function renderAssessmentChecks() {
     group.push(check);
     groups.set(check.category, group);
   });
-  const tablist = document.createElement("div");
+  const tablist = document.createElement("fluent-tabs");
   tablist.className = "assessment-check-tabs";
-  tablist.setAttribute("role", "tablist");
   tablist.setAttribute("aria-label", "Assessment check categories");
-  tablist.setAttribute("aria-orientation", "horizontal");
   const panels = document.createElement("div");
   panels.className = "assessment-check-panels";
   [...groups.entries()].forEach(([category, checks], index) => {
-    const tab = document.createElement("button");
+    const tab = document.createElement("fluent-tab");
     tab.id = `assessment-check-tab-${index}`;
-    tab.type = "button";
-    tab.setAttribute("role", "tab");
     tab.setAttribute("aria-controls", `assessment-check-panel-${index}`);
     tab.dataset.assessmentCheckTab = `${index}`;
     tab.append(text("span", category), text("span", `${checks.length}`, "tab-count"));
     tablist.append(tab);
 
-    const section = document.createElement("section");
+    const section = document.createElement("fluent-tab-panel");
     section.id = `assessment-check-panel-${index}`;
     section.className = "assessment-check-panel";
-    section.setAttribute("role", "tabpanel");
     section.setAttribute("aria-labelledby", tab.id);
     section.tabIndex = 0;
     section.append(
@@ -1459,6 +1513,7 @@ function switchSourceInputTab(name, focus = true) {
     const selected = button.dataset.sourceInputTab === name;
     button.setAttribute("aria-selected", `${selected}`);
     button.tabIndex = selected ? 0 : -1;
+    if (selected) elements.sourceInputTabs.setAttribute("activeid", button.id);
     if (selected && focus) button.focus();
   });
 }
@@ -1468,35 +1523,42 @@ function renderDocuments() {
     closeDocumentFindings({ restoreFocus: false });
   }
   elements.documentRows.replaceChildren(
+    elements.documentRowsHeader,
     ...state.documents
       .filter((record) => !recordValue(record).deleted)
       .map((record) => {
         const documentValue = recordValue(record);
         const report = state.reports.get(documentValue.document_id);
-        const row = document.createElement("tr");
-        const selectCell = document.createElement("td");
+        const row = document.createElement("fluent-data-grid-row");
+        row.dataset.documentRow = documentValue.document_id;
+        const selectCell = document.createElement("fluent-data-grid-cell");
+        selectCell.setAttribute("grid-column", "1");
         selectCell.className = "select-cell";
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
+        const checkbox = document.createElement("fluent-checkbox");
         checkbox.dataset.documentId = documentValue.document_id;
         checkbox.checked = state.selectedDocuments.has(documentValue.document_id);
         checkbox.disabled = isArchived();
         checkbox.setAttribute("aria-label", `Select ${documentValue.title}`);
         selectCell.append(checkbox);
-        const documentCell = document.createElement("td");
+        const documentCell = document.createElement("fluent-data-grid-cell");
+        documentCell.setAttribute("grid-column", "2");
         documentCell.className = "document-cell";
         documentCell.append(
           text("strong", documentValue.title),
           text("p", fileFormatLabel(documentValue)),
         );
-        const viewDocument = text("button", "Review extracted text", "text-button");
-        viewDocument.type = "button";
+        const viewDocument = fluentButton(
+          "Review extracted text",
+          "lightweight",
+          "text-button",
+        );
         viewDocument.dataset.viewDocument = documentValue.document_id;
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
         viewDocument.dataset.sourceRetained = `${record.source_retained === true}`;
         documentCell.append(viewDocument);
-        const findingsCell = document.createElement("td");
+        const findingsCell = document.createElement("fluent-data-grid-cell");
+        findingsCell.setAttribute("grid-column", "3");
         findingsCell.className = "results-cell";
         if (report) {
           findingsCell.append(
@@ -1631,9 +1693,6 @@ function proposalAssessmentResults(report) {
     section.append(failedList);
   }
 
-  const passed = document.createElement("details");
-  passed.className = "passed-checks";
-  passed.append(text("summary", `${passedChecks.length} checks passed`));
   const passedList = document.createElement("ul");
   passedList.className = "passed-check-list";
   passedChecks.forEach((check) => {
@@ -1645,8 +1704,13 @@ function proposalAssessmentResults(report) {
     );
     passedList.append(item);
   });
-  passed.append(passedList);
-  section.append(passed);
+  section.append(
+    fluentDisclosure(
+      `${passedChecks.length} checks passed`,
+      passedList,
+      "passed-checks",
+    ),
+  );
   return section;
 }
 
@@ -1701,32 +1765,26 @@ function renderProposals() {
         document.createTextNode(` ${proposal.risk}`),
       );
       recommendation.append(risk);
-      const usage = document.createElement("details");
-      usage.className = "token-estimate-disclosure";
-      usage.append(
-        text(
-          "summary",
-          `View estimated model usage · ${estimate.expected_total.toLocaleString()} tokens`,
-        ),
+      const usage = fluentDisclosure(
+        `View estimated model usage · ${estimate.expected_total.toLocaleString()} tokens`,
         tokenEstimateGraphic(estimate, proposal.expected_artifact),
+        "token-estimate-disclosure",
       );
       const actions = document.createElement("div");
       actions.className = "proposal-actions";
-      const approve = text(
-        "button",
+      const approve = fluentButton(
         decision?.outcome === "approve" ? "Transformation approved" : "Approve transformation",
-        "button primary",
+        "accent",
+        "primary",
       );
-      approve.type = "button";
       approve.disabled = isArchived() || decision?.outcome === "approve";
       approve.dataset.decision = "approve";
       approve.dataset.proposalId = proposal.recommendation_id;
-      const decline = text(
-        "button",
+      const decline = fluentButton(
         decision?.outcome === "decline" ? "Transformation declined" : "Decline",
-        "button danger",
+        "lightweight",
+        "danger",
       );
-      decline.type = "button";
       decline.disabled = isArchived() || decision?.outcome === "decline";
       decline.dataset.decision = "decline";
       decline.dataset.proposalId = proposal.recommendation_id;
@@ -1940,14 +1998,14 @@ function renderArtifacts() {
         );
       }
       if (artifact.status !== "approved") {
-        const approve = text("button", "Approve for publication", "button primary");
-        approve.type = "button";
+        const approve = fluentButton("Approve for publication", "accent", "primary");
         approve.dataset.approveArtifact = artifact.artifact_id;
         approve.dataset.artifactRevision = record.revision;
         approve.disabled = isArchived();
         actions.append(approve);
       } else {
-        const view = text("a", "Open approved HTML", "button secondary");
+        const view = text("fluent-anchor", "Open approved HTML", "secondary");
+        view.setAttribute("appearance", "neutral");
         view.href = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`;
         view.target = "_blank";
         view.rel = "noopener";
@@ -2012,11 +2070,10 @@ function switchTab(name, focus = true) {
     panel.hidden = panel.dataset.panel !== name;
   });
   document.querySelectorAll("[data-tab]").forEach((button) => {
-    if (button.dataset.tab === name) {
-      button.setAttribute("aria-current", "page");
-    } else {
-      button.removeAttribute("aria-current");
-    }
+    const selected = button.dataset.tab === name;
+    button.setAttribute("aria-selected", `${selected}`);
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) elements.workflowTabs.setAttribute("activeid", button.id);
   });
   if (state.estate) {
     history.replaceState(
@@ -2047,7 +2104,7 @@ async function createEstate(event) {
         generate_evaluations: data.has("generate_evaluations"),
       }),
     });
-    elements.createDialog.close();
+    hideDialog(elements.createDialog);
     elements.createForm.reset();
     document.querySelector("#artifactTemplate").value = "shaper_{source_stem}.html";
     state.estates.push(record);
@@ -2072,12 +2129,11 @@ function openEditDialog(estateId) {
   elements.editEvaluations.checked = estate.generate_evaluations;
   elements.editError.hidden = true;
   elements.editError.textContent = "";
-  elements.editDialog.showModal();
-  elements.editEstateName.focus();
+  showDialog(elements.editDialog, elements.editEstateName);
 }
 
 function closeEditDialog() {
-  elements.editDialog.close();
+  hideDialog(elements.editDialog);
   elements.editForm.reset();
   elements.editError.hidden = true;
   elements.editError.textContent = "";
@@ -2145,12 +2201,11 @@ function openDeleteDialog(estateId) {
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   elements.deleteError.textContent = "";
-  elements.deleteDialog.showModal();
-  elements.deleteConfirmation.focus();
+  showDialog(elements.deleteDialog, elements.deleteConfirmation);
 }
 
 function closeDeleteDialog() {
-  elements.deleteDialog.close();
+  hideDialog(elements.deleteDialog);
   elements.deleteForm.reset();
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
@@ -2447,13 +2502,13 @@ function initializeTransformationProgress(documentIds) {
 }
 
 function renderTransformationProgress() {
-  const statusSymbols = {
-    waiting: "○",
-    running: "◌",
-    passed: "✓",
-    review: "!",
-    failed: "×",
-    skipped: "–",
+  const statusIcons = {
+    waiting: "circle-20",
+    running: "sync-circle-20",
+    passed: "checkmark-circle-20",
+    review: "warning-20",
+    failed: "dismiss-circle-20",
+    skipped: "circle-20",
   };
   const documents = [...state.transformationProgress.entries()].map(
     ([documentId, progress]) => {
@@ -2471,8 +2526,10 @@ function renderTransformationProgress() {
         const item = document.createElement("li");
         item.className = "transformation-check";
         item.dataset.status = result.status;
-        const symbol = text("span", statusSymbols[result.status] || "○");
-        symbol.setAttribute("aria-hidden", "true");
+        const symbol = fluentIcon(
+          statusIcons[result.status] || "circle-20",
+          "transformation-check-icon",
+        );
         const content = document.createElement("span");
         content.append(
           text("strong", TRANSFORMATION_CHECK_LABELS[check]),
@@ -2641,7 +2698,7 @@ async function openDocument(documentId, sourceVersion, title, sourceRetained) {
     `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
     `${encodeURIComponent(documentId)}/source?source_version=${encodeURIComponent(sourceVersion)}`;
   elements.documentContent.textContent = "Loading document content…";
-  elements.documentDialog.showModal();
+  showDialog(elements.documentDialog, elements.documentDialogTitle);
   try {
     elements.documentContent.textContent = await apiText(
       `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
@@ -2651,20 +2708,21 @@ async function openDocument(documentId, sourceVersion, title, sourceRetained) {
     );
   } catch (error) {
     elements.documentContent.textContent = "";
-    elements.documentDialog.close();
+    hideDialog(elements.documentDialog);
     showAlert(error.message);
   }
 }
 
 async function archiveEstate() {
   const estate = recordValue(state.estate);
-  if (
-    !window.confirm(
-      `Archive "${estate.name}"? The estate will become read-only and cannot be restored.`,
-    )
-  ) {
-    return;
-  }
+  elements.archiveDescription.textContent =
+    `Archive "${estate.name}"? The estate will become read-only and cannot be restored.`;
+  showDialog(elements.archiveDialog, elements.archiveConfirmButton);
+}
+
+async function confirmArchiveEstate() {
+  const estate = recordValue(state.estate);
+  hideDialog(elements.archiveDialog);
   clearAlert();
   setBusy(elements.estateView, true, "Archiving estate…");
   try {
@@ -2685,7 +2743,7 @@ function openPurgeDialog() {
   const estate = recordValue(state.estate);
   elements.purgePhrase.textContent = `PURGE ${estate.name}`;
   elements.purgeForm.reset();
-  elements.purgeDialog.showModal();
+  showDialog(elements.purgeDialog, elements.purgePhrase);
 }
 
 async function purgeEstate(event) {
@@ -2702,7 +2760,7 @@ async function purgeEstate(event) {
         reason: data.get("reason"),
       }),
     });
-    elements.purgeDialog.close();
+    hideDialog(elements.purgeDialog);
     state.estate = null;
     announce("Knowledge estate purged");
     await loadEstates();
@@ -2729,9 +2787,9 @@ document.addEventListener("click", async (event) => {
   } else if (target.id === "downloadEvaluations") {
     downloadEvaluationDataset();
   } else if (target.dataset.action === "open-create") {
-    elements.createDialog.showModal();
+    showDialog(elements.createDialog, document.querySelector("#estateName"));
   } else if (target.dataset.action === "close-create") {
-    elements.createDialog.close();
+    hideDialog(elements.createDialog);
   } else if (target.dataset.action === "close-edit") {
     closeEditDialog();
   } else if (target.dataset.estateMenuToggle) {
@@ -2745,9 +2803,15 @@ document.addEventListener("click", async (event) => {
   } else if (target.dataset.action === "close-delete") {
     closeDeleteDialog();
   } else if (target.dataset.action === "close-purge") {
-    elements.purgeDialog.close();
+    hideDialog(elements.purgeDialog);
   } else if (target.dataset.action === "close-document") {
-    elements.documentDialog.close();
+    hideDialog(elements.documentDialog);
+  } else if (target.dataset.action === "close-archive") {
+    hideDialog(elements.archiveDialog);
+  } else if (target.id === "archiveConfirmButton") {
+    await confirmArchiveEstate();
+  } else if (target.id === "chooseFilesButton") {
+    elements.files.click();
   } else if (target.dataset.action === "close-findings") {
     closeDocumentFindings();
   } else if (target.dataset.reviewFindings) {
@@ -2762,7 +2826,7 @@ document.addEventListener("click", async (event) => {
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {
-    switchTab(target.dataset.tab);
+    switchTab(target.dataset.tab, false);
   } else if (target.dataset.decision) {
     await decide(target.dataset.proposalId, target.dataset.decision);
   } else if (target.dataset.approveArtifact) {
@@ -2863,6 +2927,23 @@ elements.sourceInputTabs.addEventListener("keydown", (event) => {
   }
   switchSourceInputTab(tabs[next].dataset.sourceInputTab);
 });
+elements.workflowTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [...elements.workflowTabs.querySelectorAll("[data-tab]")];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchTab(tabs[next].dataset.tab, false);
+  tabs[next].focus();
+});
 elements.approvalReviewTabs.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-approval-review-tab]");
   if (tab) switchApprovalReviewTab(tab.dataset.approvalReviewTab, false);
@@ -2895,6 +2976,13 @@ elements.transformButton.addEventListener("click", transformApproved);
 elements.archiveButton.addEventListener("click", archiveEstate);
 elements.purgeButton.addEventListener("click", openPurgeDialog);
 elements.purgeForm.addEventListener("submit", purgeEstate);
+elements.createDialog.addEventListener("dismiss", () => hideDialog(elements.createDialog));
+elements.editDialog.addEventListener("dismiss", closeEditDialog);
+elements.deleteDialog.addEventListener("dismiss", closeDeleteDialog);
+elements.documentDialog.addEventListener("dismiss", () => hideDialog(elements.documentDialog));
+elements.documentFindingsDialog.addEventListener("dismiss", closeDocumentFindings);
+elements.purgeDialog.addEventListener("dismiss", () => hideDialog(elements.purgeDialog));
+elements.archiveDialog.addEventListener("dismiss", () => hideDialog(elements.archiveDialog));
 elements.evaluationTarget.addEventListener("change", renderEvaluationOptions);
 elements.evaluationSuggestionList.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-evaluation-suggestion]");
@@ -2912,7 +3000,7 @@ elements.files.addEventListener("change", () => {
     count === 0 ? "No files selected" : `${count} file${count === 1 ? "" : "s"} selected`;
 });
 elements.documentRows.addEventListener("change", (event) => {
-  const checkbox = event.target.closest('input[type="checkbox"][data-document-id]');
+  const checkbox = event.target.closest("fluent-checkbox[data-document-id]");
   if (!checkbox) return;
   if (checkbox.checked) {
     state.selectedDocuments.add(checkbox.dataset.documentId);
@@ -2943,7 +3031,7 @@ document.addEventListener("keydown", (event) => {
   if (
     event.key === "Escape" &&
     state.activeFindingDocumentId &&
-    !elements.documentFindingsDialog.open &&
+    !isDialogOpen(elements.documentFindingsDialog) &&
     !elements.documentFindingsPanel.hidden
   ) {
     event.preventDefault();

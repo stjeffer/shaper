@@ -167,21 +167,33 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet and local theme bootstrap use the versioned
-`fluent-product-v8` asset query. The bootstrap loads the application module with
-the same version. These versions prevent a new revision from reusing an older
-control palette or application bundle from a browser or edge cache. The
-Microsoft Teams accent is fixed in the shipped assets. Fluent light and dark
-recipes follow the operating-system preference, so no theme selector or
-server-side theme configuration is required.
+The workspace stylesheet and local theme bootstrap use the versioned `fluent2-v10`
+asset query. The bootstrap loads the application module with the same version.
+These versions prevent a new revision from reusing an older control palette or
+application bundle from a browser or edge cache. The Microsoft Teams accent is
+fixed in the shipped assets. The workspace deliberately uses the Teams light
+theme, including a subtle purple-tinted canvas and white raised surfaces, so no
+theme selector or server-side theme configuration is required.
 
 The local `fluent-theme.js` bootstrap loads the pinned
 `@fluentui/web-components` 2.6.1 module from the workspace `vendor` directory.
-The image also includes the Fluent UI and bundled `tabbable` MIT license
-notices. The bootstrap sets the provider luminance and flat accent-stroke tokens
-through the public Fluent Design Token API before loading `app.js`. The
-workspace therefore does not depend on a public CDN or a corresponding
-content-security exception at runtime.
+The image also includes the Fluent UI, Fluent System Icons, and bundled
+`tabbable` MIT license notices. The bootstrap sets light-theme provider
+luminance through the public Fluent Design Token API before loading `app.js`.
+Buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress indicators,
+accordions, links, and data grids use the official Fluent custom elements
+without reaching into component shadow parts. Interface symbols use locally
+packaged Microsoft Fluent System Icons rather than text glyphs or emoji.
+The hidden native file input is the sole exception because the browser file
+chooser requires it; a Fluent button invokes that input. The workspace therefore
+does not depend on a public CDN or a corresponding content-security exception at
+runtime.
+
+The image packages separate shaping and model-assisted evaluation system prompts
+as Markdown resources under `shaper/prompts`. Callers select the required prompt
+explicitly, and startup fails rather than silently substituting instructions when
+a resource is missing or blank. After deployment, transformation and evaluation
+therefore use the prompt versions built into that exact image revision.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
@@ -208,28 +220,32 @@ After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
 2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
-   theme selector, and renders flat primary and lightweight actions without a
-   persistent blue stroke.
-3. Confirm the shell, forms, and data surfaces use adaptive Fluent neutral
-   layers in both the operating-system light and dark modes.
+   theme selector, and renders official Fluent primary and lightweight actions
+   without an additional host-level border.
+3. Confirm the shell uses the fixed Teams light palette: a subtle purple-tinted
+   canvas, white raised surfaces, and Teams purple only for selection and primary
+   actions.
 4. Confirm the estate list reflows without horizontal scrolling at a 320-pixel
    viewport and remains usable at 200% browser zoom.
 5. Confirm keyboard focus remains visible on actions and tabs, then verify
    controls remain distinguishable in Windows forced-colours mode.
-6. Run discovery for an estate with at least one known content issue.
-7. Confirm the Assess table contains **Document** and **Findings**, with no
+6. Confirm buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress
+   indicators, accordions, links, and the assessment data grid expose their
+   expected Fluent roles and accessible names.
+7. Run discovery for an estate with at least one known content issue.
+8. Confirm the Assess data grid contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
-8. Expand a finding and confirm it shows the detected condition, **Agent
+9. Expand a finding and confirm it shows the detected condition, **Agent
    impact**, review status, and source evidence.
-9. Select a document and request recommendations.
-10. Confirm the proposal rationale describes the number and likely impact of
+10. Select a document and request recommendations.
+11. Confirm the proposal rationale describes the number and likely impact of
    content findings without a score out of 100.
-11. Approve the new proposal and confirm the transformation controls appear above
+12. Approve the new proposal and confirm the transformation controls appear above
    the **Assessment results** and **Evaluation set** tabs.
-12. Start transformation and confirm the live progress surface names each check,
+13. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-13. If the estate contains a proposal created with estimator version `1.2`,
+14. If the estate contains a proposal created with estimator version `1.2`,
    confirm transformation stops before model use and instructs the reviewer to
    create and approve a current improvement plan.
 

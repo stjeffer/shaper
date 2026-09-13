@@ -76,8 +76,10 @@ class CleanScanner:
 class GroundedModel:
     """Return one candidate grounded in the supplied source span."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, schema
         span = json.loads(prompt)["source"][0]
         return ModelResult(
             payload={

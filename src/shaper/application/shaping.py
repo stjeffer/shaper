@@ -11,7 +11,6 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from shaper.application.agent_tools import ReadOnlyToolRegistry, ToolRequest
-from shaper.application.model import PROMPT_VERSION, SHAPING_PROMPT
 from shaper.application.ports import ModelGateway, Validator
 from shaper.domain import (
     AnswerUnit,
@@ -22,6 +21,7 @@ from shaper.domain import (
     SourceSpan,
 )
 from shaper.domain.models import Derivation, FindingSeverity, canonical_hash
+from shaper.prompts import PROMPT_VERSION, SHAPING_PROMPT
 
 
 class CheckpointStore(Protocol):
@@ -144,6 +144,7 @@ class ShapingLoop:
         output_tokens = 0
         candidates = 0
         context: list[object] = [span.model_dump(mode="json") for span in spans]
+        evidence_spans = {span.span_id: span for span in spans}
         feedback: list[str] = []
 
         while True:
@@ -157,7 +158,6 @@ class ShapingLoop:
             )
             prompt = json.dumps(
                 {
-                    "instructions": SHAPING_PROMPT,
                     "source": context,
                     "approved_transformation_requirements": list(transformation_requirements),
                     "validation_feedback": feedback,
@@ -166,7 +166,9 @@ class ShapingLoop:
                 sort_keys=True,
             )
             result = self._model.generate(
-                prompt=prompt, schema=CandidatePayload.model_json_schema()
+                system_prompt=SHAPING_PROMPT,
+                prompt=prompt,
+                schema=CandidatePayload.model_json_schema(),
             )
             model_calls += 1
             input_tokens += result.input_tokens
@@ -220,6 +222,13 @@ class ShapingLoop:
                 tool_calls += 1
                 tool_result = self._tools.invoke(payload.tool, principal)
                 context.append({"tool": payload.tool.name, "result": tool_result})
+                for span in _tool_source_spans(payload.tool, tool_result, document):
+                    existing = evidence_spans.get(span.span_id)
+                    if existing is not None and existing != span:
+                        raise RuntimeError(
+                            f"Tool returned conflicting evidence for span {span.span_id!r}"
+                        )
+                    evidence_spans[span.span_id] = span
                 self._checkpoints.save(
                     run_id,
                     "tool_result",
@@ -252,7 +261,10 @@ class ShapingLoop:
                     parameters_hash=canonical_hash({"temperature": 0}),
                 ),
             )
-            findings = self._validator.validate(unit, spans)
+            findings = self._validator.validate(
+                unit,
+                tuple(sorted(evidence_spans.values(), key=lambda span: span.ordinal)),
+            )
             blocking = [
                 finding.message
                 for finding in findings
@@ -309,3 +321,31 @@ class ShapingLoop:
             raise ShapingBudgetExceeded(
                 f"Shaping elapsed-time budget exhausted: {elapsed:.3f} seconds"
             )
+
+
+def _tool_source_spans(
+    request: ToolRequest,
+    result: object,
+    document: SourceDocument,
+) -> tuple[SourceSpan, ...]:
+    if request.name == "get_span":
+        serialized_spans = (result,)
+    elif request.name == "get_neighbors":
+        if not isinstance(result, list):
+            raise RuntimeError("get_neighbors returned an invalid source-span collection")
+        serialized_spans = tuple(result)
+    else:
+        return ()
+
+    spans: list[SourceSpan] = []
+    for serialized in serialized_spans:
+        try:
+            span = SourceSpan.model_validate_json(json.dumps(serialized))
+        except ValidationError as error:
+            raise RuntimeError(f"{request.name} returned invalid source-span evidence") from error
+        if span.source_id != document.source_id or span.source_version != document.source_version:
+            raise RuntimeError(
+                f"{request.name} returned evidence outside the active source version"
+            )
+        spans.append(span)
+    return tuple(spans)

@@ -7,10 +7,10 @@ import math
 import re
 from collections.abc import Sequence
 
-from shaper.application.model import SHAPING_PROMPT
 from shaper.application.shaping import CandidatePayload
 from shaper.domain import TokenEstimate
 from shaper.domain.models import canonical_hash
+from shaper.prompts import SHAPING_PROMPT
 
 ESTIMATOR_VERSION = "1.3"
 ESTIMATED_MODEL_CALLS = 4

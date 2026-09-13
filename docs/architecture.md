@@ -630,14 +630,22 @@ and a safety margin. The shaping loop accounts for provider-reported input and
 output tokens after every response and stops when the approved maximum is
 exceeded.
 
+Runtime system prompts are version-controlled Markdown resources in
+`src/shaper/prompts/`. Shaping and model-assisted evaluation use separate prompts
+and pass the selected prompt explicitly through the model gateway. The application
+loads these resources once through Python package resources and fails during import
+when a required prompt is missing or blank. Keeping prompts inside the Python
+package ensures source, wheel, and container deployments use the same reviewed
+instructions.
+
 The shaping request includes the exact approved transformation requirements and
-requires a complete-document result rather than a summary. After each candidate,
-the deterministic preservation gate checks lexical source coverage, exact
-retention of numeric and duration facts, and semantic overlap for operative
-clauses such as duties, prohibitions, and constrained permissions. A blocking
-finding is returned to the bounded loop for up to three repair attempts. If no
-candidate passes within the approved limit, transformation stops and no artifact
-is persisted.
+requires schema-constrained, answer-shaped content with exact source-span
+citations. After each candidate, the deterministic preservation gate checks
+lexical source coverage, exact retention of numeric and duration facts, and
+semantic overlap for operative clauses such as duties, prohibitions, and
+constrained permissions. A blocking finding is returned to the bounded loop for
+up to three repair attempts. If no candidate passes within the approved limit,
+transformation stops and no artifact is persisted.
 
 An estimator-version change invalidates an earlier approval for execution.
 The service rejects the stale estimate before calling the model and tells the
