@@ -8,7 +8,20 @@
       content="Shaper transforms enterprise content into trusted, agent-ready knowledge."
     />
     <title>Shaper | Knowledge estates</title>
-    <link rel="stylesheet" href="styles.css?v=20260913-transform-progress" />
+    <script>
+      (() => {
+        const supportedThemes = new Set(["web", "teams", "office"]);
+        try {
+          const savedTheme = localStorage.getItem("shaper-color-theme");
+          if (supportedThemes.has(savedTheme)) {
+            document.documentElement.dataset.theme = savedTheme;
+          }
+        } catch (error) {
+          console.warn("Shaper could not restore the saved colour theme.", error);
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css?v=20260913-fluent-themes" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -46,6 +59,24 @@
           <span class="nav-item-label">Checks</span>
         </button>
         <div class="sidebar-spacer"></div>
+        <fieldset id="themePicker" class="theme-picker">
+          <legend>Theme</legend>
+          <label title="Microsoft Web blue">
+            <input type="radio" name="color-theme" value="web" checked />
+            <span class="theme-swatch web" aria-hidden="true"></span>
+            <span class="sr-only">Microsoft Web blue</span>
+          </label>
+          <label title="Microsoft Teams purple">
+            <input type="radio" name="color-theme" value="teams" />
+            <span class="theme-swatch teams" aria-hidden="true"></span>
+            <span class="sr-only">Microsoft Teams purple</span>
+          </label>
+          <label title="Microsoft Office orange">
+            <input type="radio" name="color-theme" value="office" />
+            <span class="theme-swatch office" aria-hidden="true"></span>
+            <span class="sr-only">Microsoft Office orange</span>
+          </label>
+        </fieldset>
       </nav>
 
       <main id="workspace" class="workspace" tabindex="-1">
@@ -803,6 +834,6 @@
       </div>
     </template>
 
-    <script src="app.js?v=20260913-transform-progress"></script>
+    <script src="app.js?v=20260913-fluent-themes"></script>
   </body>
 </html>

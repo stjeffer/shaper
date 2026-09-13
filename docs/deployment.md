@@ -167,6 +167,11 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
+The workspace stylesheet and script use a versioned `fluent-themes` asset query
+so a new revision does not reuse the previous control palette from a browser or
+edge cache. No database or server configuration change is required for colour
+theme preferences because each browser stores its selection locally.
+
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
 relational database migration. New discovery runs populate the field. Historical
@@ -191,20 +196,23 @@ first. This endpoint is not a durable background queue.
 After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
-2. Run discovery for an estate with at least one known content issue.
-3. Confirm the Assess table contains **Document** and **Findings**, with no
+2. Confirm the theme control offers the Microsoft Web, Teams, and Office
+   palettes, persists a selection after reload, and visibly updates primary
+   actions, selected tabs, focus indicators, and bounded secondary controls.
+3. Run discovery for an estate with at least one known content issue.
+4. Confirm the Assess table contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
-4. Expand a finding and confirm it shows the detected condition, **Agent
+5. Expand a finding and confirm it shows the detected condition, **Agent
    impact**, review status, and source evidence.
-5. Select a document and request recommendations.
-6. Confirm the proposal rationale describes the number and likely impact of
+6. Select a document and request recommendations.
+7. Confirm the proposal rationale describes the number and likely impact of
    content findings without a score out of 100.
-7. Approve the new proposal and confirm the transformation controls appear above
+8. Approve the new proposal and confirm the transformation controls appear above
    the **Assessment results** and **Evaluation set** tabs.
-8. Start transformation and confirm the live progress surface names each check,
+9. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-9. If the estate contains a proposal created with estimator version `1.2`,
+10. If the estate contains a proposal created with estimator version `1.2`,
    confirm transformation stops before model use and instructs the reviewer to
    create and approve a current improvement plan.
 

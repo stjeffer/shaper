@@ -286,6 +286,29 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "function selectedActionEstate()" in browser_app
 
 
+def test_given_colour_theme_controls_when_inspected_then_fluent_states_are_persistent() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    html = (concept_root / "index.html").read_text(encoding="utf-8")
+    browser_app = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert 'id="themePicker"' in html
+    assert "<legend>Theme</legend>" in html
+    for theme in ("web", "teams", "office"):
+        assert f'name="color-theme" value="{theme}"' in html
+    assert 'localStorage.getItem("shaper-color-theme")' in html
+    assert 'const COLOR_THEME_STORAGE_KEY = "shaper-color-theme"' in browser_app
+    assert "function applyColorTheme(" in browser_app
+    assert "document.documentElement.dataset.theme = selectedTheme" in browser_app
+    assert 'elements.themePicker.addEventListener("change"' in browser_app
+    assert ':root[data-theme="teams"]' in styles
+    assert ':root[data-theme="office"]' in styles
+    assert "--color-control-background:" in styles
+    assert "--color-control-border:" in styles
+    assert ".button:disabled" in styles
+    assert "@media (forced-colors: active)" in styles
+
+
 def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent() -> None:
     architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
     readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")

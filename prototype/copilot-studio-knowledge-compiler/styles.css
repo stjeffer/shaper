@@ -3,8 +3,8 @@
   --ink: #242424;
   --ink-soft: #424242;
   --muted: #616161;
-  --line: #e0e0e0;
-  --line-strong: #c7c7c7;
+  --line: #d1d1d1;
+  --line-strong: #8a8886;
   --surface: #fff;
   --surface-soft: #f5f5f5;
   --canvas: #fff;
@@ -18,14 +18,23 @@
   --amber-soft: #fff4ce;
   --red: #a4262c;
   --red-soft: #fde7e9;
-  --blue: #4f5bea;
+  --blue: #0f6cbd;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 8%);
   --shadow-lg: 0 8px 24px rgb(0 0 0 / 14%);
-  --color-brand-background: #5b5fc7;
-  --color-brand-background-hover: #4f52b2;
-  --color-brand-background-soft: #f1f1fb;
-  --color-brand-foreground: #4f52b2;
-  --color-brand-stroke: #5b5fc7;
+  --color-brand-background: #0f6cbd;
+  --color-brand-background-hover: #115ea3;
+  --color-brand-background-pressed: #0e4775;
+  --color-brand-background-soft: #ebf3fc;
+  --color-brand-foreground: #0f548c;
+  --color-brand-stroke: #0f6cbd;
+  --color-control-background: #fff;
+  --color-control-background-hover: #f5f5f5;
+  --color-control-background-pressed: #e8e8e8;
+  --color-control-border: #8a8886;
+  --color-control-disabled-background: #f0f0f0;
+  --color-control-disabled-border: #d1d1d1;
+  --color-control-disabled-foreground: #707070;
+  --color-focus-stroke: #0f6cbd;
   --color-neutral-background-1: #fff;
   --color-neutral-background-2: #fafafa;
   --color-neutral-background-3: #f5f5f5;
@@ -44,6 +53,28 @@
   --border-radius-medium: 8px;
   --border-radius-large: 12px;
   font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+}
+
+:root[data-theme="teams"] {
+  --blue: #5b5fc7;
+  --color-brand-background: #5b5fc7;
+  --color-brand-background-hover: #4f52b2;
+  --color-brand-background-pressed: #3d3e78;
+  --color-brand-background-soft: #e8ebfa;
+  --color-brand-foreground: #444791;
+  --color-brand-stroke: #5b5fc7;
+  --color-focus-stroke: #5b5fc7;
+}
+
+:root[data-theme="office"] {
+  --blue: #d83b01;
+  --color-brand-background: #d83b01;
+  --color-brand-background-hover: #c33400;
+  --color-brand-background-pressed: #a52c00;
+  --color-brand-background-soft: #f9dcd1;
+  --color-brand-foreground: #a52c00;
+  --color-brand-stroke: #d83b01;
+  --color-focus-stroke: #d83b01;
 }
 
 * {
@@ -82,7 +113,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex="-1"]:focus-visible {
-  outline: 3px solid #4f5bea;
+  outline: 3px solid var(--color-focus-stroke);
   outline-offset: 3px;
 }
 
@@ -2124,6 +2155,75 @@ body {
   flex: 1;
 }
 
+.theme-picker {
+  display: grid;
+  width: 68px;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 5px;
+  background: var(--color-control-background);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--border-radius-medium);
+}
+
+.theme-picker legend {
+  width: 100%;
+  margin-bottom: 5px;
+  padding: 0;
+  color: var(--color-neutral-foreground-2);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.theme-picker label {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 28px;
+  place-items: center;
+  cursor: pointer;
+}
+
+.theme-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.theme-swatch {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-control-background);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--color-control-border);
+}
+
+.theme-swatch.web {
+  background: #0f6cbd;
+}
+
+.theme-swatch.teams {
+  background: #5b5fc7;
+}
+
+.theme-swatch.office {
+  background: #d83b01;
+}
+
+.theme-picker input:checked + .theme-swatch {
+  box-shadow:
+    0 0 0 2px var(--color-control-background),
+    0 0 0 4px var(--color-brand-background);
+}
+
+.theme-picker input:focus-visible + .theme-swatch {
+  outline: 2px solid var(--color-focus-stroke);
+  outline-offset: 4px;
+}
+
 .workspace {
   width: 100%;
   max-width: none;
@@ -3285,6 +3385,155 @@ h2 {
 .findings-review-button:focus-visible {
   outline: 2px solid var(--color-brand-background);
   outline-offset: 2px;
+}
+
+/* Fluent semantic control states keep actions and selection distinct from canvas surfaces. */
+.button {
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-control-background);
+  border-color: var(--color-control-border);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-control-background-hover);
+  border-color: var(--color-neutral-foreground-2);
+}
+
+.button:active:not(:disabled) {
+  background: var(--color-control-background-pressed);
+}
+
+.button.primary,
+.portfolio-hero .button.primary,
+.list-toolbar .button.primary {
+  color: #fff;
+  background: var(--color-brand-background);
+  border-color: var(--color-brand-background);
+}
+
+.button.primary:hover:not(:disabled),
+.portfolio-hero .button.primary:hover:not(:disabled),
+.list-toolbar .button.primary:hover:not(:disabled) {
+  color: #fff;
+  background: var(--color-brand-background-hover);
+  border-color: var(--color-brand-background-hover);
+}
+
+.button.primary:active:not(:disabled),
+.portfolio-hero .button.primary:active:not(:disabled),
+.list-toolbar .button.primary:active:not(:disabled) {
+  background: var(--color-brand-background-pressed);
+  border-color: var(--color-brand-background-pressed);
+}
+
+.button.secondary {
+  background: var(--color-control-background);
+  border-color: var(--color-control-border);
+}
+
+.button.quiet {
+  color: var(--color-brand-foreground);
+  background: transparent;
+  border-color: transparent;
+}
+
+.button.quiet:hover:not(:disabled) {
+  background: var(--color-brand-background-soft);
+  border-color: var(--color-brand-stroke);
+}
+
+.button:disabled {
+  color: var(--color-control-disabled-foreground);
+  background: var(--color-control-disabled-background);
+  border-color: var(--color-control-disabled-border);
+  opacity: 1;
+}
+
+.workflow,
+.source-input-tabs {
+  background: var(--color-neutral-background-3);
+  border: 1px solid var(--color-neutral-stroke-1);
+}
+
+.workflow button,
+.source-input-tabs button {
+  color: var(--color-neutral-foreground-2);
+  background: transparent;
+}
+
+.workflow button:hover,
+.source-input-tabs button:hover {
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-control-background-hover);
+}
+
+.workflow button[aria-current],
+.source-input-tabs button[aria-selected="true"] {
+  color: var(--color-brand-foreground);
+  background: var(--color-brand-background-soft);
+  border-color: var(--color-brand-stroke);
+  box-shadow: inset 0 -3px var(--color-brand-background);
+}
+
+.approval-review-tabs [role="tab"],
+.assessment-check-tabs [role="tab"] {
+  border: 1px solid transparent;
+  border-bottom: 0;
+}
+
+.approval-review-tabs [role="tab"]:hover,
+.assessment-check-tabs [role="tab"]:hover {
+  background: var(--color-control-background-hover);
+}
+
+.approval-review-tabs [role="tab"][aria-selected="true"],
+.assessment-check-tabs [role="tab"][aria-selected="true"] {
+  color: var(--color-brand-foreground);
+  background: var(--color-brand-background-soft);
+  border-color: var(--color-brand-stroke);
+}
+
+.nav-item.active {
+  border: 1px solid var(--color-brand-stroke);
+}
+
+input,
+select,
+textarea,
+.form-card input,
+.form-card select,
+.form-card textarea {
+  background: var(--color-control-background);
+  border-color: var(--color-control-border);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-neutral-foreground-1);
+}
+
+@media (forced-colors: active) {
+  .theme-swatch,
+  .theme-picker input:checked + .theme-swatch {
+    background: ButtonFace;
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+
+  .theme-picker input:checked + .theme-swatch {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .workflow button[aria-current],
+  .source-input-tabs button[aria-selected="true"],
+  .approval-review-tabs [role="tab"][aria-selected="true"],
+  .assessment-check-tabs [role="tab"][aria-selected="true"],
+  .nav-item.active {
+    color: Highlight;
+    border-color: Highlight;
+  }
 }
 
 .findings-summary-copy {
