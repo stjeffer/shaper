@@ -316,6 +316,11 @@ def test_given_colour_theme_controls_when_inspected_then_fluent_states_are_persi
     assert ':root[data-theme="office"]' not in styles
     assert "--color-brand-background: var(--accent-fill-rest);" in styles
     assert "--color-control-background: var(--neutral-fill-rest);" in styles
+    assert 'fluent-button[appearance="accent"]::part(control)' in styles
+    assert 'fluent-button[appearance="neutral"]::part(control)' in styles
+    assert 'fluent-button[appearance="lightweight"]::part(control)' in styles
+    assert "background: var(--accent-fill-rest);" in styles
+    assert "border-color: var(--neutral-stroke-rest);" in styles
     assert "--color-control-background:" in styles
     assert "--color-control-border: #d1d1d1;" in styles
     assert "--color-input-border: #8a8886;" in styles

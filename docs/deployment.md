@@ -167,7 +167,7 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet uses a versioned `fluent-web-components-v4` asset query,
+The workspace stylesheet uses a versioned `fluent-controls-v6` asset query,
 and the script uses a versioned `fluent-components` query. These versions
 prevent a new revision from reusing the previous control palette from a browser
 or edge cache. No database or server configuration change is required for

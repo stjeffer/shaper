@@ -3271,6 +3271,41 @@ h2 {
   outline-offset: 2px;
 }
 
+fluent-button[appearance="accent"]::part(control) {
+  background: var(--accent-fill-rest);
+  border-color: transparent;
+}
+
+fluent-button[appearance="accent"]:not([disabled]):hover::part(control) {
+  background: var(--accent-fill-hover);
+}
+
+fluent-button[appearance="accent"]:not([disabled]):active::part(control) {
+  background: var(--accent-fill-active);
+}
+
+fluent-button[appearance="neutral"]::part(control),
+fluent-anchor[appearance="neutral"]::part(control) {
+  background: var(--neutral-fill-rest);
+  border-color: var(--neutral-stroke-rest);
+}
+
+fluent-button[appearance="neutral"]:not([disabled]):hover::part(control),
+fluent-anchor[appearance="neutral"]:hover::part(control) {
+  background: var(--neutral-fill-hover);
+  border-color: var(--neutral-stroke-hover);
+}
+
+fluent-button[appearance="neutral"]:not([disabled]):active::part(control),
+fluent-anchor[appearance="neutral"]:active::part(control) {
+  background: var(--neutral-fill-active);
+  border-color: var(--neutral-stroke-active);
+}
+
+fluent-button[appearance="lightweight"]::part(control) {
+  border-color: transparent;
+}
+
 fluent-button.danger:not([disabled])::part(control) {
   color: var(--color-status-danger-foreground);
 }
@@ -3340,6 +3375,24 @@ textarea:hover {
 }
 
 @media (forced-colors: active) {
+  fluent-button[appearance]::part(control),
+  fluent-anchor[appearance]::part(control) {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  fluent-button[appearance="accent"]:not([disabled])::part(control) {
+    color: HighlightText;
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  fluent-button[disabled]::part(control) {
+    color: GrayText;
+    border-color: GrayText;
+  }
+
   .theme-swatch,
   .theme-picker input:checked + .theme-swatch {
     background: ButtonFace;
