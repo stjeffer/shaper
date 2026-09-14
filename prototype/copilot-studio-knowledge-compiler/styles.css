@@ -4757,22 +4757,22 @@ fluent-dialog form {
    ========================================================================== */
 
 :root[data-color-scheme="dark"] {
-  --shaper-canvas: #080d11;
-  --shaper-layer-1: #0d141a;
-  --shaper-layer-2: #111b22;
+  --shaper-canvas: #0a1014;
+  --shaper-layer-1: #10191e;
+  --shaper-layer-2: #172229;
   --shaper-layer-3: #16222b;
   --shaper-layer-4: #1b2a34;
   --shaper-line: #1f2e39;
   --shaper-line-soft: rgb(255 255 255 / 7%);
   --shaper-line-strong: #2c3f4c;
-  --shaper-fg: #e8f2f2;
+  --shaper-fg: #edf3f1;
   --shaper-fg-soft: #b9c8cc;
   --shaper-muted: #8496a0;
-  --shaper-lime: #a5e060;
+  --shaper-lime: #c0e66c;
   --shaper-lime-hover: #b7ec78;
   --shaper-lime-press: #8fca4b;
   --shaper-lime-ink: #08120a;
-  --shaper-cyan: #45d6cf;
+  --shaper-cyan: #6de0d2;
   --shaper-glow: 0 0 0 1px rgb(165 224 96 / 35%), 0 10px 30px -12px rgb(165 224 96 / 45%);
   --shaper-panel-shadow: 0 1px 0 0 rgb(255 255 255 / 4%) inset, 0 18px 40px -28px rgb(0 0 0 / 90%);
   --shaper-mono: "Segoe UI", sans-serif;
@@ -5830,4 +5830,156 @@ td { padding: var(--space-3); }
 
 @media (prefers-reduced-motion: no-preference) {
   .shaper-mark path { transition: filter 160ms ease; }
+}
+
+
+/* Unified Shaper Fluent Matrix system */
+:root[data-color-scheme="dark"] fluent-design-system-provider {
+  --accent-fill-rest: var(--shaper-cyan);
+  --accent-fill-hover: #83e8dc;
+  --accent-fill-active: #55c9bd;
+  --accent-foreground-rest: var(--shaper-cyan);
+  --accent-foreground-hover: #83e8dc;
+  --foreground-on-accent-rest: var(--shaper-canvas);
+  --foreground-on-accent-hover: var(--shaper-canvas);
+  --focus-stroke-outer: var(--shaper-cyan);
+  --color-brand-background: var(--shaper-cyan);
+  --color-brand-background-hover: #83e8dc;
+  --color-brand-background-pressed: #55c9bd;
+  --color-brand-foreground: var(--shaper-cyan);
+  --color-brand-stroke: var(--shaper-cyan);
+  --color-focus-stroke: var(--shaper-cyan);
+}
+
+:root[data-color-scheme="dark"] body {
+  background:
+    radial-gradient(900px 520px at 88% -15%, rgb(109 224 210 / 7%), transparent 64%),
+    var(--shaper-canvas);
+}
+
+:root[data-color-scheme="dark"] .workspace {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-color-scheme="dark"] .workspace::before {
+  position: fixed;
+  inset: 48px 0 0 224px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgb(109 224 210 / 12%) .7px, transparent .8px);
+  background-size: 24px 24px;
+  opacity: .22;
+  content: "";
+}
+
+:root[data-color-scheme="dark"] fluent-button,
+:root[data-color-scheme="dark"] fluent-anchor,
+:root[data-color-scheme="dark"] button {
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"],
+:root[data-color-scheme="dark"] fluent-anchor[appearance="accent"],
+:root[data-color-scheme="dark"] .primary {
+  --accent-fill-rest: var(--shaper-cyan);
+  --accent-fill-hover: #83e8dc;
+  --accent-fill-active: #55c9bd;
+  --foreground-on-accent-rest: var(--shaper-canvas);
+  border-radius: var(--border-radius-small);
+  box-shadow: 0 0 16px rgb(109 224 210 / 18%);
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"]:hover,
+:root[data-color-scheme="dark"] fluent-anchor[appearance="accent"]:hover,
+:root[data-color-scheme="dark"] .primary:hover {
+  box-shadow: 0 0 22px rgb(109 224 210 / 28%);
+}
+
+:root[data-color-scheme="dark"] fluent-tab[aria-selected="true"],
+:root[data-color-scheme="dark"] .source-input-tabs button[aria-selected="true"],
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"][aria-selected="true"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"][aria-selected="true"] {
+  color: var(--shaper-cyan);
+  box-shadow: inset 0 -2px var(--shaper-cyan);
+}
+
+:root[data-color-scheme="dark"] .nav-item[aria-current],
+:root[data-color-scheme="dark"] .nav-item.active {
+  color: var(--shaper-fg);
+  background: var(--shaper-layer-2);
+  box-shadow: inset 2px 0 var(--shaper-cyan);
+}
+
+:root[data-color-scheme="dark"] .brand-mark,
+:root[data-color-scheme="dark"] .eyebrow,
+:root[data-color-scheme="dark"] .back-link,
+:root[data-color-scheme="dark"] a:not(.primary):hover {
+  color: var(--shaper-cyan);
+}
+
+:root[data-color-scheme="dark"] .estate-card,
+:root[data-color-scheme="dark"] .form-card,
+:root[data-color-scheme="dark"] .item-row,
+:root[data-color-scheme="dark"] .proposal-card,
+:root[data-color-scheme="dark"] .artifact-card,
+:root[data-color-scheme="dark"] .state-card,
+:root[data-color-scheme="dark"] .table-scroll,
+:root[data-color-scheme="dark"] .registered-sources-panel,
+:root[data-color-scheme="dark"] .comparison-panel {
+  background: rgb(23 34 41 / 72%);
+  border-color: var(--shaper-line);
+  box-shadow: inset 0 1px rgb(255 255 255 / 3%);
+  backdrop-filter: blur(8px);
+}
+
+:root[data-color-scheme="dark"] .badge,
+:root[data-color-scheme="dark"] .source-status,
+:root[data-color-scheme="dark"] .proposal-status,
+:root[data-color-scheme="dark"] .decision-badge,
+:root[data-color-scheme="dark"] .assessment-status,
+:root[data-color-scheme="dark"] .estate-state {
+  border-radius: var(--border-radius-small);
+}
+
+:root[data-color-scheme="dark"] h1,
+:root[data-color-scheme="dark"] h2,
+:root[data-color-scheme="dark"] h3,
+:root[data-color-scheme="dark"] .dialog-heading h2 {
+  font-weight: 600;
+}
+
+:root[data-color-scheme="dark"] strong,
+:root[data-color-scheme="dark"] b,
+:root[data-color-scheme="dark"] th,
+:root[data-color-scheme="dark"] label {
+  font-weight: 400;
+}
+
+@keyframes shaper-panel-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shaper-status-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(192 230 108 / 34%); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-color-scheme="dark"] fluent-tab-panel:not([hidden]),
+  :root[data-color-scheme="dark"] section:not([hidden]) > .panel,
+  :root[data-color-scheme="dark"] fluent-dialog:not([hidden])::part(control) {
+    animation: shaper-panel-enter 180ms ease-out both;
+  }
+
+  :root[data-color-scheme="dark"] .source-status,
+  :root[data-color-scheme="dark"] .assessment-status,
+  :root[data-color-scheme="dark"] .estate-state {
+    animation: shaper-status-pulse 700ms ease-out 1;
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-color-scheme="dark"] .workspace::before { inset-left: 0; }
 }
