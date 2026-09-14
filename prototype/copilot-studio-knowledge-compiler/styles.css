@@ -56,7 +56,7 @@
   --border-radius-small: 4px;
   --border-radius-medium: 8px;
   --border-radius-large: 12px;
-  --body-font: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --body-font: "Segoe UI", sans-serif;
 
   font-family: var(--body-font);
 }
@@ -211,7 +211,7 @@ textarea:focus-visible,
 
 .brand-copy strong {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .brand-copy small {
@@ -228,7 +228,7 @@ textarea:focus-visible,
   background: var(--blue);
   border-radius: 4px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .topbar-divider {
@@ -241,7 +241,7 @@ textarea:focus-visible,
 .product-area {
   color: var(--ink-soft);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .app-shell {
@@ -265,7 +265,7 @@ textarea:focus-visible,
   margin: 0 12px 8px;
   color: #605e5c;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
 }
 
@@ -293,7 +293,7 @@ textarea:focus-visible,
 
 .nav-item strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .nav-item small {
@@ -341,7 +341,7 @@ textarea:focus-visible,
   align-items: center;
   gap: 9px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .process-card li span {
@@ -353,7 +353,7 @@ textarea:focus-visible,
   background: var(--blue);
   border-radius: 50%;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .process-card > p:last-child {
@@ -395,7 +395,7 @@ h3 {
 h1 {
   margin: 4px 0 8px;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 32px;
   letter-spacing: normal;
 }
@@ -403,7 +403,7 @@ h1 {
 h2 {
   margin: 4px 0 8px;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 26px;
   letter-spacing: normal;
 }
@@ -411,14 +411,14 @@ h2 {
 h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .eyebrow {
   margin: 0;
   color: var(--blue);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
 }
 
@@ -504,7 +504,7 @@ h3 {
 .portfolio-metrics strong {
   color: var(--ink);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .portfolio-metrics span {
@@ -560,7 +560,7 @@ h3 {
 .estate-card h2 {
   margin-top: 16px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .estate-open-button > p {
@@ -574,7 +574,7 @@ h3 {
 .card-link {
   color: var(--teal);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .estate-configuration {
@@ -608,7 +608,7 @@ h3 {
 .estate-card footer strong {
   color: var(--ink-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   text-align: right;
 }
 
@@ -624,7 +624,7 @@ h3 {
   background: var(--teal-soft);
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: capitalize;
 }
 
@@ -648,7 +648,7 @@ h3 {
   background: transparent;
   border: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -662,7 +662,7 @@ h3 {
 
 .estate-heading h1 {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .estate-heading p:last-child,
@@ -723,7 +723,7 @@ h3 {
 .workflow button strong {
   color: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .workflow button[aria-current] {
@@ -792,7 +792,7 @@ h3 {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 14px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -821,7 +821,7 @@ h3 {
   color: var(--color-neutral-foreground-3);
   background: transparent;
   border: 0;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -903,7 +903,7 @@ label {
   margin-top: 5px;
   color: var(--ink-soft);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 input,
@@ -1124,7 +1124,7 @@ th {
   color: var(--muted);
   background: var(--surface-soft);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
 }
 
@@ -1244,7 +1244,7 @@ td input[type="checkbox"] {
   display: block;
   margin-top: 5px;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
 }
 
@@ -1281,7 +1281,7 @@ td input[type="checkbox"] {
 }
 
 .transformation-actions #approvalSummary {
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .transformation-progress {
@@ -1419,7 +1419,7 @@ td input[type="checkbox"] {
   padding: 16px;
   overflow: auto;
   color: var(--text);
-  font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 13px/20px "Segoe UI", sans-serif;
   white-space: pre-wrap;
 }
 
@@ -1527,7 +1527,7 @@ td input[type="checkbox"] {
   color: var(--color-brand-background);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .passed-checks > summary:hover,
@@ -1726,7 +1726,7 @@ td input[type="checkbox"] {
   background: #e6f5ec;
   border: 1px solid #b7dfc6;
   border-radius: 8px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .busy-overlay {
@@ -1859,7 +1859,7 @@ dialog form {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .result-evidence {
@@ -1872,7 +1872,7 @@ dialog form {
   color: var(--blue);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .result-evidence figure {
@@ -1903,7 +1903,7 @@ dialog form {
   background: var(--red-soft);
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .text-button {
@@ -1915,7 +1915,7 @@ dialog form {
   border: 0;
   font: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -1946,7 +1946,7 @@ dialog form {
 .dialog-error {
   margin: 4px 0 0;
   color: var(--red);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .dialog-option {
@@ -2026,7 +2026,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 3px 10px rgb(64 76 166 / 20%);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .nav-item {
@@ -2096,7 +2096,7 @@ body {
   max-width: 60px;
   color: currentcolor;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 12px;
   text-align: center;
 }
@@ -2278,7 +2278,7 @@ h2 {
   color: #fff;
   background: linear-gradient(145deg, #52b8da, #446fd4);
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .estate-row-icon {
@@ -2381,7 +2381,7 @@ h2 {
 
 .assessment-checks-summary span {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .assessment-checks-summary small {
@@ -2446,7 +2446,7 @@ h2 {
   border-radius: var(--border-radius-small) var(--border-radius-small) 0 0;
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -2544,7 +2544,7 @@ h2 {
   background: var(--color-brand-background-soft);
   border-radius: 50%;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .assessment-check-card h3 {
@@ -2689,7 +2689,7 @@ h2 {
   gap: 6px;
   color: var(--color-neutral-foreground-2);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .evaluation-options-heading select {
@@ -3015,7 +3015,7 @@ h2 {
 [data-panel="discover"] .panel-heading h2 {
   margin-bottom: 4px;
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 32px;
 }
 
@@ -3051,7 +3051,7 @@ h2 {
   background: var(--color-brand-background);
   border-radius: 50%;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .assessment-note strong {
@@ -3154,7 +3154,7 @@ h2 {
   display: block;
   color: var(--color-neutral-foreground-1);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 20px;
 }
 
@@ -3309,7 +3309,7 @@ textarea:hover {
 .findings-summary-copy strong {
   color: var(--color-neutral-foreground-1);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 20px;
 }
 
@@ -3428,7 +3428,7 @@ textarea:hover {
 .result-heading strong {
   color: var(--color-neutral-foreground-1);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 20px;
 }
 
@@ -3440,7 +3440,7 @@ textarea:hover {
   background: var(--color-neutral-background-3);
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 16px;
 }
 
@@ -3470,7 +3470,7 @@ textarea:hover {
 
 .result-impact-label {
   color: var(--color-neutral-foreground-1);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .review-required {
@@ -3754,7 +3754,7 @@ textarea:hover {
     color: var(--muted);
     content: attr(data-label);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
@@ -4003,7 +4003,7 @@ textarea:hover {
 
 /* Fluent 2 product system: semantic tokens own the final rendered surface. */
 fluent-design-system-provider {
-  --body-font: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --body-font: "Segoe UI", sans-serif;
   --spacingHorizontalXS: 4px;
   --spacingHorizontalS: 8px;
   --spacingHorizontalM: 12px;
@@ -4148,7 +4148,7 @@ h3 {
 .eyebrow {
   color: var(--neutral-foreground-hint);
   font-size: var(--type-ramp-minus-1-font-size);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: normal;
   line-height: var(--type-ramp-minus-1-line-height);
   text-transform: none;
@@ -4428,7 +4428,7 @@ textarea:focus-visible {
   color: var(--neutral-foreground-hint);
   background: var(--color-brand-background-soft);
   font-size: var(--type-ramp-minus-1-font-size);
-  font-weight: 600;
+  font-weight: 400;
   line-height: var(--type-ramp-minus-1-line-height);
 }
 
@@ -4775,8 +4775,8 @@ fluent-dialog form {
   --shaper-cyan: #45d6cf;
   --shaper-glow: 0 0 0 1px rgb(165 224 96 / 35%), 0 10px 30px -12px rgb(165 224 96 / 45%);
   --shaper-panel-shadow: 0 1px 0 0 rgb(255 255 255 / 4%) inset, 0 18px 40px -28px rgb(0 0 0 / 90%);
-  --shaper-mono: "DM Mono", ui-monospace, sfmono-regular, menlo, monospace;
-  --shaper-sans: "Manrope", "Segoe UI Variable", "Segoe UI", -apple-system, sans-serif;
+  --shaper-mono: "Segoe UI", sans-serif;
+  --shaper-sans: "Segoe UI", sans-serif;
 
   --body-font: var(--shaper-sans);
 }
@@ -4976,7 +4976,7 @@ fluent-dialog form {
 :root[data-color-scheme="dark"] h3 {
   color: var(--shaper-fg);
   font-family: var(--shaper-sans);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.02em;
 }
 
@@ -5142,7 +5142,7 @@ fluent-dialog form {
 
   border-radius: 8px;
   box-shadow: 0 10px 26px -14px rgb(165 224 96 / 75%);
-  font-weight: 600;
+  font-weight: 400;
   transition: box-shadow 180ms ease, transform 180ms ease;
 }
 
@@ -5447,7 +5447,7 @@ fluent-dialog form {
 :root[data-color-scheme="dark"] .estate-heading h1,
 :root[data-color-scheme="dark"] .portfolio-hero h1 {
   font-size: clamp(2rem, 3.4vw, 2.9rem);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1.04;
 }
@@ -5559,4 +5559,238 @@ fluent-dialog form {
   --neutral-fill-rest: transparent;
   --neutral-fill-hover: rgb(165 224 96 / 8%);
   --neutral-fill-active: rgb(165 224 96 / 12%);
+}
+
+
+/* Fluent typography and spacing alignment */
+:root {
+  --body-font: "Segoe UI", sans-serif;
+  --shaper-sans: "Segoe UI", sans-serif;
+  --shaper-mono: "Segoe UI", sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --border-radius-small: 2px;
+  --border-radius-medium: 4px;
+  --border-radius-large: 8px;
+  font-family: "Segoe UI", sans-serif;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+fluent-design-system-provider,
+fluent-button,
+fluent-anchor,
+fluent-tab,
+fluent-text-field,
+fluent-text-area,
+fluent-select,
+pre,
+code {
+  font-family: "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+body { font-weight: 400; }
+
+/* Regular is the default. Semibold is reserved for primary hierarchy and selected actions. */
+strong,
+b,
+label,
+th,
+.badge,
+.count,
+.source-status,
+.proposal-status,
+.decision-badge,
+.assessment-status,
+.result-severity,
+.review-required,
+.estate-state,
+.nav-label,
+.nav-item strong,
+.process-card li,
+.card-link,
+.back-link,
+.workflow button strong,
+.source-input-tabs button,
+.approval-review-tabs [role="tab"],
+.assessment-check-tabs [role="tab"],
+.passed-checks > summary,
+.token-estimate-disclosure > summary {
+  font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+.dialog-heading h2,
+fluent-button[appearance="accent"],
+fluent-anchor[appearance="accent"],
+.primary,
+[aria-selected="true"],
+[aria-current] {
+  font-weight: 600;
+}
+
+/* Fluent's 4px spacing grid and compact application density. */
+.topbar { min-height: 48px; padding: 0 var(--space-4); }
+.app-shell { min-height: calc(100vh - 48px); grid-template-columns: 224px minmax(0, 1fr); }
+.sidebar { top: 48px; height: calc(100vh - 48px); padding: var(--space-4) var(--space-2) var(--space-3); }
+.workspace { padding: var(--space-6) var(--space-8) 64px; }
+.brand { gap: var(--space-2); }
+.nav-label { margin: 0 var(--space-3) var(--space-2); }
+.nav-item { gap: var(--space-2); min-height: 40px; padding: var(--space-1) var(--space-2); border-radius: var(--border-radius-medium); }
+.process-card { margin-top: var(--space-6); padding: var(--space-4) var(--space-3); border-radius: var(--border-radius-medium); }
+.process-card ol { gap: var(--space-3); margin: var(--space-4) 0; }
+.process-card li { gap: var(--space-2); }
+.platform-note { margin: auto var(--space-3) 0; }
+.page-heading,
+.panel-heading,
+.section-heading,
+.collection-heading,
+.sticky-actions,
+.transformation-actions,
+.dialog-heading,
+.dialog-actions,
+.item-row,
+.proposal-heading,
+.artifact-heading,
+.estate-card-top { gap: var(--space-6); }
+.portfolio-hero { margin-bottom: var(--space-6); }
+.estate-grid,
+.item-list,
+.proposal-list,
+.artifact-list,
+.metrics { gap: var(--space-3); }
+.estate-card,
+.form-card,
+.item-row,
+.proposal-card,
+.artifact-card,
+.state-card,
+.empty-state,
+.alert,
+.table-scroll,
+.result-item,
+.metric,
+.comparison-panel { border-radius: var(--border-radius-medium); }
+.estate-open-button,
+.form-card,
+.item-row,
+.proposal-card,
+.artifact-card { padding: var(--space-4); }
+.workflow { gap: var(--space-5); }
+.workflow button { gap: var(--space-2); min-height: 40px; padding: var(--space-2) 0 var(--space-3); }
+.panel { padding-top: var(--space-6); }
+.panel-heading { padding-bottom: var(--space-4); }
+.split-layout { gap: var(--space-5); margin: var(--space-4) 0 var(--space-8); }
+.source-workspace-grid { gap: var(--space-6); }
+.source-input-tabs { margin: var(--space-4) 0 var(--space-3); padding: var(--space-1); border-radius: var(--border-radius-large); }
+.source-input-tabs button { min-height: 32px; padding: 0 var(--space-3); border-radius: var(--border-radius-medium); }
+.approval-review-tabs { gap: var(--space-6); margin-top: var(--space-2); }
+.approval-review-panel { padding-top: var(--space-5); }
+.source-input-panel.form-card,
+.registered-sources-panel { border-radius: var(--border-radius-large); }
+.registered-sources-panel { margin-top: var(--space-4); padding: var(--space-5); }
+.form-card { gap: var(--space-3); }
+label { margin-top: var(--space-1); }
+input,
+select,
+textarea { min-height: 32px; padding: var(--space-1) var(--space-2); border-radius: var(--border-radius-medium); }
+.file-drop { margin: var(--space-1) 0; padding: var(--space-5); border-radius: var(--border-radius-large); }
+.section-heading { margin: var(--space-6) 0 var(--space-3); }
+.lifecycle-card { gap: var(--space-6); margin-top: var(--space-8); padding: var(--space-5); border-radius: var(--border-radius-large); }
+.lifecycle-actions { gap: var(--space-2); }
+.state-card,
+.empty-state { gap: var(--space-5); padding: var(--space-10); }
+.empty-state.compact { margin-top: var(--space-5); padding: var(--space-6); }
+.alert { margin-bottom: var(--space-5); padding: var(--space-3) var(--space-4); }
+th,
+td { padding: var(--space-3); }
+.result-list { gap: var(--space-2); }
+.result-item { padding: var(--space-3); }
+.metric { padding: var(--space-4); }
+.sticky-actions { margin-top: var(--space-6); padding: var(--space-3) 0; }
+.transformation-actions,
+.transformation-progress { padding: var(--space-4); border-radius: var(--border-radius-large); }
+.transformation-progress-list { gap: var(--space-3); margin-top: var(--space-4); }
+.transformation-progress-document { padding: var(--space-3); border-radius: var(--border-radius-medium); }
+.artifact-comparison { gap: var(--space-4); margin: var(--space-5) 0; }
+.comparison-panel h4 { padding: var(--space-4) var(--space-4) 0; }
+.comparison-description { padding: 0 var(--space-4) var(--space-3); }
+.comparison-source { padding: var(--space-4); }
+.passed-checks,
+.token-estimate-disclosure { margin-top: var(--space-3); border-radius: var(--border-radius-medium); }
+.passed-checks > summary,
+.token-estimate-disclosure > summary { min-height: 40px; padding: var(--space-2) var(--space-3); }
+.token-estimate { margin: 0 var(--space-3) var(--space-3); padding: var(--space-5); border-radius: var(--border-radius-large); }
+
+:root[data-color-scheme="dark"] .brand-mark,
+:root[data-color-scheme="dark"] .nav-item,
+:root[data-color-scheme="dark"] .estate-row-icon,
+:root[data-color-scheme="dark"] .entity-icon,
+:root[data-color-scheme="dark"] .state-icon,
+:root[data-color-scheme="dark"] .file-drop > span,
+:root[data-color-scheme="dark"] .checkbox-option,
+:root[data-color-scheme="dark"] .dialog-option,
+:root[data-color-scheme="dark"] .dialog-error,
+:root[data-color-scheme="dark"] .destructive-warning,
+:root[data-color-scheme="dark"] .alert,
+:root[data-color-scheme="dark"] .sticky-actions,
+:root[data-color-scheme="dark"] .transformation-actions,
+:root[data-color-scheme="dark"] .evaluation-options-footer {
+  border-radius: var(--border-radius-large);
+}
+
+:root[data-color-scheme="dark"] fluent-dialog::part(control) {
+  border-radius: var(--border-radius-large);
+}
+
+:root[data-color-scheme="dark"] .eyebrow,
+:root[data-color-scheme="dark"] .estate-list-header,
+:root[data-color-scheme="dark"] [data-panel="discover"] th,
+:root[data-color-scheme="dark"] .documents-grid fluent-data-grid-row[row-type="header"],
+:root[data-color-scheme="dark"] label,
+:root[data-color-scheme="dark"] .metric span,
+:root[data-color-scheme="dark"] .nav-item-label,
+:root[data-color-scheme="dark"] fluent-tab,
+:root[data-color-scheme="dark"] .back-link,
+:root[data-color-scheme="dark"] .document-download,
+:root[data-color-scheme="dark"] .badge,
+:root[data-color-scheme="dark"] .count,
+:root[data-color-scheme="dark"] .source-status,
+:root[data-color-scheme="dark"] .proposal-status,
+:root[data-color-scheme="dark"] .decision-badge,
+:root[data-color-scheme="dark"] .assessment-status,
+:root[data-color-scheme="dark"] .result-severity,
+:root[data-color-scheme="dark"] .review-required,
+:root[data-color-scheme="dark"] .estate-state {
+  font-family: "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+:root[data-color-scheme="dark"] .page-heading h1,
+:root[data-color-scheme="dark"] .estate-heading h1,
+:root[data-color-scheme="dark"] .portfolio-hero h1 {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 40px;
+  letter-spacing: 0;
+}
+
+@media (max-width: 760px) {
+  .workspace { padding: var(--space-5) var(--space-4) var(--space-10); }
+  .state-card,
+  .empty-state { padding: var(--space-6); }
 }
