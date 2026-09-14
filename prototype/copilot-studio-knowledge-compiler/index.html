@@ -9,57 +9,37 @@
     />
     <title>Shaper | Knowledge estates</title>
     <link rel="icon" type="image/svg+xml" href="shaper-icon.svg?v=20260914" />
-    <script type="module" src="fluent-theme.js?v=20260914-editorial-v1"></script>
-    <link rel="stylesheet" href="styles.css?v=20260914-editorial-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260914-rebuild-v1" />
   </head>
   <body>
-    <fluent-design-system-provider
-      id="fluentProvider"
-      no-paint
-      accent-base-color="#6de0d2"
-      neutral-base-color="#808080"
-      control-corner-radius="4"
-      layer-corner-radius="8"
-    >
-      <header class="skip-link-container">
-        <fluent-anchor class="skip-link" href="#workspace">Skip to workspace</fluent-anchor>
-      </header>
-      <div class="app-shell">
+    <header class="skip-link-container">
+      <a class="skip-link" href="#workspace">Skip to workspace</a>
+    </header>
+    <div class="app-shell">
       <nav class="sidebar" aria-label="Primary navigation">
-        <fluent-anchor class="brand" href="#estates" data-action="home" aria-label="Shaper home">
+        <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
           <span class="brand-mark" aria-hidden="true">
             <svg class="shaper-mark" viewBox="0 0 64 64" focusable="false">
               <path d="M13 17h17l8 15-8 15H13l8-15z"></path>
               <path d="M51 17H34l-8 15 8 15h17l-8-15z"></path>
             </svg>
           </span>
-        </fluent-anchor>
-        <fluent-button
-          class="nav-item"
-          appearance="lightweight"
-          type="button"
-          data-action="open-create"
-          aria-label="New estate"
-          title="New estate"
-        >
-          <svg class="nav-icon fluent-icon" aria-hidden="true">
+          <span class="brand-word">shaper</span>
+        </a>
+        <p class="sidebar-label">Workspace</p>
+        <button class="nav-item" type="button" data-action="open-create" title="New estate">
+          <svg class="nav-icon fluent-icon" aria-hidden="true" focusable="false">
             <use href="./vendor/fluent-system-icons.svg#add-folder-24"></use>
           </svg>
           <span class="nav-item-label">New estate</span>
-        </fluent-button>
-        <fluent-button
-          class="nav-item"
-          appearance="lightweight"
-          type="button"
-          data-action="assessment-checks"
-          aria-label="Assessment checks"
-          title="Assessment checks"
-        >
-          <svg class="nav-icon fluent-icon" aria-hidden="true">
+        </button>
+        <button class="nav-item" type="button" data-action="assessment-checks" title="Assessment checks">
+          <svg class="nav-icon fluent-icon" aria-hidden="true" focusable="false">
             <use href="./vendor/fluent-system-icons.svg#checklist-20"></use>
           </svg>
           <span class="nav-item-label">Checks</span>
-        </fluent-button>
+        </button>
+        <p class="sidebar-footnote">29 deterministic checks<br />Human-governed review</p>
       </nav>
 
       <main id="workspace" class="workspace" tabindex="-1">
@@ -67,7 +47,7 @@
         <div id="alert" class="alert" role="alert" tabindex="-1" hidden></div>
 
         <section id="loadingView" class="state-card" aria-labelledby="loadingTitle">
-          <fluent-progress-ring class="spinner" aria-label="Opening Shaper"></fluent-progress-ring>
+          <span class="spinner" role="img" aria-label="Opening Shaper"></span>
           <div>
             <h1 id="loadingTitle">Opening Shaper</h1>
             <p>Checking your identity and knowledge-estate access.</p>
@@ -94,12 +74,12 @@
           hidden
           aria-labelledby="assessmentChecksTitle"
         >
-          <fluent-button class="back-link" appearance="lightweight" type="button" data-action="home">
-            <svg class="fluent-icon" aria-hidden="true">
+          <button class="back-link" type="button" data-action="home">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#arrow-left-20"></use>
             </svg>
             Knowledge estates
-          </fluent-button>
+          </button>
           <div class="page-heading assessment-checks-heading">
             <div>
               <p class="eyebrow">Transparent assessment</p>
@@ -136,28 +116,22 @@
         <section id="estateListView" hidden aria-labelledby="estateListTitle">
           <div class="page-heading portfolio-hero">
             <div>
+              <p class="eyebrow">Knowledge operations</p>
               <h1 id="estateListTitle">Knowledge estates</h1>
               <p id="estateListCount">0 items</p>
             </div>
-            <div
-              class="portfolio-metrics sr-only"
-              role="group"
-              aria-label="Knowledge estate summary"
-            >
-              <div><strong id="estateTotal">0</strong><span>Total estates</span></div>
-              <div><strong id="estateActive">0</strong><span>Active</span></div>
-              <div><strong id="estateAssessed">0</strong><span>Fully assessed</span></div>
+            <div id="estateListToolbar" class="list-toolbar">
+              <button class="primary" type="button" data-action="open-create">New estate</button>
             </div>
           </div>
-          <div id="estateListToolbar" class="list-toolbar">
-            <fluent-button
-              class="primary"
-              appearance="accent"
-              type="button"
-              data-action="open-create"
-            >
-              New estate
-            </fluent-button>
+          <div
+            class="portfolio-metrics sr-only"
+            role="group"
+            aria-label="Knowledge estate summary"
+          >
+            <div><strong id="estateTotal">0</strong><span>Total estates</span></div>
+            <div><strong id="estateActive">0</strong><span>Active</span></div>
+            <div><strong id="estateAssessed">0</strong><span>Fully assessed</span></div>
           </div>
           <div class="estate-list-shell">
             <div class="estate-list-header" aria-hidden="true">
@@ -171,93 +145,101 @@
             <div id="estateList" class="estate-grid" aria-live="polite"></div>
           </div>
           <div id="estateEmpty" class="empty-state" hidden>
-            <svg class="fluent-icon fluent-icon-large" aria-hidden="true">
+            <svg class="fluent-icon fluent-icon-large" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#document-24"></use>
             </svg>
             <h2>No knowledge estates yet</h2>
             <p>Create an estate, add its sources, then run a read-only discovery.</p>
-            <fluent-button
-              class="primary"
-              appearance="accent"
-              type="button"
-              data-action="open-create"
-            >
+            <button class="primary" type="button" data-action="open-create">
               Create your first estate
-            </fluent-button>
+            </button>
           </div>
         </section>
 
         <section id="estateView" hidden aria-labelledby="estateTitle">
-          <fluent-button class="back-link" appearance="lightweight" type="button" data-action="home">
-            <svg class="fluent-icon" aria-hidden="true">
+          <button class="back-link" type="button" data-action="home">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#arrow-left-20"></use>
             </svg>
             All knowledge estates
-          </fluent-button>
+          </button>
           <div class="page-heading estate-heading">
             <div class="entity-title">
               <span class="entity-icon" aria-hidden="true">
-                <svg class="fluent-icon fluent-icon-large">
+                <svg class="fluent-icon fluent-icon-large" focusable="false">
                   <use href="./vendor/fluent-system-icons.svg#folder-24"></use>
                 </svg>
               </span>
               <div>
+                <p class="eyebrow">Knowledge estate</p>
                 <h1 id="estateTitle">Estate</h1>
                 <p id="estateDescription"></p>
               </div>
             </div>
             <div class="estate-state">
-              <fluent-button
-                class="danger"
-                appearance="lightweight"
-                type="button"
-                data-action="open-delete"
-              >
-                Delete estate
-              </fluent-button>
-              <span>Lifecycle</span>
-              <strong id="estateStatus" class="badge">Active</strong>
+              <span class="estate-state-lifecycle">
+                <small>Lifecycle</small>
+                <strong id="estateStatus" class="badge">Active</strong>
+              </span>
+              <button class="danger" type="button" data-action="open-delete">Delete estate</button>
             </div>
           </div>
 
-          <fluent-tabs class="workflow" activeid="workflowSourcesTab" aria-label="Knowledge transformation workflow">
-            <fluent-tab
+          <div
+            class="workflow"
+            role="tablist"
+            aria-label="Knowledge transformation workflow"
+            data-active="workflowSourcesTab"
+          >
+            <button
               id="workflowSourcesTab"
+              class="workflow-tab"
+              type="button"
+              role="tab"
               data-tab="sources"
               aria-controls="workflowSourcesPanel"
               aria-selected="true"
               tabindex="0"
             >
-              <span aria-hidden="true"></span><strong>Sources</strong>
-            </fluent-tab>
-            <fluent-tab
+              <span class="workflow-step" aria-hidden="true">01</span><strong>Sources</strong>
+            </button>
+            <button
               id="workflowAssessTab"
+              class="workflow-tab"
+              type="button"
+              role="tab"
               data-tab="discover"
               aria-controls="workflowAssessPanel"
               aria-selected="false"
               tabindex="-1"
             >
-              <span aria-hidden="true"></span><strong>Assess</strong>
-            </fluent-tab>
-            <fluent-tab
+              <span class="workflow-step" aria-hidden="true">02</span><strong>Assess</strong>
+            </button>
+            <button
               id="workflowApproveTab"
+              class="workflow-tab"
+              type="button"
+              role="tab"
               data-tab="recommend"
               aria-controls="workflowApprovePanel"
               aria-selected="false"
               tabindex="-1"
             >
-              <span aria-hidden="true"></span><strong>Approve</strong>
-            </fluent-tab>
-            <fluent-tab
+              <span class="workflow-step" aria-hidden="true">03</span><strong>Approve</strong>
+            </button>
+            <button
               id="workflowOutputsTab"
+              class="workflow-tab"
+              type="button"
+              role="tab"
               data-tab="transform"
               aria-controls="workflowOutputsPanel"
               aria-selected="false"
               tabindex="-1"
             >
-              <span aria-hidden="true"></span><strong>Outputs</strong>
-            </fluent-tab>
-          </fluent-tabs>
+              <span class="workflow-step" aria-hidden="true">04</span><strong>Outputs</strong>
+            </button>
+          </div>
 
           <section
             id="workflowSourcesPanel"
@@ -268,36 +250,43 @@
           >
             <div class="panel-heading">
               <div>
+                <p class="eyebrow">Step 01</p>
                 <h2 id="sourcesTitle" tabindex="-1">Sources in this estate</h2>
                 <p>Add references or upload source content. Registered does not mean connected.</p>
               </div>
             </div>
             <div class="source-workspace-grid">
               <div class="source-input-column">
-                <fluent-tabs
+                <div
                   class="source-input-tabs"
-                  activeid="locationSourceTab"
+                  role="tablist"
                   aria-label="Add content source"
                 >
-                  <fluent-tab
+                  <button
                     id="locationSourceTab"
+                    class="pill-tab"
+                    type="button"
+                    role="tab"
                     aria-controls="locationSourcePanel"
                     data-source-input-tab="location"
                     aria-selected="true"
                     tabindex="0"
                   >
                     URL or SharePoint
-                  </fluent-tab>
-                  <fluent-tab
+                  </button>
+                  <button
                     id="uploadSourceTab"
+                    class="pill-tab"
+                    type="button"
+                    role="tab"
                     aria-controls="uploadSourcePanel"
                     data-source-input-tab="upload"
                     aria-selected="false"
                     tabindex="-1"
                   >
                     File upload
-                  </fluent-tab>
-                </fluent-tabs>
+                  </button>
+                </div>
                 <div class="source-input-panels">
                   <div
                     id="locationSourcePanel"
@@ -310,33 +299,22 @@
                       <h3>Add a location</h3>
                       <label for="sourceKind">Source type</label>
                       <div class="select-field">
-                        <fluent-select id="sourceKind" name="kind">
-                          <fluent-option value="sharepoint">SharePoint site or library</fluent-option>
-                          <fluent-option value="url">Wiki, Confluence, intranet, or knowledge-base URL</fluent-option>
-                        </fluent-select>
+                        <select id="sourceKind" name="kind">
+                          <option value="sharepoint">SharePoint site or library</option>
+                          <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
+                        </select>
                       </div>
                       <label for="sourceName">Display name</label>
-                      <fluent-text-field
-                        id="sourceName"
-                        name="display_name"
-                        required
-                        maxlength="300"
-                      ></fluent-text-field>
+                      <input id="sourceName" name="display_name" type="text" required maxlength="300" />
                       <label for="sourceUrl">URL</label>
-                      <fluent-text-field
-                        id="sourceUrl"
-                        name="locator"
-                        type="url"
-                        required
-                        maxlength="2048"
-                      ></fluent-text-field>
+                      <input id="sourceUrl" name="locator" type="url" required maxlength="2048" />
                       <div id="sharePointCredentialField">
                         <label for="sharePointCredentialMode">Connect using</label>
                         <div class="select-field">
-                          <fluent-select id="sharePointCredentialMode" name="credential_mode">
-                            <fluent-option value="delegated_user">My signed-in account</fluent-option>
-                            <fluent-option value="application">Organization-managed connection</fluent-option>
-                          </fluent-select>
+                          <select id="sharePointCredentialMode" name="credential_mode">
+                            <option value="delegated_user">My signed-in account</option>
+                            <option value="application">Organization-managed connection</option>
+                          </select>
                         </div>
                         <p class="field-help">
                           Organization-managed access uses application credentials configured
@@ -344,9 +322,7 @@
                           in this form.
                         </p>
                       </div>
-                      <fluent-button class="secondary" appearance="neutral" type="submit">
-                        Add location
-                      </fluent-button>
+                      <button class="secondary" type="submit">Add location</button>
                     </form>
                   </div>
                   <div
@@ -364,14 +340,12 @@
                         bundle.
                       </p>
                       <div class="file-drop">
-                        <span aria-hidden="true"></span>
-                        <fluent-button
-                          id="chooseFilesButton"
-                          appearance="neutral"
-                          type="button"
-                        >
+                        <svg class="fluent-icon fluent-icon-large" aria-hidden="true" focusable="false">
+                          <use href="./vendor/fluent-system-icons.svg#document-24"></use>
+                        </svg>
+                        <button id="chooseFilesButton" class="secondary" type="button">
                           Choose files
-                        </fluent-button>
+                        </button>
                         <small id="fileSummary">No files selected</small>
                       </div>
                       <input
@@ -382,9 +356,7 @@
                         multiple
                         required
                       />
-                      <fluent-button class="secondary" appearance="neutral" type="submit">
-                        Upload and inventory
-                      </fluent-button>
+                      <button class="secondary" type="submit">Upload and inventory</button>
                     </form>
                   </div>
                 </div>
@@ -406,23 +378,10 @@
                 </p>
               </div>
               <div class="lifecycle-actions">
-                <fluent-button
-                  id="archiveButton"
-                  class="danger"
-                  appearance="lightweight"
-                  type="button"
-                >
-                  Archive estate
-                </fluent-button>
-                <fluent-button
-                  id="purgeButton"
-                  class="danger"
-                  appearance="lightweight"
-                  type="button"
-                  disabled
-                >
+                <button id="archiveButton" class="danger" type="button">Archive estate</button>
+                <button id="purgeButton" class="danger" type="button" disabled>
                   Purge archived estate
-                </fluent-button>
+                </button>
               </div>
             </section>
           </section>
@@ -437,6 +396,7 @@
           >
             <div class="panel-heading">
               <div>
+                <p class="eyebrow">Step 02</p>
                 <h2 id="discoverTitle" tabindex="-1">Document readiness</h2>
                 <p>
                   Deterministic checks inspect structure, references, ambiguity, conflicts,
@@ -445,18 +405,11 @@
                   an assessment-backed improvement plan.
                 </p>
               </div>
-              <fluent-button
-                id="discoverButton"
-                class="primary"
-                appearance="accent"
-                type="button"
-              >
-                Run discovery
-              </fluent-button>
+              <button id="discoverButton" class="primary" type="button">Run discovery</button>
             </div>
             <div class="assessment-note" role="note">
               <span class="assessment-note-icon" aria-hidden="true">
-                <svg class="fluent-icon">
+                <svg class="fluent-icon" focusable="false">
                   <use href="./vendor/fluent-system-icons.svg#info-20"></use>
                 </svg>
               </span>
@@ -471,24 +424,20 @@
             <div id="discoverySummary" class="metrics" hidden></div>
             <div id="discoveryReviewLayout" class="discovery-review-layout">
               <div class="table-scroll discovery-table-region">
-                <fluent-data-grid
+                <div
                   id="documentRows"
                   class="documents-grid"
-                  grid-template-columns="44px minmax(0, 1fr) minmax(240px, 0.5fr)"
+                  role="table"
                   aria-label="Documents and assessment findings"
                 >
-                  <fluent-data-grid-row id="documentRowsHeader" row-type="header">
-                    <fluent-data-grid-cell cell-type="columnheader" grid-column="1">
+                  <div id="documentRowsHeader" class="grid-row grid-header" role="row">
+                    <div class="grid-cell select-cell" role="columnheader">
                       <span class="sr-only">Select</span>
-                    </fluent-data-grid-cell>
-                    <fluent-data-grid-cell cell-type="columnheader" grid-column="2">
-                      Document
-                    </fluent-data-grid-cell>
-                    <fluent-data-grid-cell cell-type="columnheader" grid-column="3">
-                      Findings
-                    </fluent-data-grid-cell>
-                  </fluent-data-grid-row>
-                </fluent-data-grid>
+                    </div>
+                    <div class="grid-cell" role="columnheader">Document</div>
+                    <div class="grid-cell" role="columnheader">Findings</div>
+                  </div>
+                </div>
               </div>
               <aside
                 id="documentFindingsPanel"
@@ -502,17 +451,16 @@
                     <h3 id="documentFindingsTitle" tabindex="-1">Findings</h3>
                     <p id="documentFindingsSummary"></p>
                   </div>
-                  <fluent-button
+                  <button
                     class="icon-button"
-                    appearance="lightweight"
                     type="button"
                     data-action="close-findings"
                     aria-label="Close document findings"
                   >
-                    <svg class="fluent-icon" aria-hidden="true">
+                    <svg class="fluent-icon" aria-hidden="true" focusable="false">
                       <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
                     </svg>
-                  </fluent-button>
+                  </button>
                 </div>
                 <div id="documentFindingsBody" class="findings-panel-body"></div>
               </aside>
@@ -523,15 +471,9 @@
             </div>
             <div class="sticky-actions">
               <span id="selectionSummary">0 documents selected for improvement planning</span>
-              <fluent-button
-                id="recommendButton"
-                class="primary"
-                appearance="accent"
-                type="button"
-                disabled
-              >
+              <button id="recommendButton" class="primary" type="button" disabled>
                 Create improvement plan
-              </fluent-button>
+              </button>
             </div>
           </section>
 
@@ -545,6 +487,7 @@
           >
             <div class="panel-heading">
               <div>
+                <p class="eyebrow">Step 03</p>
                 <h2 id="recommendTitle" tabindex="-1">Review assessment and improvement plan</h2>
                 <p>
                   See which deterministic checks passed, which findings need attention, and
@@ -556,19 +499,14 @@
             <div class="transformation-actions">
               <div>
                 <span id="approvalSummary">0 approved transformations</span>
-                <fluent-checkbox id="generateEvaluations" class="checkbox-option">
-                  Run deterministic quality checks on reshaped content
-                </fluent-checkbox>
+                <label class="checkbox-option">
+                  <input id="generateEvaluations" type="checkbox" />
+                  <span>Run deterministic quality checks on reshaped content</span>
+                </label>
               </div>
-              <fluent-button
-                id="transformButton"
-                class="primary"
-                appearance="accent"
-                type="button"
-                disabled
-              >
+              <button id="transformButton" class="primary" type="button" disabled>
                 Transform approved documents
-              </fluent-button>
+              </button>
             </div>
             <section
               id="transformationProgress"
@@ -577,10 +515,7 @@
               hidden
             >
               <div class="transformation-progress-heading">
-                <fluent-progress-ring
-                  class="spinner"
-                  aria-label="Transforming approved content"
-                ></fluent-progress-ring>
+                <span class="spinner" role="img" aria-label="Transforming approved content"></span>
                 <div>
                   <h3 id="transformationProgressTitle">Transforming approved content</h3>
                   <p id="transformationProgressAnnouncement" role="status" aria-live="polite">
@@ -590,31 +525,37 @@
               </div>
               <div id="transformationProgressList" class="transformation-progress-list"></div>
             </section>
-            <fluent-tabs
+            <div
               id="approvalReviewTabs"
               class="approval-review-tabs"
-              activeid="assessmentResultsTab"
+              role="tablist"
               aria-label="Improvement plan review"
             >
-              <fluent-tab
+              <button
                 id="assessmentResultsTab"
+                class="pill-tab"
+                type="button"
+                role="tab"
                 aria-controls="assessmentResultsPanel"
                 data-approval-review-tab="assessment"
                 aria-selected="true"
                 tabindex="0"
               >
                 Assessment results
-              </fluent-tab>
-              <fluent-tab
+              </button>
+              <button
                 id="evaluationSetTab"
+                class="pill-tab"
+                type="button"
+                role="tab"
                 aria-controls="evaluationSetPanel"
                 data-approval-review-tab="evaluations"
                 aria-selected="false"
                 tabindex="-1"
               >
                 Evaluation set
-              </fluent-tab>
-            </fluent-tabs>
+              </button>
+            </div>
             <section
               id="assessmentResultsPanel"
               class="approval-review-panel"
@@ -663,27 +604,23 @@
                       Suggestions are drafts and require subject-matter review.
                     </p>
                   </div>
-                  <label for="evaluationTarget">
+                  <label class="inline-field" for="evaluationTarget">
                     Target format
-                    <fluent-select id="evaluationTarget">
-                      <fluent-option value="foundry">Microsoft Foundry JSONL</fluent-option>
-                      <fluent-option value="copilot-studio">Copilot Studio CSV</fluent-option>
-                    </fluent-select>
+                    <span class="select-field">
+                      <select id="evaluationTarget">
+                        <option value="foundry">Microsoft Foundry JSONL</option>
+                        <option value="copilot-studio">Copilot Studio CSV</option>
+                      </select>
+                    </span>
                   </label>
                 </div>
                 <p id="evaluationTargetGuidance" class="evaluation-target-guidance"></p>
                 <div id="evaluationSuggestionList" class="evaluation-suggestion-list"></div>
                 <div class="evaluation-options-footer">
                   <span id="evaluationSelectionSummary">0 suggested evaluations selected</span>
-                  <fluent-button
-                    id="downloadEvaluations"
-                    class="secondary"
-                    appearance="neutral"
-                    type="button"
-                    disabled
-                  >
+                  <button id="downloadEvaluations" class="secondary" type="button" disabled>
                     Download selected test set
-                  </fluent-button>
+                  </button>
                 </div>
               </section>
               <div id="evaluationSetEmpty" class="empty-state compact">
@@ -703,6 +640,7 @@
           >
             <div class="panel-heading">
               <div>
+                <p class="eyebrow">Step 04</p>
                 <h2 id="transformTitle" tabindex="-1">Review agent-ready HTML</h2>
                 <p>
                   Generated outputs remain unavailable to consuming agents until a separate
@@ -720,251 +658,188 @@
       </main>
     </div>
 
-    <fluent-dialog id="createDialog" modal hidden aria-labelledby="createTitle">
-      <form id="createForm">
+    <div id="createDialog" class="dialog" role="dialog" aria-modal="true" hidden aria-labelledby="createTitle" tabindex="-1">
+      <form id="createForm" class="dialog-surface">
         <div class="dialog-heading">
           <div>
+            <p class="eyebrow">New estate</p>
             <h2 id="createTitle">Create a knowledge estate</h2>
             <p>Group source content and prepare it as governed, agent-ready knowledge.</p>
           </div>
-          <fluent-button
-            class="icon-button"
-            appearance="lightweight"
-            type="button"
-            data-action="close-create"
-            aria-label="Close"
-          >
-            <svg class="fluent-icon" aria-hidden="true">
+          <button class="icon-button" type="button" data-action="close-create" aria-label="Close">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
             </svg>
-          </fluent-button>
+          </button>
         </div>
         <div class="dialog-body">
           <label for="estateName">Name</label>
-          <fluent-text-field
+          <input
             id="estateName"
             name="name"
+            type="text"
             placeholder="Enter a knowledge estate name"
             required
             maxlength="200"
-            autofocus
-          ></fluent-text-field>
+          />
           <label for="estateDescriptionInput">Description</label>
-          <fluent-text-area
+          <textarea
             id="estateDescriptionInput"
             name="description"
             placeholder="Describe the content and intended agent use"
             maxlength="2000"
             rows="3"
-          ></fluent-text-area>
+          ></textarea>
           <label for="artifactTemplate">Output naming convention</label>
-          <fluent-text-field
+          <input
             id="artifactTemplate"
             name="artifact_name_template"
+            type="text"
             value="shaper_{source_stem}.html"
             required
             maxlength="200"
-          ></fluent-text-field>
+          />
           <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
-          <fluent-checkbox
-            id="createEvaluations"
-            class="checkbox-option dialog-option"
-            name="generate_evaluations"
-          >
+          <label class="checkbox-option dialog-option">
+            <input id="createEvaluations" type="checkbox" name="generate_evaluations" />
             <span>
               <strong>Create evaluations for reshaped content</strong>
-              <small
-                >Add citation coverage, structure, and validation checks to every generated
-                asset.</small
-              >
+              <small>Add citation coverage, structure, and validation checks to every generated asset.</small>
             </span>
-          </fluent-checkbox>
+          </label>
         </div>
         <div class="dialog-actions">
-          <fluent-button
-            class="quiet"
-            appearance="lightweight"
-            type="button"
-            data-action="close-create"
-          >
-            Cancel
-          </fluent-button>
-          <fluent-button class="primary" appearance="accent" type="submit">
-            Create estate
-          </fluent-button>
+          <button class="quiet" type="button" data-action="close-create">Cancel</button>
+          <button class="primary" type="submit">Create estate</button>
         </div>
       </form>
-    </fluent-dialog>
+    </div>
 
-    <fluent-dialog id="editDialog" modal hidden aria-labelledby="editTitle">
-      <form id="editForm">
+    <div id="editDialog" class="dialog" role="dialog" aria-modal="true" hidden aria-labelledby="editTitle" tabindex="-1">
+      <form id="editForm" class="dialog-surface">
         <div class="dialog-heading">
           <div>
+            <p class="eyebrow">Estate settings</p>
             <h2 id="editTitle">Edit knowledge estate</h2>
             <p>Update the estate details and output settings.</p>
           </div>
-          <fluent-button
+          <button
             class="icon-button"
-            appearance="lightweight"
             type="button"
             data-action="close-edit"
             aria-label="Close edit estate dialog"
           >
-            <svg class="fluent-icon" aria-hidden="true">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
             </svg>
-          </fluent-button>
+          </button>
         </div>
         <div class="dialog-body">
           <label for="editEstateName">Name</label>
-          <fluent-text-field
-            id="editEstateName"
-            name="name"
-            required
-            maxlength="200"
-          ></fluent-text-field>
+          <input id="editEstateName" name="name" type="text" required maxlength="200" />
           <label for="editEstateDescription">Description</label>
-          <fluent-text-area
-            id="editEstateDescription"
-            name="description"
-            maxlength="2000"
-            rows="3"
-          ></fluent-text-area>
+          <textarea id="editEstateDescription" name="description" maxlength="2000" rows="3"></textarea>
           <label for="editArtifactTemplate">Output naming convention</label>
-          <fluent-text-field
-            id="editArtifactTemplate"
-            name="artifact_name_template"
-            required
-            maxlength="200"
-          ></fluent-text-field>
+          <input id="editArtifactTemplate" name="artifact_name_template" type="text" required maxlength="200" />
           <p class="hint">Use exactly one <code>{source_stem}</code> placeholder.</p>
-          <fluent-checkbox
-            id="editEvaluations"
-            class="checkbox-option dialog-option"
-            name="generate_evaluations"
-          >
+          <label class="checkbox-option dialog-option">
+            <input id="editEvaluations" type="checkbox" name="generate_evaluations" />
             <span>
               <strong>Create evaluations for reshaped content</strong>
-              <small
-                >Add citation coverage, structure, and validation checks to every generated
-                asset.</small
-              >
+              <small>Add citation coverage, structure, and validation checks to every generated asset.</small>
             </span>
-          </fluent-checkbox>
+          </label>
           <p id="editError" class="dialog-error" role="alert" hidden></p>
         </div>
         <div class="dialog-actions">
-          <fluent-button
-            class="quiet"
-            appearance="lightweight"
-            type="button"
-            data-action="close-edit"
-          >
-            Cancel
-          </fluent-button>
-          <fluent-button
-            id="editConfirmButton"
-            class="primary"
-            appearance="accent"
-            type="submit"
-          >
-            Save changes
-          </fluent-button>
+          <button class="quiet" type="button" data-action="close-edit">Cancel</button>
+          <button id="editConfirmButton" class="primary" type="submit">Save changes</button>
         </div>
       </form>
-    </fluent-dialog>
+    </div>
 
-    <fluent-dialog
+    <div
       id="documentDialog"
-      class="document-dialog"
-      modal
+      class="dialog document-dialog"
+      role="dialog"
+      aria-modal="true"
       hidden
       aria-labelledby="documentDialogTitle"
+      tabindex="-1"
     >
-      <div class="dialog-heading">
-        <div>
-          <p class="eyebrow">Extracted text</p>
-          <h2 id="documentDialogTitle">Extracted document text</h2>
-        </div>
-        <fluent-button
-          class="icon-button"
-          appearance="lightweight"
-          type="button"
-          data-action="close-document"
-          aria-label="Close document"
-        >
-          <svg class="fluent-icon" aria-hidden="true">
-            <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
-          </svg>
-        </fluent-button>
-      </div>
-      <p id="documentSourceStatus" class="hint">
-        Findings use this lossless text derivative. The exact uploaded file is retained separately
-        as the source of record.
-      </p>
-      <fluent-anchor
-        id="documentDownload"
-        class="secondary document-download"
-        appearance="neutral"
-        href="#"
-      >
-        Download original file
-      </fluent-anchor>
-      <pre id="documentContent" class="document-content" tabindex="0"></pre>
-    </fluent-dialog>
-
-    <fluent-dialog
-      id="documentFindingsDialog"
-      class="document-dialog findings-dialog"
-      modal
-      hidden
-      aria-labelledby="documentFindingsDialogTitle"
-    >
-      <div class="dialog-heading">
-        <div>
-          <p class="eyebrow">Document findings</p>
-          <h2 id="documentFindingsDialogTitle" tabindex="-1">Findings</h2>
-          <p id="documentFindingsDialogSummary"></p>
-        </div>
-        <fluent-button
-          class="icon-button"
-          appearance="lightweight"
-          type="button"
-          data-action="close-findings"
-          aria-label="Close document findings"
-        >
-          <svg class="fluent-icon" aria-hidden="true">
-            <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
-          </svg>
-        </fluent-button>
-      </div>
-      <div id="documentFindingsDialogBody" class="findings-panel-body"></div>
-    </fluent-dialog>
-
-    <fluent-dialog
-      id="deleteDialog"
-      class="confirm-dialog"
-      modal
-      hidden
-      aria-labelledby="deleteTitle"
-    >
-      <form id="deleteForm">
+      <div class="dialog-surface">
         <div class="dialog-heading">
           <div>
+            <p class="eyebrow">Extracted text</p>
+            <h2 id="documentDialogTitle">Extracted document text</h2>
+          </div>
+          <button class="icon-button" type="button" data-action="close-document" aria-label="Close document">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
+              <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
+            </svg>
+          </button>
+        </div>
+        <p id="documentSourceStatus" class="hint">
+          Findings use this lossless text derivative. The exact uploaded file is retained separately
+          as the source of record.
+        </p>
+        <a id="documentDownload" class="secondary document-download" href="#">Download original file</a>
+        <pre id="documentContent" class="document-content" tabindex="0"></pre>
+      </div>
+    </div>
+
+    <div
+      id="documentFindingsDialog"
+      class="dialog document-dialog findings-dialog"
+      role="dialog"
+      aria-modal="true"
+      hidden
+      aria-labelledby="documentFindingsDialogTitle"
+      tabindex="-1"
+    >
+      <div class="dialog-surface">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Document findings</p>
+            <h2 id="documentFindingsDialogTitle" tabindex="-1">Findings</h2>
+            <p id="documentFindingsDialogSummary"></p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-findings"
+            aria-label="Close document findings"
+          >
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
+              <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
+            </svg>
+          </button>
+        </div>
+        <div id="documentFindingsDialogBody" class="findings-panel-body"></div>
+      </div>
+    </div>
+
+    <div
+      id="deleteDialog"
+      class="dialog confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      hidden
+      aria-labelledby="deleteTitle"
+      tabindex="-1"
+    >
+      <form id="deleteForm" class="dialog-surface">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Permanent deletion</p>
             <h2 id="deleteTitle">Delete knowledge estate?</h2>
             <p>This permanently removes the estate, its sources, and generated content.</p>
           </div>
-          <fluent-button
-            class="icon-button"
-            appearance="lightweight"
-            type="button"
-            data-action="close-delete"
-            aria-label="Close"
-          >
-            <svg class="fluent-icon" aria-hidden="true">
+          <button class="icon-button" type="button" data-action="close-delete" aria-label="Close">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
             </svg>
-          </fluent-button>
+          </button>
         </div>
         <div class="dialog-body">
           <p class="destructive-warning">
@@ -972,138 +847,83 @@
             <strong id="deleteEstateName"></strong>.
           </p>
           <label for="deleteConfirmation">Knowledge estate name</label>
-          <fluent-text-field
-            id="deleteConfirmation"
-            name="confirmation"
-            autocomplete="off"
-            required
-          ></fluent-text-field>
+          <input id="deleteConfirmation" name="confirmation" type="text" autocomplete="off" required />
           <p id="deleteError" class="dialog-error" role="alert" hidden></p>
         </div>
         <div class="dialog-actions">
-          <fluent-button
-            class="quiet"
-            appearance="lightweight"
-            type="button"
-            data-action="close-delete"
-          >
-            Cancel
-          </fluent-button>
-          <fluent-button
-            id="deleteConfirmButton"
-            class="destructive"
-            appearance="accent"
-            type="submit"
-            disabled
-          >
+          <button class="quiet" type="button" data-action="close-delete">Cancel</button>
+          <button id="deleteConfirmButton" class="destructive" type="submit" disabled>
             Delete estate
-          </fluent-button>
+          </button>
         </div>
       </form>
-    </fluent-dialog>
+    </div>
 
-    <fluent-dialog id="purgeDialog" modal hidden aria-labelledby="purgeTitle">
-      <form id="purgeForm">
+    <div id="purgeDialog" class="dialog" role="dialog" aria-modal="true" hidden aria-labelledby="purgeTitle" tabindex="-1">
+      <form id="purgeForm" class="dialog-surface">
         <div class="dialog-heading">
           <div>
             <p class="eyebrow">Permanent deletion</p>
             <h2 id="purgeTitle">Purge archived estate</h2>
           </div>
-          <fluent-button
-            class="icon-button"
-            appearance="lightweight"
-            type="button"
-            data-action="close-purge"
-            aria-label="Close"
-          >
-            <svg class="fluent-icon" aria-hidden="true">
+          <button class="icon-button" type="button" data-action="close-purge" aria-label="Close">
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
               <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
             </svg>
-          </fluent-button>
+          </button>
         </div>
-        <p>
-          This permanently removes the estate content and retains only an audit tombstone.
-          This action cannot be undone.
-        </p>
-        <label for="purgeConfirmation">
-          Type <strong id="purgePhrase"></strong> to confirm
-        </label>
-        <fluent-text-field
-          id="purgeConfirmation"
-          name="confirmation"
-          required
-          autocomplete="off"
-        ></fluent-text-field>
-        <label for="purgeReason">Reason</label>
-        <fluent-text-area
-          id="purgeReason"
-          name="reason"
-          required
-          maxlength="1000"
-          rows="3"
-        ></fluent-text-area>
+        <div class="dialog-body">
+          <p>
+            This permanently removes the estate content and retains only an audit tombstone.
+            This action cannot be undone.
+          </p>
+          <label for="purgeConfirmation">Type <strong id="purgePhrase"></strong> to confirm</label>
+          <input id="purgeConfirmation" name="confirmation" type="text" required autocomplete="off" />
+          <label for="purgeReason">Reason</label>
+          <textarea id="purgeReason" name="reason" required maxlength="1000" rows="3"></textarea>
+        </div>
         <div class="dialog-actions">
-          <fluent-button
-            class="quiet"
-            appearance="lightweight"
-            type="button"
-            data-action="close-purge"
-          >
-            Cancel
-          </fluent-button>
-          <fluent-button class="danger" appearance="lightweight" type="submit">
-            Permanently purge estate
-          </fluent-button>
+          <button class="quiet" type="button" data-action="close-purge">Cancel</button>
+          <button class="destructive" type="submit">Permanently purge estate</button>
         </div>
       </form>
-    </fluent-dialog>
+    </div>
 
-    <fluent-dialog id="archiveDialog" modal hidden aria-labelledby="archiveTitle">
-      <div class="dialog-heading">
-        <div>
-          <p class="eyebrow">Read-only lifecycle</p>
-          <h2 id="archiveTitle">Archive knowledge estate?</h2>
+    <div id="archiveDialog" class="dialog" role="dialog" aria-modal="true" hidden aria-labelledby="archiveTitle" tabindex="-1">
+      <div class="dialog-surface">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Read-only lifecycle</p>
+            <h2 id="archiveTitle">Archive knowledge estate?</h2>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-archive"
+            aria-label="Close archive confirmation"
+          >
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
+              <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
+            </svg>
+          </button>
         </div>
-        <fluent-button
-          class="icon-button"
-          appearance="lightweight"
-          type="button"
-          data-action="close-archive"
-          aria-label="Close archive confirmation"
-        >
-          <svg class="fluent-icon" aria-hidden="true">
-            <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
-          </svg>
-        </fluent-button>
+        <div class="dialog-body">
+          <p id="archiveDescription">The estate will become read-only and cannot be restored.</p>
+        </div>
+        <div class="dialog-actions">
+          <button class="quiet" type="button" data-action="close-archive">Cancel</button>
+          <button id="archiveConfirmButton" class="primary" type="button">Archive estate</button>
+        </div>
       </div>
-      <p id="archiveDescription">
-        The estate will become read-only and cannot be restored.
-      </p>
-      <div class="dialog-actions">
-        <fluent-button
-          appearance="lightweight"
-          type="button"
-          data-action="close-archive"
-        >
-          Cancel
-        </fluent-button>
-        <fluent-button
-          id="archiveConfirmButton"
-          appearance="accent"
-          type="button"
-        >
-          Archive estate
-        </fluent-button>
-      </div>
-    </fluent-dialog>
+    </div>
 
     <template id="busyTemplate">
       <div class="busy-overlay" role="status">
-        <fluent-progress-ring class="spinner" aria-label="Working"></fluent-progress-ring>
+        <span class="spinner" aria-label="Working"></span>
         <strong>Working…</strong>
       </div>
     </template>
 
-    </fluent-design-system-provider>
+    <script type="module" src="app.js?v=20260914-rebuild-v1"></script>
   </body>
 </html>
