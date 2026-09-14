@@ -17,7 +17,7 @@ try {
   console.error("The Microsoft Fluent control library could not be loaded.", error);
 }
 
-await import("./app.js?v=20260913-fluent2-v10");
+await import("./app.js?v=20260914-fluent2-v11");
 
 if (fluentLoadError) {
   const alert = document.querySelector("#alert");

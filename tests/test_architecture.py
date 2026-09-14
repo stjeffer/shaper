@@ -327,8 +327,8 @@ def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_app
 
     assert 'id="themePicker"' not in html
     assert "<legend>Theme</legend>" not in html
-    assert 'src="fluent-theme.js?v=20260913-fluent2-v10"' in html
-    assert 'href="styles.css?v=20260913-fluent2-v10"' in html
+    assert 'src="fluent-theme.js?v=20260914-fluent2-v11"' in html
+    assert 'href="styles.css?v=20260914-fluent2-v11"' in html
     assert './vendor/fluent-web-components-2.6.1.min.js"' in fluent_theme
     assert (concept_root / "vendor/fluent-web-components-2.6.1.min.js").is_file()
     assert "MIT License" in (concept_root / "vendor/fluentui-LICENSE.txt").read_text(
@@ -337,7 +337,7 @@ def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_app
     assert "Copyright (c) 2015 David Clark" in (
         concept_root / "vendor/tabbable-LICENSE.txt"
     ).read_text(encoding="utf-8")
-    assert 'await import("./app.js?v=20260913-fluent2-v10")' in fluent_theme
+    assert 'await import("./app.js?v=20260914-fluent2-v11")' in fluent_theme
     assert 'id="fluentProvider"' in html
     assert 'accent-base-color="#5b5fc7"' in html
     assert 'neutral-base-color="#808080"' in html
@@ -346,6 +346,10 @@ def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_app
     assert 'appearance="accent"' in html
     assert 'appearance="neutral"' in html
     assert 'appearance="lightweight"' in html
+    assert "--neutral-fill-stealth-rest: transparent" in styles
+    assert "--neutral-fill-stealth-hover: #e2e2f6" in styles
+    assert "function interactiveEventTarget(event)" in browser_app
+    assert "event.composedPath().find(" in browser_app
     assert 'name="color-theme"' not in html
     assert "shaper-color-theme" not in html
     assert "COLOR_THEME_STORAGE_KEY" not in browser_app

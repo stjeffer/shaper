@@ -4073,12 +4073,18 @@ body {
 }
 
 .nav-item {
+  --neutral-fill-stealth-rest: transparent;
+  --neutral-fill-stealth-focus: #e2e2f6;
+  --neutral-fill-stealth-hover: #e2e2f6;
+  --neutral-fill-stealth-active: #d8d8ef;
+
   width: 56px;
   min-height: 56px;
   gap: var(--spacingVerticalXS);
   margin-top: var(--spacingVerticalS);
   padding: var(--spacingVerticalS) var(--spacingHorizontalXS);
   color: var(--neutral-foreground-rest);
+  background: transparent;
   border-radius: var(--borderRadiusMedium);
   transition:
     color var(--durationFaster) var(--curveEasyEase),
@@ -4092,7 +4098,7 @@ body {
 .nav-item:hover,
 .nav-item.active {
   color: var(--neutral-foreground-rest);
-  background: var(--neutral-fill-stealth-hover);
+  background: #e2e2f6;
 }
 
 .nav-item.active::before {
@@ -4536,6 +4542,7 @@ fluent-anchor:focus-visible {
   height: 20px;
   flex: 0 0 20px;
   fill: currentcolor;
+  pointer-events: none;
   stroke: none;
   vertical-align: middle;
 }

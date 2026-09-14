@@ -167,7 +167,7 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet and local theme bootstrap use the versioned `fluent2-v10`
+The workspace stylesheet and local theme bootstrap use the versioned `fluent2-v11`
 asset query. The bootstrap loads the application module with the same version.
 These versions prevent a new revision from reusing an older control palette or
 application bundle from a browser or edge cache. The Microsoft Teams accent is

@@ -2771,11 +2771,25 @@ async function purgeEstate(event) {
   }
 }
 
+function interactiveEventTarget(event) {
+  return event.composedPath().find(
+    (candidate) =>
+      candidate instanceof Element &&
+      (candidate.matches("fluent-button, fluent-anchor") ||
+        (candidate.matches("button, a") && candidate.getRootNode() === document)),
+  );
+}
+
 document.addEventListener("click", async (event) => {
-  if (!event.target.closest(".estate-actions")) {
+  const eventPath = event.composedPath();
+  if (
+    !eventPath.some(
+      (candidate) => candidate instanceof Element && candidate.matches(".estate-actions"),
+    )
+  ) {
     closeEstateMenus();
   }
-  const target = event.target.closest("button, a, fluent-button, fluent-anchor");
+  const target = interactiveEventTarget(event);
   if (!target) return;
   if (target.dataset.action === "home") {
     event.preventDefault();
