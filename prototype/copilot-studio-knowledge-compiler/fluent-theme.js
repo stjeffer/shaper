@@ -28,7 +28,7 @@ try {
   console.error("The Microsoft Fluent control library could not be loaded.", error);
 }
 
-await import("./app.js?v=20260914-shaper-v2");
+await import("./app.js?v=20260914-editorial-v1");
 
 if (fluentLoadError) {
   const alert = document.querySelector("#alert");
