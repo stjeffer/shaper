@@ -11,11 +11,11 @@ try {
     "./vendor/fluent-web-components-2.6.1.min.js"
   );
 
-  // shaper theme: near-black cool canvas with a lime signal accent.
+  // shaper theme: near-black cool canvas with a cyan primary signal and lime success accent.
   baseLayerLuminance.setValueFor(provider, 0.06);
   accentBaseColor.setValueFor(
     provider,
-    SwatchRGB.from({ r: 0.647, g: 0.878, b: 0.376 }),
+    SwatchRGB.from({ r: 0.427, g: 0.878, b: 0.824 }),
   );
   neutralBaseColor.setValueFor(
     provider,
