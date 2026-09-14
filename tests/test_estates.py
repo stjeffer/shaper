@@ -35,6 +35,7 @@ from shaper.domain import (
     KnowledgeEstate,
     PermissionSnapshot,
     Principal,
+    SharePointCredentialMode,
     SourceDocument,
     SourceRef,
 )
@@ -141,7 +142,7 @@ def _persistent_services(
     store.connect()
     store.migrate()
     repository = SQLiteEstateRepository(store)
-    source_ids = iter(("one", "two", "three", "four"))
+    source_ids = iter(("one", "two", "three", "four", "five", "six", "seven"))
     return (
         store,
         EstateService(repository, clock=lambda: NOW, id_factory=lambda: "estate"),
@@ -301,6 +302,7 @@ def test_given_mixed_sources_when_registered_then_states_are_truthful_and_indepe
             kind=EstateSourceKind.SHAREPOINT,
             display_name="HR site",
             locator="https://contoso.sharepoint.com/sites/hr",
+            credential_mode=SharePointCredentialMode.APPLICATION,
         )
 
         # Assert
@@ -313,6 +315,24 @@ def test_given_mixed_sources_when_registered_then_states_are_truthful_and_indepe
             item.value.status.value == "pending"
             for item in sources.list(estate.value.estate_id, principal=caller)
         )
+        assert sharepoint.value.credential_mode is SharePointCredentialMode.APPLICATION
+        for kind, locator in (
+            (EstateSourceKind.URL, "https://example.com/knowledge"),
+            (EstateSourceKind.UPLOAD, "asset:invalidupload"),
+            (EstateSourceKind.ZIP, "asset:invalidzip"),
+        ):
+            with pytest.raises(
+                ValueError,
+                match="Application credentials are supported only for SharePoint sources",
+            ):
+                sources.register(
+                    estate.value.estate_id,
+                    principal=caller,
+                    kind=kind,
+                    display_name="Invalid app-authenticated source",
+                    locator=locator,
+                    credential_mode=SharePointCredentialMode.APPLICATION,
+                )
     finally:
         store.close()
 
@@ -348,6 +368,15 @@ def test_given_scanned_files_when_ingested_then_each_file_becomes_inventory(
 
         # Assert
         assert {item.value.filename for item in documents} == {"travel.md", "leave.txt"}
+        repository = SQLiteEstateRepository(store)
+        travel = next(item.value for item in documents if item.value.filename == "travel.md")
+        assert (
+            repository.load_document_source(travel.document_id, travel.source_version)
+            == b"# Travel\n\nBook centrally."
+        )
+        assert repository.load_document_content(travel.document_id, travel.source_version) == (
+            "# Travel\n\nBook centrally."
+        )
     finally:
         store.close()
 
@@ -567,5 +596,193 @@ def test_given_selected_discovered_document_when_recommended_then_one_estimate_i
         assert [item.document_id for item in proposals] == [documents[0].value.document_id]
         assert proposals[0].token_estimate.enforced_maximum > 0
         assert proposals[0].expected_artifact == "shaper_travel.html"
+    finally:
+        store.close()
+
+
+def test_given_all_selected_documents_changed_when_recommended_then_run_fails_clearly(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally and retain receipts.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini"),
+        clock=lambda: NOW,
+        id_factory=lambda: "stale",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            (documents[0].value.document_id,),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "failed"
+        assert run.value.completed_document_ids == ()
+        assert run.value.failed_document_ids == (documents[0].value.document_id,)
+        assert run.value.error is not None
+        assert "Run discovery again" in run.value.error
+        assert recommendations.proposals(run.value.run_id, principal=caller) == ()
+    finally:
+        store.close()
+
+
+def test_given_source_exceeds_quota_when_recommended_then_run_preserves_quota_guidance(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=1),
+        clock=lambda: NOW,
+        id_factory=lambda: "quota",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            (documents[0].value.document_id,),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "failed"
+        assert run.value.completed_document_ids == ()
+        assert run.value.failed_document_ids == (documents[0].value.document_id,)
+        assert run.value.error is not None
+        assert "narrow or split the source document" in run.value.error
+        assert "Run discovery again" not in run.value.error
+    finally:
+        store.close()
+
+
+def test_given_one_source_exceeds_quota_when_recommended_then_partial_run_is_actionable(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput(
+                "travel.md",
+                "text/markdown",
+                b"Employees must book centrally.",
+                NOW,
+            ),
+            InventoryInput(
+                "expenses.md",
+                "text/markdown",
+                ("word " * 5_000).encode(),
+                NOW,
+            ),
+        ),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    recommendations = EstateRecommendationService(
+        SQLiteEstateRepository(store),
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini", platform_maximum=30_000),
+        clock=lambda: NOW,
+        id_factory=lambda: "partial-quota",
+    )
+    try:
+        # Act
+        run = recommendations.start(
+            discovery.value.run_id,
+            tuple(document.value.document_id for document in documents),
+            principal=caller,
+        )
+
+        # Assert
+        assert run.value.status.value == "partial"
+        assert run.value.completed_document_ids == (documents[0].value.document_id,)
+        assert run.value.failed_document_ids == (documents[1].value.document_id,)
+        assert run.value.error is not None
+        assert "narrow or split the source document" in run.value.error
     finally:
         store.close()

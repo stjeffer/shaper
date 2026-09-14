@@ -141,6 +141,211 @@ _AGENT_IMPACTS = {
     ),
 }
 
+
+@dataclass(frozen=True)
+class AssessmentCheckDefinition:
+    """User-facing explanation of one deterministic assessment check."""
+
+    code: str
+    label: str
+    category: str
+    what_it_checks: str
+    agent_impact: str
+
+
+def _check(
+    code: str,
+    label: str,
+    category: str,
+    what_it_checks: str,
+) -> AssessmentCheckDefinition:
+    return AssessmentCheckDefinition(
+        code=code,
+        label=label,
+        category=category,
+        what_it_checks=what_it_checks,
+        agent_impact=_AGENT_IMPACTS[code],
+    )
+
+
+ASSESSMENT_CHECKS = (
+    _check(
+        "poor_metadata",
+        "Limited metadata",
+        "Baseline readiness",
+        "Checks whether the document has enough topic and content metadata to support filtering.",
+    ),
+    _check(
+        "structure_gap",
+        "Weak structure",
+        "Baseline readiness",
+        "Checks for headings and focused sections that can form useful retrieval units.",
+    ),
+    _check(
+        "stale",
+        "Freshness risk",
+        "Baseline readiness",
+        "Checks whether the source is beyond the three-year review threshold.",
+    ),
+    _check(
+        "long_paragraph",
+        "Long paragraph",
+        "Baseline readiness",
+        "Checks for passages longer than 150 words that mix multiple ideas.",
+    ),
+    _check(
+        "cross_policy_reference",
+        "Document reference",
+        "Baseline readiness",
+        "Checks for references to another governed source without enough local context.",
+    ),
+    _check(
+        "faq_gap",
+        "No question coverage",
+        "Baseline readiness",
+        "Checks whether common questions are represented in FAQ or question-shaped content.",
+    ),
+    _check(
+        "procedure_gap",
+        "Implicit procedure",
+        "Baseline readiness",
+        "Checks whether procedural language is organised into explicit steps.",
+    ),
+    _check(
+        "external_dependency",
+        "External dependency",
+        "Structural and referential integrity",
+        "Checks for rules that depend on material outside the available source set.",
+    ),
+    _check(
+        "circular_reference",
+        "Circular reference",
+        "Structural and referential integrity",
+        "Checks for sections or documents that refer to each other instead of "
+        "stating a complete rule.",
+    ),
+    _check(
+        "missing_referenced_content",
+        "Missing referenced content",
+        "Structural and referential integrity",
+        "Checks for references to sections, appendices, or items that are absent.",
+    ),
+    _check(
+        "version_ambiguity",
+        "Version ambiguity",
+        "Structural and referential integrity",
+        "Checks for competing versions when the current version is unclear.",
+    ),
+    _check(
+        "orphaned_amendment",
+        "Orphaned amendment",
+        "Structural and referential integrity",
+        "Checks for later changes that are not clearly connected to their base document.",
+    ),
+    _check(
+        "vague_quantifier",
+        "Vague quantifier",
+        "Ambiguity and decision clarity",
+        "Checks for terms such as regularly, promptly, or as needed without usable bounds.",
+    ),
+    _check(
+        "discretion_clause",
+        "Discretion clause",
+        "Ambiguity and decision clarity",
+        "Checks for decisions that depend on human judgement without framing that judgement.",
+    ),
+    _check(
+        "undefined_term",
+        "Undefined term",
+        "Ambiguity and decision clarity",
+        "Checks for important terms that are used without a definition.",
+    ),
+    _check(
+        "unclear_responsibility",
+        "Unclear responsibility",
+        "Ambiguity and decision clarity",
+        "Checks for actions whose responsible person or approver is not identified.",
+    ),
+    _check(
+        "conflicting_numeric_value",
+        "Conflicting numeric value",
+        "Contradiction and consistency",
+        "Checks for different numbers or thresholds applied to the same rule.",
+    ),
+    _check(
+        "conflicting_authority",
+        "Conflicting authority",
+        "Contradiction and consistency",
+        "Checks for competing governing instructions with unclear precedence.",
+    ),
+    _check(
+        "terminology_drift",
+        "Terminology drift",
+        "Contradiction and consistency",
+        "Checks for inconsistent terms that may refer to the same concept.",
+    ),
+    _check(
+        "missing_definitions",
+        "Missing definitions",
+        "Incompleteness",
+        "Checks whether policy terms rely on definitions that are absent.",
+    ),
+    _check(
+        "missing_enumeration",
+        "Missing enumeration",
+        "Incompleteness",
+        "Checks for promised lists or breakdowns that are incomplete or missing.",
+    ),
+    _check(
+        "dangling_program",
+        "Dangling program",
+        "Incompleteness",
+        "Checks for expired, inactive, or unanchored programs described as current.",
+    ),
+    _check(
+        "unclear_source_of_truth",
+        "Unclear source of truth",
+        "Provenance and authority",
+        "Checks whether the authoritative source is explicitly identified.",
+    ),
+    _check(
+        "undocumented_verbal_policy",
+        "Undocumented verbal policy",
+        "Provenance and authority",
+        "Checks for governing clarifications that exist only in verbal or informal form.",
+    ),
+    _check(
+        "restricted_companion",
+        "Restricted companion",
+        "Provenance and authority",
+        "Checks for required companion material that may not be accessible to the agent.",
+    ),
+    _check(
+        "inconsistent_heading_hierarchy",
+        "Inconsistent heading hierarchy",
+        "Formatting and retrieval hygiene",
+        "Checks for broken or misleading heading nesting.",
+    ),
+    _check(
+        "inaccessible_embedded_content",
+        "Inaccessible embedded content",
+        "Formatting and retrieval hygiene",
+        "Checks for important information trapped in images or embedded objects.",
+    ),
+    _check(
+        "repeated_variation",
+        "Repeated variation",
+        "Formatting and retrieval hygiene",
+        "Checks for subtly different repetitions of the same rule.",
+    ),
+    _check(
+        "noncanonical_duplicate",
+        "Noncanonical duplicate",
+        "Formatting and retrieval hygiene",
+        "Checks for duplicate content without a clearly identified canonical source.",
+    ),
+)
+
 _REFERENCE = re.compile(
     r"\b(?:see|refer to|in accordance with|pursuant to|per)\s+(?:the\s+)?"
     r"(?P<target>(?:appendix|section|table)\s+[A-Z0-9.-]+|"

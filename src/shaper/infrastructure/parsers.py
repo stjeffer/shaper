@@ -7,11 +7,22 @@ import io
 import unicodedata
 import zipfile
 from collections.abc import Iterable, Sequence
+from xml.etree import ElementTree
 
 import pymupdf
-from docx import Document as DocxDocument
 
 from shaper.domain import SourceDocument, SourceSpan
+
+_WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_WORD_PARAGRAPH = f"{{{_WORD_NAMESPACE}}}p"
+_WORD_TEXT = f"{{{_WORD_NAMESPACE}}}t"
+_WORD_TAB = f"{{{_WORD_NAMESPACE}}}tab"
+_WORD_BREAKS = {
+    f"{{{_WORD_NAMESPACE}}}br",
+    f"{{{_WORD_NAMESPACE}}}cr",
+}
+_WORD_STYLE = f"{{{_WORD_NAMESPACE}}}pStyle"
+_WORD_VALUE = f"{{{_WORD_NAMESPACE}}}val"
 
 
 class DocumentParseError(ValueError):
@@ -47,7 +58,14 @@ class SupportedDocumentParser:
             return self._spans(document, blocks)
         except DocumentParseError:
             raise
-        except (OSError, RuntimeError, UnicodeError, ValueError, zipfile.BadZipFile) as error:
+        except (
+            ElementTree.ParseError,
+            OSError,
+            RuntimeError,
+            UnicodeError,
+            ValueError,
+            zipfile.BadZipFile,
+        ) as error:
             raise DocumentParseError(
                 f"Could not parse source {document.source_id!r} as {document.media_type!r}; "
                 "verify that the file is digitally readable and not corrupt"
@@ -117,33 +135,94 @@ class SupportedDocumentParser:
     def _docx_blocks(
         content: bytes,
     ) -> Iterable[tuple[str, tuple[str, ...], dict[str, int | str]]]:
-        document = DocxDocument(io.BytesIO(content))
         headings: list[str] = []
         block = 0
-        for paragraph in document.paragraphs:
-            text = paragraph.text.strip()
-            if not text:
-                continue
-            style_name = paragraph.style.name if paragraph.style is not None else ""
-            if style_name.startswith("Heading"):
-                suffix = style_name.removeprefix("Heading").strip()
-                level = int(suffix) if suffix.isdigit() else 1
-                headings[level - 1 :] = [text]
-                continue
-            yield text, tuple(headings), {"block": block}
-            block += 1
-        for table_index, table in enumerate(document.tables):
-            for row_index, row in enumerate(table.rows):
-                text = " | ".join(cell.text.strip() for cell in row.cells)
-                yield text, tuple(headings), {"table": table_index, "row": row_index}
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            part_names = [
+                name
+                for name in archive.namelist()
+                if name == "word/document.xml"
+                or name.startswith(("word/header", "word/footer"))
+                or name in {"word/footnotes.xml", "word/endnotes.xml"}
+            ]
+            part_names.sort(key=lambda name: (name != "word/document.xml", name))
+            for part_name in part_names:
+                root = ElementTree.fromstring(archive.read(part_name))
+                for paragraph in root.iter(_WORD_PARAGRAPH):
+                    text = SupportedDocumentParser._docx_paragraph_text(paragraph).strip()
+                    if not text:
+                        continue
+                    level = SupportedDocumentParser._docx_heading_level(paragraph)
+                    if level is not None and part_name == "word/document.xml":
+                        headings[level - 1 :] = [text]
+                        continue
+                    location: dict[str, int | str] = {"block": block}
+                    if part_name != "word/document.xml":
+                        location["part"] = part_name.removeprefix("word/")
+                    heading_path = tuple(headings) if part_name == "word/document.xml" else ()
+                    yield text, heading_path, location
+                    block += 1
+
+    @staticmethod
+    def _docx_paragraph_text(paragraph: ElementTree.Element) -> str:
+        pieces: list[str] = []
+
+        def append_text(element: ElementTree.Element) -> None:
+            for child in element:
+                if child.tag == _WORD_PARAGRAPH:
+                    continue
+                if child.tag == _WORD_TEXT and child.text:
+                    pieces.append(child.text)
+                elif child.tag == _WORD_TAB:
+                    pieces.append("\t")
+                elif child.tag in _WORD_BREAKS:
+                    pieces.append("\n")
+                else:
+                    append_text(child)
+
+        append_text(paragraph)
+        return "".join(pieces)
+
+    @staticmethod
+    def _docx_heading_level(paragraph: ElementTree.Element) -> int | None:
+        properties = paragraph.find(f"{{{_WORD_NAMESPACE}}}pPr")
+        if properties is None:
+            return None
+        style = properties.find(_WORD_STYLE)
+        style_name = style.get(_WORD_VALUE, "") if style is not None else ""
+        suffix = style_name.casefold().removeprefix("heading").strip()
+        if not suffix.isdigit():
+            return None
+        return max(1, min(int(suffix), 9))
 
     @staticmethod
     def _pdf_blocks(
         content: bytes,
     ) -> Iterable[tuple[str, tuple[str, ...], dict[str, int | str]]]:
         with pymupdf.open(stream=content, filetype="pdf") as document:
+            blocks: list[tuple[str, tuple[str, ...], dict[str, int | str]]] = []
+            rasterized_pages = 0
             for page_number, page in enumerate(document, start=1):
+                page_area = page.rect.get_area()
+                image_coverage = max(
+                    (
+                        rectangle.get_area() / page_area
+                        for image in page.get_images(full=True)
+                        for rectangle in page.get_image_rects(image)
+                        if page_area > 0
+                    ),
+                    default=0.0,
+                )
+                if image_coverage >= 0.8:
+                    rasterized_pages += 1
                 for block_number, block in enumerate(page.get_text("blocks")):
                     text = str(block[4]).strip()
                     if text:
-                        yield text, (), {"page": page_number, "block": block_number}
+                        blocks.append((text, (), {"page": page_number, "block": block_number}))
+            readable_words = sum(len(text.split()) for text, _, _ in blocks)
+            if rasterized_pages == len(document) and readable_words < 20:
+                raise DocumentParseError(
+                    "PDF appears image-based but contains too little readable text; "
+                    "run OCR or provide a digitally readable source so content is not lost"
+                )
+            yield from blocks

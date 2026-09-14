@@ -63,6 +63,13 @@ class EstateSourceKind(StrEnum):
     ZIP = "zip"
 
 
+class SharePointCredentialMode(StrEnum):
+    """Identity used when synchronizing a SharePoint source."""
+
+    DELEGATED_USER = "delegated_user"
+    APPLICATION = "application"
+
+
 class SourceSyncStatus(StrEnum):
     """Truthful connector state shown to users."""
 
@@ -205,6 +212,7 @@ class EstateSource(DomainModel):
     kind: EstateSourceKind
     display_name: str = Field(min_length=1, max_length=300)
     locator: str = Field(min_length=1, max_length=2048)
+    credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER
     status: SourceSyncStatus = SourceSyncStatus.PENDING
     checkpoint: str | None = Field(default=None, max_length=4096)
     status_detail: str | None = Field(default=None, max_length=1000)
@@ -218,6 +226,11 @@ class EstateSource(DomainModel):
 
     @model_validator(mode="after")
     def validate_locator(self) -> Self:
+        if (
+            self.kind is not EstateSourceKind.SHAREPOINT
+            and self.credential_mode is not SharePointCredentialMode.DELEGATED_USER
+        ):
+            raise ValueError("Application credentials are supported only for SharePoint sources")
         if self.kind in {EstateSourceKind.UPLOAD, EstateSourceKind.ZIP}:
             if (
                 not self.locator.startswith("asset:")

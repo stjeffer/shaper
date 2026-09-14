@@ -500,7 +500,7 @@ Provides bounded model inference`"]
 |-----------------------|-----------------------------------------------------------------|---------------------------------------------------|
 | Assessment Agent      | Content health, metadata, staleness, ownership, readability     | Topic authority or source mutation                |
 | Knowledge Agent       | Topics, entities, relationships, overlap, conflicts, authority  | Approval or publication                           |
-| Transformation Agent  | Canonicalization, FAQ, summary, metadata, and procedure proposals | Autonomous overwrite or publication             |
+| Transformation Agent  | Structure, FAQ navigation, metadata, and procedure proposals      | Summarisation, autonomous overwrite, or publication |
 | Governance Agent      | Duplicate, contradiction, ownership, freshness, authority health | Current recurring scheduling in the MVP          |
 | Agent Readiness Agent | Retrieval, clarity, FAQ, chunking, consistency, prioritized work | Accuracy or model-confidence claims               |
 
@@ -526,6 +526,14 @@ Internal deterministic metrics remain part of the document report for
 compatibility, report identity, evidence coverage, and effort estimation. They
 are implementation evidence, not a user-facing accuracy or confidence claim.
 
+The estate-list API derives assessment coverage from current, non-deleted
+document versions and completed or partial discovery reports. A report counts
+only when its `source_version` matches the document's current version, preventing
+historical evidence from making changed content appear assessed. The
+authenticated `GET /v1/assessment-checks` endpoint exposes the same 29-code
+catalogue used by the workspace to explain each check and its likely agent
+impact.
+
 Each `DocumentFinding` separates four concerns:
 
 * `explanation` states the source condition that the check detected
@@ -541,7 +549,8 @@ impact statement for an unknown future finding type.
 ```mermaid
 flowchart TB
     source["`**Immutable document version**
-    Normalized text and metadata`"]
+    Exact source bytes, extracted text,
+    and metadata`"]
     checks["`**Deterministic checks**
     Baseline and document-quality rules`"]
     finding["`**Structured finding**
@@ -567,6 +576,12 @@ and require different remediation. Findings preserve that causal information so
 the reviewer can see what could fail, why agent behavior could degrade, and
 which source evidence supports the conclusion.
 
+The exact uploaded or connector-provided bytes are retained as the immutable
+source of record for each version. Extracted text is a reviewable derivative used
+for assessment and transformation; it never replaces the source file. Ingestion
+fails with an actionable error when a supported file cannot yield enough readable
+content, rather than persisting a metadata-only derivative as if it were complete.
+
 Transformation evaluation remains separate from source assessment. Its
 artifact-quality measures describe deterministic checks applied after shaping.
 They do not reinstate a subjective readiness score in the Assess experience.
@@ -584,13 +599,17 @@ flowchart TB
 Proposed changes for one immutable source version`"]
     estimate["`**Versioned estimate**
 Prompt, schema, context, output,
-one repair, and safety margin`"]
+three repairs, and safety margin`"]
     approval["`**Exact human approval**
 Recommendation and estimate identities`"]
     preflight["`**Transformation preflight**
 Current source, approval, and estimator version`"]
     shaping["`**Bounded shaping loop**
-Provider-reported token accounting`"]
+Complete-document contract and
+provider-reported token accounting`"]
+    preservation["`**Preservation gate**
+Source coverage, material facts,
+and operative clauses`"]
     artifact["`**Reviewable artifact**
 Preview before publication`"]
 
@@ -598,14 +617,35 @@ Preview before publication`"]
     estimate --> approval
     approval --> preflight
     preflight --> shaping
-    shaping --> artifact
+    shaping --> preservation
+    preservation -->|"`pass`"| artifact
+    preservation -->|"`block with feedback;
+up to three bounded repairs`"| shaping
 ```
 
 The estimator derives fixed request overhead from the active shaping prompt and
 structured-response schema. It adds the source, request-envelope, and expected
-output ranges, then reserves the initial response, one bounded repair, and a
-safety margin. The shaping loop accounts for provider-reported input and output
-tokens after every response and stops when the approved maximum is exceeded.
+output ranges, then reserves the initial response, up to three bounded repairs,
+and a safety margin. The shaping loop accounts for provider-reported input and
+output tokens after every response and stops when the approved maximum is
+exceeded.
+
+Runtime system prompts are version-controlled Markdown resources in
+`src/shaper/prompts/`. Shaping and model-assisted evaluation use separate prompts
+and pass the selected prompt explicitly through the model gateway. The application
+loads these resources once through Python package resources and fails during import
+when a required prompt is missing or blank. Keeping prompts inside the Python
+package ensures source, wheel, and container deployments use the same reviewed
+instructions.
+
+The shaping request includes the exact approved transformation requirements and
+requires schema-constrained, answer-shaped content with exact source-span
+citations. After each candidate, the deterministic preservation gate checks
+lexical source coverage, exact retention of numeric and duration facts, and
+semantic overlap for operative clauses such as duties, prohibitions, and
+constrained permissions. A blocking finding is returned to the bounded loop for
+up to three repair attempts. If no candidate passes within the approved limit,
+transformation stops and no artifact is persisted.
 
 An estimator-version change invalidates an earlier approval for execution.
 The service rejects the stale estimate before calling the model and tells the
@@ -624,6 +664,15 @@ per-document reports. Those reports are persisted as complete JSON records in
 the configured estate store. The Assess experience renders their structured
 findings and agent-impact explanations, while recommendations remain a separate,
 selection-scoped workflow.
+
+The approval workspace starts transformations through an authenticated NDJSON
+stream. A process-local worker performs the synchronous transformation while the
+response reports actual document and validation stages as they complete. This
+stream supports immediate browser feedback and signals cancellation when the
+client disconnects. Cancellation takes effect before the next model action or
+document, so an in-flight provider request may finish first. This is not a
+durable job queue: distributed, restart-safe transformation workers remain part
+of the production target architecture.
 
 The platform-analysis Transformation Agent is proposal-only and reports that
 estate-wide execution is unavailable. The Knowledge Estate workflow can execute

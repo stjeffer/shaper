@@ -160,28 +160,94 @@ sign-in; all session and estate APIs remain protected. The bootstrap principal
 receives an administrator grant for the configured collection; subsequent
 access is resolved exclusively from persistent collection grants.
 
-## Deploy the findings-led assessment update
+## Deploy Knowledge Estate workflow updates
 
-The findings-led assessment ships in the application image. Deploy it through
-the standard revision workflow above; no separate front-end deployment is
-required because the Container App serves the workspace assets.
+Knowledge Estate assessment, approval, progress streaming, and transformation
+logic ship in the application image. Deploy them through the standard revision
+workflow above. No separate front-end deployment is required because the
+Container App serves the workspace assets.
+
+The workspace stylesheet and local theme bootstrap use the versioned `fluent2-v11`
+asset query. The bootstrap loads the application module with the same version.
+These versions prevent a new revision from reusing an older control palette or
+application bundle from a browser or edge cache. The Microsoft Teams accent is
+fixed in the shipped assets. The workspace deliberately uses the Teams light
+theme, including a subtle purple-tinted canvas and white raised surfaces, so no
+theme selector or server-side theme configuration is required.
+
+The local `fluent-theme.js` bootstrap loads the pinned
+`@fluentui/web-components` 2.6.1 module from the workspace `vendor` directory.
+The image also includes the Fluent UI, Fluent System Icons, and bundled
+`tabbable` MIT license notices. The bootstrap sets light-theme provider
+luminance through the public Fluent Design Token API before loading `app.js`.
+Buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress indicators,
+accordions, links, and data grids use the official Fluent custom elements
+without reaching into component shadow parts. Interface symbols use locally
+packaged Microsoft Fluent System Icons rather than text glyphs or emoji.
+The hidden native file input is the sole exception because the browser file
+chooser requires it; a Fluent button invokes that input. The workspace therefore
+does not depend on a public CDN or a corresponding content-security exception at
+runtime.
+
+The image packages separate shaping and model-assisted evaluation system prompts
+as Markdown resources under `shaper/prompts`. Callers select the required prompt
+explicitly, and startup fails rather than silently substituting instructions when
+a resource is missing or blank. After deployment, transformation and evaluation
+therefore use the prompt versions built into that exact image revision.
 
 The `agent_impact` field is an additive, optional field in persisted
 `DocumentFinding` JSON. Existing reports remain readable and require no
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
+The transformation estimator is version `1.3`. It reserves an initial candidate
+and up to three bounded repair attempts. Proposals created by estimator version
+`1.2` remain stored, but the new revision rejects them before model use because
+their approved token maximum covered only two calls. Run **Create improvement
+plan** again and obtain a new approval before transforming those documents. No
+database migration is required.
+
+The authenticated
+`POST /v1/estates/{estate_id}/transformation-runs/stream` endpoint returns
+newline-delimited JSON events for actual document and validation stages. The
+browser uses this stream to report complete-content, source-preservation,
+grounding, and optional deterministic quality-check results. Processing remains
+inside the application process. A client disconnect requests cancellation before
+the next model action or document; an in-flight provider request may finish
+first. This endpoint is not a durable background queue.
+
 After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
-2. Run discovery for an estate with at least one known content issue.
-3. Confirm the Assess table contains **Document** and **Findings**, with no
+2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
+   theme selector, and renders official Fluent primary and lightweight actions
+   without an additional host-level border.
+3. Confirm the shell uses the fixed Teams light palette: a subtle purple-tinted
+   canvas, white raised surfaces, and Teams purple only for selection and primary
+   actions.
+4. Confirm the estate list reflows without horizontal scrolling at a 320-pixel
+   viewport and remains usable at 200% browser zoom.
+5. Confirm keyboard focus remains visible on actions and tabs, then verify
+   controls remain distinguishable in Windows forced-colours mode.
+6. Confirm buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress
+   indicators, accordions, links, and the assessment data grid expose their
+   expected Fluent roles and accessible names.
+7. Run discovery for an estate with at least one known content issue.
+8. Confirm the Assess data grid contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
-4. Expand a finding and confirm it shows the detected condition, **Agent
+9. Expand a finding and confirm it shows the detected condition, **Agent
    impact**, review status, and source evidence.
-5. Select a document and request recommendations.
-6. Confirm the proposal rationale describes the number and likely impact of
+10. Select a document and request recommendations.
+11. Confirm the proposal rationale describes the number and likely impact of
    content findings without a score out of 100.
+12. Approve the new proposal and confirm the transformation controls appear above
+   the **Assessment results** and **Evaluation set** tabs.
+13. Start transformation and confirm the live progress surface names each check,
+   updates results as stages complete, and opens the generated output when the run
+   completes.
+14. If the estate contains a proposal created with estimator version `1.2`,
+   confirm transformation stops before model use and instructs the reviewer to
+   create and approve a current improvement plan.
 
 Forward compatibility is automatic: the newer revision reads reports that do
 not contain `agent_impact`. The reverse direction is not automatic because
@@ -190,6 +256,11 @@ predates `agent_impact`, stop new discovery work and either retain the newer
 revision for report reads or restore the estate store to a compatible
 pre-deployment snapshot. Reports created by an older revision remain valid in
 the newer application.
+
+Rollback does not require a schema restore for this update. A revision using
+estimator version `1.2` rejects proposals created with version `1.3`; recreate
+and approve the improvement plan after rollback rather than attempting to reuse
+the newer token estimate.
 
 ## Roll back
 

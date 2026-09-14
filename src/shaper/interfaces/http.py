@@ -4,14 +4,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from queue import Empty, Queue
+from threading import Event, Thread
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from jwt import PyJWTError
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,6 +35,7 @@ from shaper.application.decisions import (
     TransformationDecisionService,
 )
 from shaper.application.demo import DemoAnalysisResult, DemoAnalysisService
+from shaper.application.document_findings import ASSESSMENT_CHECKS
 from shaper.application.estates import (
     EstateArchivedError,
     EstateDiscoveryService,
@@ -35,6 +46,7 @@ from shaper.application.estates import (
     EstateSourceService,
     InventoryInput,
     VersionedRecord,
+    summarize_estate_assessment,
 )
 from shaper.application.jobs import (
     CompileJobService,
@@ -61,6 +73,7 @@ from shaper.domain import (
     KnowledgeTransformationAnalysis,
     OutputRef,
     Principal,
+    SharePointCredentialMode,
     SourceRef,
 )
 from shaper.infrastructure.archive import ZipArchiveExpander
@@ -71,6 +84,8 @@ from shaper.infrastructure.uploads import (
     UploadRejectedError,
 )
 from shaper.interfaces.auth import Authenticator, RequestPrincipalResolver
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CompileRequest(BaseModel):
@@ -158,6 +173,7 @@ class SourceCreateRequest(BaseModel):
     kind: EstateSourceKind
     display_name: str = Field(min_length=1, max_length=300)
     locator: str = Field(min_length=1, max_length=2048)
+    credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER
 
 
 class SelectionRequest(BaseModel):
@@ -383,13 +399,36 @@ def create_app(services: HttpServices) -> FastAPI:
                 "hasGrant": bool(actor.collection_roles),
             }
 
+        @app.get("/v1/assessment-checks")
+        def list_assessment_checks(
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            del actor
+            return {
+                "items": [asdict(check) for check in ASSESSMENT_CHECKS],
+                "total": len(ASSESSMENT_CHECKS),
+                "method": "deterministic",
+            }
+
         @app.get("/v1/estates")
         def list_estates(
             collection_id: str,
             actor: Principal = Depends(principal),
         ) -> dict[str, object]:
             records = estate_service.list(collection_id, principal=actor)
-            return {"items": [_versioned_payload(record) for record in records]}
+            items = []
+            for record in records:
+                payload = _versioned_payload(record)
+                payload.update(
+                    asdict(
+                        summarize_estate_assessment(
+                            estate_repository,
+                            record.value.estate_id,
+                        )
+                    )
+                )
+                items.append(payload)
+            return {"items": items}
 
         @app.post("/v1/estates", status_code=status.HTTP_201_CREATED)
         def create_estate(
@@ -488,6 +527,7 @@ def create_app(services: HttpServices) -> FastAPI:
                 kind=request.kind,
                 display_name=request.display_name,
                 locator=request.locator,
+                credential_mode=request.credential_mode,
             )
             return _versioned_payload(item)
 
@@ -498,7 +538,15 @@ def create_app(services: HttpServices) -> FastAPI:
         ) -> dict[str, object]:
             estate_service.get(estate_id, principal=actor)
             items = estate_repository.list_documents(estate_id)
-            return {"items": [_versioned_payload(item) for item in items]}
+            payloads = []
+            for item in items:
+                payload = _versioned_payload(item)
+                payload["source_retained"] = estate_repository.has_document_source(
+                    item.value.document_id,
+                    item.value.source_version,
+                )
+                payloads.append(payload)
+            return {"items": payloads}
 
         @app.get(
             "/v1/estates/{estate_id}/documents/{document_id}/content",
@@ -518,6 +566,35 @@ def create_app(services: HttpServices) -> FastAPI:
                 raise ValueError("Requested source version is not current")
             content = estate_repository.load_document_content(document_id, source_version)
             return PlainTextResponse(content)
+
+        @app.get("/v1/estates/{estate_id}/documents/{document_id}/source")
+        def get_document_source(
+            estate_id: str,
+            document_id: str,
+            source_version: str,
+            actor: Principal = Depends(principal),
+        ) -> Response:
+            estate_service.get(estate_id, principal=actor)
+            document = estate_repository.get_document(document_id)
+            if document is None or document.value.estate_id != estate_id or document.value.deleted:
+                raise KeyError(f"Estate document does not exist: {document_id}")
+            if document.value.source_version != source_version:
+                raise ValueError("Requested source version is not current")
+            if not estate_repository.has_document_source(document_id, source_version):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "The original file was ingested before source retention was enabled; "
+                        "re-upload it to retain and download the exact source"
+                    ),
+                )
+            content = estate_repository.load_document_source(document_id, source_version)
+            filename = quote(document.value.filename, safe="")
+            return Response(
+                content,
+                media_type=document.value.media_type,
+                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+            )
 
         @app.post("/v1/estates/{estate_id}/discovery-runs")
         def start_discovery(
@@ -721,6 +798,79 @@ def create_app(services: HttpServices) -> FastAPI:
                     for item in estate_repository.list_usage(run.value.run_id)
                 ],
             }
+
+        @app.post("/v1/estates/{estate_id}/transformation-runs/stream")
+        def stream_transformations(
+            estate_id: str,
+            request: SelectionRequest,
+            actor: Principal = Depends(principal),
+        ) -> StreamingResponse:
+            proposals = tuple(estate_repository.get_proposal(item) for item in request.ids)
+            if any(proposal is None or proposal.estate_id != estate_id for proposal in proposals):
+                raise KeyError("A recommendation does not belong to this estate")
+
+            def events() -> Iterator[str]:
+                event_queue: Queue[dict[str, object] | None] = Queue()
+                cancel_event = Event()
+                active_run_id: str | None = None
+
+                def report(event: dict[str, object]) -> None:
+                    nonlocal active_run_id
+                    if event.get("type") == "run_started":
+                        run_id = event.get("run_id")
+                        if isinstance(run_id, str):
+                            active_run_id = run_id
+                    event_queue.put(event)
+
+                def transform() -> None:
+                    try:
+                        transformation_service.start(
+                            request.ids,
+                            principal=actor,
+                            progress=report,
+                            cancelled=cancel_event.is_set,
+                        )
+                    except Exception as error:
+                        LOGGER.exception("Transformation stream failed")
+                        if active_run_id is not None:
+                            try:
+                                transformation_service.fail_running(
+                                    active_run_id,
+                                    "Transformation stopped unexpectedly. Review service logs "
+                                    "before retrying.",
+                                )
+                            except Exception:
+                                LOGGER.exception("Could not terminalize failed transformation")
+                        event_queue.put(
+                            {
+                                "type": "run_failed",
+                                "detail": str(error),
+                            }
+                        )
+                    finally:
+                        event_queue.put(None)
+
+                worker = Thread(
+                    target=transform,
+                    name=f"transform-{estate_id}",
+                    daemon=True,
+                )
+                worker.start()
+                try:
+                    while True:
+                        try:
+                            event = event_queue.get(timeout=0.25)
+                        except Empty:
+                            yield "\n"
+                            continue
+                        if event is None:
+                            break
+                        yield f"{json.dumps(jsonable_encoder(event), sort_keys=True)}\n"
+                finally:
+                    cancel_event.set()
+                    worker.join(timeout=1)
+
+            return StreamingResponse(events(), media_type="application/x-ndjson")
 
         @app.get("/v1/estates/{estate_id}/artifacts")
         def list_artifacts(

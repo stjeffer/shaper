@@ -7,13 +7,13 @@ import math
 import re
 from collections.abc import Sequence
 
-from shaper.application.model import SHAPING_PROMPT
 from shaper.application.shaping import CandidatePayload
 from shaper.domain import TokenEstimate
 from shaper.domain.models import canonical_hash
+from shaper.prompts import SHAPING_PROMPT
 
-ESTIMATOR_VERSION = "1.1"
-ESTIMATED_MODEL_CALLS = 2
+ESTIMATOR_VERSION = "1.3"
+ESTIMATED_MODEL_CALLS = 4
 _WORD = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _LEXICAL_MULTIPLIER = 1.5
 _CONTEXT_ENVELOPE_OVERHEAD = 800
@@ -70,7 +70,7 @@ class TokenEstimator:
             "Source tokens use a deterministic lexical approximation.",
             "Input includes the current shaping prompt, response schema, and context envelope.",
             "Output range scales with source size and proposed intervention count.",
-            "Maximum reserves the initial response, one bounded repair, and a safety margin.",
+            "Maximum reserves an initial response and up to three bounded repair attempts.",
         )
         identity = {
             "model_deployment": self._model_deployment,

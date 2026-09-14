@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import sqlite3
 import threading
 from collections.abc import Iterator, Sequence
@@ -11,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypeVar
 
-from shaper.application.estates import EstateRepository, VersionedRecord
+from shaper.application.estates import EstateRepository, PreparedInventoryItem, VersionedRecord
 from shaper.application.jobs import JobConflictError
 from shaper.domain import (
     CollectionGrant,
@@ -306,6 +307,7 @@ class SQLiteEstateRepository(EstateRepository):
     _PURGE_CATEGORIES = (
         "estate_source",
         "estate_document",
+        "document_source",
         "document_content",
         "estate_run",
         "readiness_report",
@@ -415,16 +417,43 @@ class SQLiteEstateRepository(EstateRepository):
             raise KeyError(f"Document content does not exist: {document_id}@{source_version}")
         return record[0]
 
+    def load_document_source(self, document_id: str, source_version: str) -> bytes:
+        record = self._store.load_record(
+            category="document_source",
+            record_id=f"{document_id}:{source_version}",
+        )
+        if record is None:
+            raise KeyError(f"Document source does not exist: {document_id}@{source_version}")
+        content = base64.b64decode(record[0], validate=True)
+        if hashlib.sha256(content).hexdigest() != source_version:
+            raise ValueError(f"Document source hash does not match version: {document_id}")
+        return content
+
+    def has_document_source(self, document_id: str, source_version: str) -> bool:
+        return (
+            self._store.load_record(
+                category="document_source",
+                record_id=f"{document_id}:{source_version}",
+            )
+            is not None
+        )
+
     def save_inventory(
         self,
-        items: Sequence[tuple[EstateDocument, str]],
+        items: Sequence[PreparedInventoryItem],
     ) -> tuple[VersionedRecord[EstateDocument], ...]:
-        """Atomically save inventory rows and exact-version normalized text."""
+        """Atomically save inventory rows, source bytes, and extracted text."""
         saved: list[VersionedRecord[EstateDocument]] = []
         with self._store.transaction() as connection:
-            for document, text in items:
+            for item in items:
+                document = item.document
+                text = item.extracted_text
                 if not text.strip():
                     raise ValueError("Document content cannot be empty")
+                if hashlib.sha256(item.source_content).hexdigest() != document.source_version:
+                    raise ValueError(
+                        f"Document source hash does not match version: {document.document_id}"
+                    )
                 row = connection.execute(
                     "SELECT revision, payload FROM records "
                     "WHERE category = 'estate_document' AND record_id = ?",
@@ -449,6 +478,12 @@ class SQLiteEstateRepository(EstateRepository):
                 else:
                     revision = int(row["revision"])
                 content_id = f"{document.document_id}:{document.source_version}"
+                connection.execute(
+                    "INSERT INTO records(category, record_id, payload, revision) "
+                    "VALUES ('document_source', ?, ?, 1) "
+                    "ON CONFLICT(category, record_id) DO NOTHING",
+                    (content_id, base64.b64encode(item.source_content).decode("ascii")),
+                )
                 connection.execute(
                     "INSERT INTO records(category, record_id, payload, revision) "
                     "VALUES ('document_content', ?, ?, 1) "
@@ -659,6 +694,10 @@ class SQLiteEstateRepository(EstateRepository):
                             (category, str(row["record_id"])),
                         )
             for document_id in document_ids:
+                connection.execute(
+                    "DELETE FROM records WHERE category = 'document_source' AND record_id LIKE ?",
+                    (f"{document_id}:%",),
+                )
                 connection.execute(
                     "DELETE FROM records WHERE category = 'document_content' AND record_id LIKE ?",
                     (f"{document_id}:%",),

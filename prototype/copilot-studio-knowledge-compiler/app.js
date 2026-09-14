@@ -13,6 +13,21 @@ const state = {
   decisions: new Map(),
   artifacts: [],
   selectedDocuments: new Set(),
+  activeFindingDocumentId: null,
+  findingTrigger: null,
+  restoreFindingFocus: true,
+  transitioningFindingPresentation: false,
+  assessmentChecks: null,
+  assessmentCheckCategory: 0,
+  approvalReviewTab: "assessment",
+  evaluationSuggestions: [],
+  selectedEvaluationSuggestions: new Set(),
+  evaluationSuggestionErrors: [],
+  transformationProgress: new Map(),
+  transformationOperationId: null,
+  transformationAbortController: null,
+  actionEstate: null,
+  openEstateMenuId: null,
 };
 
 const RESULT_PRESENTATION = Object.freeze({
@@ -21,7 +36,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Core topic and content metadata is incomplete.",
     agentImpact:
       "Weak metadata gives retrieval systems less context for filtering and ranking the right passage.",
-    icon: "◇",
+    icon: "info-20",
     tone: "info",
   },
   structure_gap: {
@@ -29,21 +44,21 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Headings or focused content sections are missing.",
     agentImpact:
       "Weak section boundaries make it harder to create focused chunks and retrieve the right passage.",
-    icon: "▤",
+    icon: "checklist-20",
     tone: "info",
   },
   stale: {
     label: "Freshness risk",
     detail: "The source is beyond the three-year review threshold.",
     agentImpact: "Outdated guidance can cause an agent to return obsolete rules as current.",
-    icon: "◷",
+    icon: "sync-circle-20",
     tone: "warning",
   },
   long_paragraph: {
     label: "Long paragraph",
     detail: "A passage exceeds 150 words and may reduce retrieval precision.",
     agentImpact: "Oversized passages mix ideas and can reduce chunk and retrieval precision.",
-    icon: "↔",
+    icon: "document-24",
     tone: "warning",
   },
   cross_policy_reference: {
@@ -51,7 +66,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "A reference to another governed source needs explicit context.",
     agentImpact:
       "A reference without local context can leave the agent with an incomplete rule.",
-    icon: "↗",
+    icon: "document-24",
     tone: "warning",
   },
   faq_gap: {
@@ -59,7 +74,7 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "No FAQ or question-shaped content was detected.",
     agentImpact:
       "Missing question-shaped content can reduce direct matches for common user requests.",
-    icon: "?",
+    icon: "info-20",
     tone: "info",
   },
   procedure_gap: {
@@ -67,12 +82,13 @@ const RESULT_PRESENTATION = Object.freeze({
     detail: "Procedural language is not organized into explicit steps.",
     agentImpact:
       "Implicit steps make it harder for an agent to extract and present a reliable sequence.",
-    icon: "1·",
+    icon: "checklist-20",
     tone: "warning",
   },
 });
 
 const ACCOUNTABILITY_ONLY_FINDINGS = new Set(["missing_owner"]);
+const dialogOpeners = new WeakMap();
 
 const elements = {
   workspace: document.querySelector("#workspace"),
@@ -80,16 +96,29 @@ const elements = {
   alert: document.querySelector("#alert"),
   loading: document.querySelector("#loadingView"),
   noAccess: document.querySelector("#noAccessView"),
+  assessmentChecksView: document.querySelector("#assessmentChecksView"),
+  assessmentCheckGroups: document.querySelector("#assessmentCheckGroups"),
   estateListView: document.querySelector("#estateListView"),
   estateView: document.querySelector("#estateView"),
   estateList: document.querySelector("#estateList"),
   estateEmpty: document.querySelector("#estateEmpty"),
+  estateListToolbar: document.querySelector("#estateListToolbar"),
   estateListCount: document.querySelector("#estateListCount"),
   estateTotal: document.querySelector("#estateTotal"),
   estateActive: document.querySelector("#estateActive"),
-  estateEvaluated: document.querySelector("#estateEvaluated"),
+  estateAssessed: document.querySelector("#estateAssessed"),
   createDialog: document.querySelector("#createDialog"),
   createForm: document.querySelector("#createForm"),
+  editDialog: document.querySelector("#editDialog"),
+  editForm: document.querySelector("#editForm"),
+  editEstateName: document.querySelector("#editEstateName"),
+  editEstateDescription: document.querySelector("#editEstateDescription"),
+  editArtifactTemplate: document.querySelector("#editArtifactTemplate"),
+  editEvaluations: document.querySelector("#editEvaluations"),
+  editConfirmButton: document.querySelector("#editConfirmButton"),
+  editError: document.querySelector("#editError"),
+  workflowTabs: document.querySelector(".workflow"),
+  sourceInputTabs: document.querySelector(".source-input-tabs"),
   deleteDialog: document.querySelector("#deleteDialog"),
   deleteForm: document.querySelector("#deleteForm"),
   deleteEstateName: document.querySelector("#deleteEstateName"),
@@ -97,12 +126,16 @@ const elements = {
   deleteConfirmButton: document.querySelector("#deleteConfirmButton"),
   deleteError: document.querySelector("#deleteError"),
   sourceForm: document.querySelector("#sourceForm"),
+  sourceKind: document.querySelector("#sourceKind"),
+  sharePointCredentialField: document.querySelector("#sharePointCredentialField"),
+  sharePointCredentialMode: document.querySelector("#sharePointCredentialMode"),
   uploadForm: document.querySelector("#uploadForm"),
   files: document.querySelector("#files"),
   fileSummary: document.querySelector("#fileSummary"),
   sourceList: document.querySelector("#sourceList"),
   sourceCount: document.querySelector("#sourceCount"),
   documentRows: document.querySelector("#documentRows"),
+  documentRowsHeader: document.querySelector("#documentRowsHeader"),
   documentEmpty: document.querySelector("#documentEmpty"),
   discoverySummary: document.querySelector("#discoverySummary"),
   discoverButton: document.querySelector("#discoverButton"),
@@ -110,9 +143,27 @@ const elements = {
   selectionSummary: document.querySelector("#selectionSummary"),
   proposalList: document.querySelector("#proposalList"),
   proposalEmpty: document.querySelector("#proposalEmpty"),
+  proposalStatus: document.querySelector("#proposalStatus"),
+  proposalStatusTitle: document.querySelector("#proposalStatusTitle"),
+  proposalStatusDetail: document.querySelector("#proposalStatusDetail"),
+  approvalReviewTabs: document.querySelector("#approvalReviewTabs"),
+  assessmentResultsPanel: document.querySelector("#assessmentResultsPanel"),
+  evaluationSetPanel: document.querySelector("#evaluationSetPanel"),
+  evaluationSetEmpty: document.querySelector("#evaluationSetEmpty"),
+  evaluationOptions: document.querySelector("#evaluationOptions"),
+  evaluationTarget: document.querySelector("#evaluationTarget"),
+  evaluationTargetGuidance: document.querySelector("#evaluationTargetGuidance"),
+  evaluationSuggestionList: document.querySelector("#evaluationSuggestionList"),
+  evaluationSelectionSummary: document.querySelector("#evaluationSelectionSummary"),
+  downloadEvaluations: document.querySelector("#downloadEvaluations"),
   approvalSummary: document.querySelector("#approvalSummary"),
   generateEvaluations: document.querySelector("#generateEvaluations"),
   transformButton: document.querySelector("#transformButton"),
+  transformationProgress: document.querySelector("#transformationProgress"),
+  transformationProgressAnnouncement: document.querySelector(
+    "#transformationProgressAnnouncement",
+  ),
+  transformationProgressList: document.querySelector("#transformationProgressList"),
   artifactList: document.querySelector("#artifactList"),
   artifactEmpty: document.querySelector("#artifactEmpty"),
   archiveButton: document.querySelector("#archiveButton"),
@@ -120,16 +171,316 @@ const elements = {
   purgeDialog: document.querySelector("#purgeDialog"),
   purgeForm: document.querySelector("#purgeForm"),
   purgePhrase: document.querySelector("#purgePhrase"),
+  archiveDialog: document.querySelector("#archiveDialog"),
+  archiveDescription: document.querySelector("#archiveDescription"),
+  archiveConfirmButton: document.querySelector("#archiveConfirmButton"),
+  chooseFilesButton: document.querySelector("#chooseFilesButton"),
   documentDialog: document.querySelector("#documentDialog"),
   documentDialogTitle: document.querySelector("#documentDialogTitle"),
+  documentDownload: document.querySelector("#documentDownload"),
+  documentSourceStatus: document.querySelector("#documentSourceStatus"),
   documentContent: document.querySelector("#documentContent"),
+  discoveryReviewLayout: document.querySelector("#discoveryReviewLayout"),
+  documentFindingsPanel: document.querySelector("#documentFindingsPanel"),
+  documentFindingsTitle: document.querySelector("#documentFindingsTitle"),
+  documentFindingsSummary: document.querySelector("#documentFindingsSummary"),
+  documentFindingsBody: document.querySelector("#documentFindingsBody"),
+  documentFindingsDialog: document.querySelector("#documentFindingsDialog"),
+  documentFindingsDialogTitle: document.querySelector("#documentFindingsDialogTitle"),
+  documentFindingsDialogSummary: document.querySelector("#documentFindingsDialogSummary"),
+  documentFindingsDialogBody: document.querySelector("#documentFindingsDialogBody"),
 };
+
+function showDialog(dialog, focusTarget) {
+  if (document.activeElement instanceof HTMLElement) {
+    dialogOpeners.set(dialog, document.activeElement);
+  }
+  dialog.hidden = false;
+  window.requestAnimationFrame(() => (focusTarget ?? dialog).focus?.());
+}
+
+function hideDialog(dialog, { restoreFocus = true } = {}) {
+  if (dialog.hidden) return;
+  dialog.hidden = true;
+  dialog.dispatchEvent(new Event("close"));
+  const opener = dialogOpeners.get(dialog);
+  dialogOpeners.delete(dialog);
+  if (restoreFocus && opener?.isConnected) {
+    window.requestAnimationFrame(() => opener.focus());
+  }
+}
+
+function isDialogOpen(dialog) {
+  return !dialog.hidden;
+}
+
+function fluentButton(label, appearance = "neutral", className = "") {
+  const button = text("fluent-button", label, className);
+  button.type = "button";
+  button.setAttribute("appearance", appearance);
+  return button;
+}
+
+function fluentDisclosure(label, content, className) {
+  const accordion = document.createElement("fluent-accordion");
+  accordion.className = className;
+  const item = document.createElement("fluent-accordion-item");
+  item.setAttribute("heading", label);
+  item.append(content);
+  accordion.append(item);
+  return accordion;
+}
+
+const findingsDialogMedia = window.matchMedia("(max-width: 1240px)");
 
 function announce(message) {
   elements.status.textContent = "";
   requestAnimationFrame(() => {
     elements.status.textContent = message;
   });
+}
+
+function evaluationPassages(sourceText) {
+  const passages = [];
+  let heading = "";
+  sourceText
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      const headingMatch = part.match(/^#{1,6}\s+([^\n]+)(?:\n+([\s\S]+))?$/);
+      let content = part;
+      if (headingMatch) {
+        heading = headingMatch[1].trim();
+        content = (headingMatch[2] ?? "").trim();
+        if (!content) return;
+      }
+      const candidates =
+        content.length > 1200
+          ? content.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()) ??
+            []
+          : [content];
+      candidates
+        .filter((candidate) => candidate.length >= 40)
+        .forEach((candidate) => passages.push({ heading, text: candidate.slice(0, 1000) }));
+    });
+  const seen = new Set();
+  return passages.filter((passage) => {
+    const key = `${passage.heading}\n${passage.text}`.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function evaluationKeywords(passage) {
+  const excluded = new Set([
+    "about",
+    "after",
+    "before",
+    "from",
+    "have",
+    "must",
+    "shall",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "with",
+  ]);
+  return [...new Set(passage.toLocaleLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])]
+    .filter((word) => !excluded.has(word))
+    .slice(0, 5);
+}
+
+function suggestedEvaluations(proposal, documentValue, sourceText) {
+  return evaluationPassages(sourceText)
+    .slice(0, 5)
+    .map((passage, index) => {
+      const focus = passage.heading || passage.text.split(/\s+/).slice(0, 7).join(" ");
+      return {
+        id: `${proposal.recommendation_id}-evaluation-${index + 1}`,
+        document_id: documentValue.document_id,
+        source_version: documentValue.source_version,
+        source_reference: `${documentValue.document_id}@${documentValue.source_version}`,
+        query: passage.heading
+          ? `According to ${documentValue.title}, what guidance is provided under "${focus}"?`
+          : `According to ${documentValue.title}, what does the source say about "${focus}…"?`,
+        ground_truth: passage.text,
+        context: passage.text,
+        keywords: evaluationKeywords(`${passage.heading} ${passage.text}`),
+        foundry_evaluators: ["groundedness", "relevance", "completeness"],
+        copilot_studio_methods: ["General quality", "Compare meaning", "Keyword match"],
+        needs_sme_review: true,
+      };
+    });
+}
+
+async function loadEvaluationSuggestions() {
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  const estateId = recordValue(state.estate).estate_id;
+  for (const proposal of state.proposals) {
+    const documentRecord = state.documents.find(
+      (item) => recordValue(item).document_id === proposal.document_id,
+    );
+    const documentValue = documentRecord ? recordValue(documentRecord) : null;
+    if (!documentValue) {
+      state.evaluationSuggestionErrors.push(
+        `The source document for ${proposal.expected_artifact} is unavailable.`,
+      );
+      continue;
+    }
+    try {
+      const sourceText = await apiText(
+        `/v1/estates/${estateId}/documents/${encodeURIComponent(
+          documentValue.document_id,
+        )}/content?source_version=${encodeURIComponent(documentValue.source_version)}`,
+      );
+      state.evaluationSuggestions.push(
+        ...suggestedEvaluations(proposal, documentValue, sourceText),
+      );
+    } catch (error) {
+      state.evaluationSuggestionErrors.push(
+        `Suggestions for ${documentValue.title} could not be created: ${error.message}`,
+      );
+    }
+  }
+  state.evaluationSuggestions.forEach((suggestion) => {
+    state.selectedEvaluationSuggestions.add(suggestion.id);
+  });
+}
+
+function renderEvaluationOptions() {
+  const hasPlans = state.proposals.length > 0;
+  elements.evaluationOptions.hidden = !hasPlans;
+  elements.evaluationSetEmpty.hidden = hasPlans;
+  if (!hasPlans) {
+    elements.evaluationSuggestionList.replaceChildren();
+    return;
+  }
+
+  const target = elements.evaluationTarget.value;
+  elements.evaluationTargetGuidance.textContent =
+    target === "foundry"
+      ? "Exports JSONL using Foundry standard columns: query, ground_truth, and context. Select groundedness, relevance, and completeness evaluators when configuring the run."
+      : "Exports question and expectedResponse for a Copilot Studio single-response test set. Suggested keywords remain here for configuring keyword-match evaluation after import.";
+  const items = state.evaluationSuggestions.map((suggestion) => {
+    const item = document.createElement("article");
+    item.className = "evaluation-suggestion";
+    const checkbox = document.createElement("fluent-checkbox");
+    checkbox.checked = state.selectedEvaluationSuggestions.has(suggestion.id);
+    checkbox.dataset.evaluationSuggestion = suggestion.id;
+    checkbox.setAttribute("aria-label", `Include evaluation: ${suggestion.query}`);
+    const content = document.createElement("div");
+    const methods =
+      target === "foundry"
+        ? suggestion.foundry_evaluators.join(", ")
+        : suggestion.copilot_studio_methods.join(", ");
+    content.append(
+      text("h4", suggestion.query),
+      text("p", suggestion.ground_truth, "evaluation-expected-answer"),
+      text("p", `Suggested evaluation methods: ${methods}`, "evaluation-methods"),
+    );
+    if (target === "copilot-studio") {
+      content.append(
+        text(
+          "p",
+          `Suggested keywords: ${suggestion.keywords.join(", ")}`,
+          "evaluation-methods",
+        ),
+      );
+    }
+    item.append(checkbox, content);
+    return item;
+  });
+  if (state.evaluationSuggestionErrors.length) {
+    items.push(
+      text(
+        "p",
+        state.evaluationSuggestionErrors.join(" "),
+        "evaluation-suggestion-warning",
+      ),
+    );
+  }
+  if (items.length === 0) {
+    items.push(
+      text(
+        "p",
+        "No sufficiently substantive passages were found. Add test cases manually after reviewing the source.",
+        "evaluation-suggestion-warning",
+      ),
+    );
+  }
+  elements.evaluationSuggestionList.replaceChildren(...items);
+  const selected = state.selectedEvaluationSuggestions.size;
+  elements.evaluationSelectionSummary.textContent = `${selected} suggested evaluation${
+    selected === 1 ? "" : "s"
+  } selected`;
+  elements.downloadEvaluations.disabled = selected === 0;
+}
+
+function switchApprovalReviewTab(name, focus = true) {
+  state.approvalReviewTab = name;
+  elements.approvalReviewTabs.querySelectorAll("[data-approval-review-tab]").forEach((tab) => {
+    const selected = tab.dataset.approvalReviewTab === name;
+    tab.setAttribute("aria-selected", `${selected}`);
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected) elements.approvalReviewTabs.setAttribute("activeid", tab.id);
+    if (selected && focus) tab.focus();
+  });
+  elements.assessmentResultsPanel.hidden = name !== "assessment";
+  elements.evaluationSetPanel.hidden = name !== "evaluations";
+}
+
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function downloadEvaluationDataset() {
+  const selected = state.evaluationSuggestions.filter((suggestion) =>
+    state.selectedEvaluationSuggestions.has(suggestion.id),
+  );
+  if (selected.length === 0) return;
+  const target = elements.evaluationTarget.value;
+  let content;
+  let filename;
+  let type;
+  if (target === "foundry") {
+    content = selected
+      .map((suggestion) =>
+        JSON.stringify({
+          query: suggestion.query,
+          ground_truth: suggestion.ground_truth,
+          context: suggestion.context,
+          metadata: {
+            case_id: suggestion.id,
+            source_reference: suggestion.source_reference,
+            needs_sme_review: suggestion.needs_sme_review,
+          },
+        }),
+      )
+      .join("\n");
+    filename = "shaper-foundry-evaluation-dataset.jsonl";
+    type = "application/x-ndjson";
+  } else {
+    const rows = [
+      ["question", "expectedResponse"],
+      ...selected.map((suggestion) => [suggestion.query, suggestion.ground_truth]),
+    ];
+    content = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    filename = "shaper-copilot-studio-test-set.csv";
+    type = "text/csv";
+  }
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  announce(`${selected.length} evaluation cases prepared for download`);
 }
 
 function showAlert(message) {
@@ -197,6 +548,58 @@ async function apiText(path) {
   return response.text();
 }
 
+async function streamTransformation(estateId, ids, onEvent, signal) {
+  const response = await fetch(
+    `/v1/estates/${estateId}/transformation-runs/stream`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: {
+        Accept: "application/x-ndjson",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+      signal,
+    },
+  );
+  if (response.status === 401 || response.type === "opaqueredirect") {
+    await redirectToSignIn();
+  }
+  if (!response.ok) {
+    throw new Error(`Transformation request failed with HTTP ${response.status}`);
+  }
+  if (!response.body) {
+    throw new Error("Transformation progress stream is unavailable");
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalEvent = null;
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      onEvent(event);
+      if (["run_completed", "run_failed"].includes(event.type)) finalEvent = event;
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) {
+    finalEvent = JSON.parse(buffer);
+    onEvent(finalEvent);
+  }
+  if (!finalEvent) throw new Error("Transformation ended without a final status");
+  if (finalEvent.type === "run_failed") {
+    throw new Error(finalEvent.detail || "Transformation failed");
+  }
+  return finalEvent;
+}
+
 function setBusy(container, busy, message = "Working…") {
   container.querySelector(".busy-overlay")?.remove();
   container.setAttribute("aria-busy", `${busy}`);
@@ -209,6 +612,7 @@ function setBusy(container, busy, message = "Working…") {
 function showView(view) {
   elements.loading.hidden = view !== "loading";
   elements.noAccess.hidden = view !== "no-access";
+  elements.assessmentChecksView.hidden = view !== "assessment-checks";
   elements.estateListView.hidden = view !== "list";
   elements.estateView.hidden = view !== "estate";
 }
@@ -220,10 +624,23 @@ function text(tag, value, className) {
   return node;
 }
 
+function fluentIcon(name, className = "") {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.classList.add("fluent-icon");
+  if (className) icon.classList.add(...className.split(" "));
+  icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("focusable", "false");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `./vendor/fluent-system-icons.svg#${name}`);
+  icon.append(use);
+  return icon;
+}
+
 function resultItem({
   label,
   detail,
   agentImpact,
+  icon = "warning-20",
   tone,
   evidence = [],
   review_required = false,
@@ -258,17 +675,17 @@ function resultItem({
     copy.append(text("span", "Content owner review required", "review-required"));
   }
   if (evidence.length > 0) {
-    const details = document.createElement("details");
-    details.className = "result-evidence";
-    details.append(text("summary", `Evidence (${evidence.length})`));
+    const evidenceContent = document.createElement("div");
     evidence.forEach((entry) => {
       const figure = document.createElement("figure");
       figure.append(text("blockquote", entry.quote), text("figcaption", entry.location));
-      details.append(figure);
+      evidenceContent.append(figure);
     });
-    copy.append(details);
+    copy.append(
+      fluentDisclosure(`Evidence (${evidence.length})`, evidenceContent, "result-evidence"),
+    );
   }
-  item.append(copy);
+  item.append(fluentIcon(icon, "result-item-icon"), copy);
   return item;
 }
 
@@ -283,7 +700,7 @@ function classifyFindings(report = {}) {
           finding.agent_impact ??
           presentation.agentImpact ??
           "This issue can make agent answers less reliable or complete.",
-        icon: presentation.icon ?? "!",
+        icon: presentation.icon ?? "warning-20",
         tone: presentation.tone ?? finding.severity ?? "warning",
         evidence: finding.evidence ?? [],
         review_required: finding.review_required,
@@ -303,35 +720,55 @@ function classifyFindings(report = {}) {
       detail: "This assessment includes a result this version cannot display yet.",
       agentImpact:
         "The effect on agent responses is unknown until this result type is supported.",
-      icon: "!",
+      icon: "warning-20",
       tone: "unknown",
     });
   }
   return classified;
 }
 
-function documentFindings(report) {
+function documentFindings(report, documentTitle = "Document") {
   const classified = classifyFindings(report);
   const results = document.createElement("ul");
   results.className = "result-list";
-  results.setAttribute("aria-label", "Content quality findings");
+  results.setAttribute("aria-label", `${documentTitle} content quality findings`);
   results.append(...classified.map(resultItem));
   if (classified.length === 0) {
     results.append(
       resultItem({
         label: "No content issues detected",
         detail: "No supported reshaping issues were found in this source version.",
-        icon: "✓",
+        icon: "checkmark-circle-20",
         tone: "clear",
       }),
     );
     return results;
   }
 
+  return results;
+}
+
+function findingReviewButton(report, documentValue) {
+  const classified = classifyFindings(report);
+  if (classified.length === 0) {
+    return text("span", "No findings", "no-findings");
+  }
   const highPriority = classified.filter((finding) => finding.tone === "high").length;
-  const disclosure = document.createElement("details");
-  disclosure.className = "findings-disclosure";
-  const summary = document.createElement("summary");
+  const button = document.createElement("fluent-button");
+  button.setAttribute("appearance", "lightweight");
+  button.className = "findings-review-button";
+  button.dataset.reviewFindings = documentValue.document_id;
+  button.setAttribute(
+    "aria-label",
+    `Review ${classified.length} finding${
+      classified.length === 1 ? "" : "s"
+    } for ${documentValue.title}`,
+  );
+  button.setAttribute("aria-controls", "documentFindingsPanel documentFindingsDialog");
+  button.setAttribute(
+    "aria-pressed",
+    `${state.activeFindingDocumentId === documentValue.document_id}`,
+  );
   const summaryCopy = document.createElement("span");
   summaryCopy.className = "findings-summary-copy";
   summaryCopy.append(
@@ -346,16 +783,143 @@ function documentFindings(report) {
         : "Review agent impact and evidence",
     ),
   );
-  summary.append(summaryCopy, text("span", "›", "findings-chevron"));
-  disclosure.append(summary, results);
-  return disclosure;
+  button.append(summaryCopy, text("span", "›", "findings-chevron"));
+  return button;
 }
 
-function formatDate(value) {
+function populateFindingsDetail(documentValue, report, title, summary, body) {
+  const findings = classifyFindings(report);
+  title.textContent = documentValue.title;
+  summary.textContent = `${findings.length} finding${
+    findings.length === 1 ? "" : "s"
+  } · ${report.checks_completed?.length ?? 7} checks run`;
+  body.replaceChildren(documentFindings(report, documentValue.title));
+}
+
+function updateFindingButtons() {
+  elements.documentRows.querySelectorAll("[data-review-findings]").forEach((button) => {
+    const active = button.dataset.reviewFindings === state.activeFindingDocumentId;
+    button.setAttribute("aria-pressed", `${active}`);
+    button.closest("fluent-data-grid-row")?.classList.toggle("findings-active", active);
+  });
+}
+
+function closeDocumentFindings({ restoreFocus = true } = {}) {
+  if (isDialogOpen(elements.documentFindingsDialog)) {
+    state.restoreFindingFocus = restoreFocus;
+    hideDialog(elements.documentFindingsDialog, { restoreFocus: false });
+    return;
+  }
+  elements.documentFindingsPanel.hidden = true;
+  elements.discoveryReviewLayout.classList.remove("has-findings");
+  state.activeFindingDocumentId = null;
+  updateFindingButtons();
+  if (restoreFocus && state.findingTrigger?.isConnected) state.findingTrigger.focus();
+  state.findingTrigger = null;
+}
+
+function openDocumentFindings(button) {
+  const documentId = button.dataset.reviewFindings;
+  if (
+    state.activeFindingDocumentId === documentId &&
+    !elements.documentFindingsPanel.hidden
+  ) {
+    closeDocumentFindings();
+    return;
+  }
+  const documentRecord = state.documents.find(
+    (record) => recordValue(record).document_id === documentId,
+  );
+  const documentValue = documentRecord ? recordValue(documentRecord) : null;
+  const report = state.reports.get(documentId);
+  if (!documentValue || !report) return;
+  state.activeFindingDocumentId = documentId;
+  state.findingTrigger = button;
+  updateFindingButtons();
+  if (findingsDialogMedia.matches) {
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsDialogTitle,
+      elements.documentFindingsDialogSummary,
+      elements.documentFindingsDialogBody,
+    );
+    showDialog(elements.documentFindingsDialog, elements.documentFindingsDialogTitle);
+    return;
+  }
+  populateFindingsDetail(
+    documentValue,
+    report,
+    elements.documentFindingsTitle,
+    elements.documentFindingsSummary,
+    elements.documentFindingsBody,
+  );
+  elements.documentFindingsPanel.hidden = false;
+  elements.discoveryReviewLayout.classList.add("has-findings");
+  elements.documentFindingsTitle.focus();
+}
+
+function moveOpenFindingsToCurrentLayout() {
+  const documentId = state.activeFindingDocumentId;
+  if (!documentId) return;
+  const documentRecord = state.documents.find(
+    (record) => recordValue(record).document_id === documentId,
+  );
+  const documentValue = documentRecord ? recordValue(documentRecord) : null;
+  const report = state.reports.get(documentId);
+  if (!documentValue || !report) {
+    closeDocumentFindings({ restoreFocus: false });
+    return;
+  }
+  if (findingsDialogMedia.matches && !isDialogOpen(elements.documentFindingsDialog)) {
+    elements.documentFindingsPanel.hidden = true;
+    elements.discoveryReviewLayout.classList.remove("has-findings");
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsDialogTitle,
+      elements.documentFindingsDialogSummary,
+      elements.documentFindingsDialogBody,
+    );
+    showDialog(elements.documentFindingsDialog, elements.documentFindingsDialogTitle);
+  } else if (!findingsDialogMedia.matches && isDialogOpen(elements.documentFindingsDialog)) {
+    state.transitioningFindingPresentation = true;
+    hideDialog(elements.documentFindingsDialog, { restoreFocus: false });
+    populateFindingsDetail(
+      documentValue,
+      report,
+      elements.documentFindingsTitle,
+      elements.documentFindingsSummary,
+      elements.documentFindingsBody,
+    );
+    elements.documentFindingsPanel.hidden = false;
+    elements.discoveryReviewLayout.classList.add("has-findings");
+    elements.documentFindingsTitle.focus();
+  }
+}
+
+function fileFormatLabel(documentValue) {
+  const extension = documentValue.filename?.split(".").at(-1)?.toLocaleLowerCase();
+  const labels = {
+    docx: "DOCX",
+    md: "Markdown",
+    pdf: "PDF",
+    txt: "Text",
+  };
+  if (labels[extension]) return labels[extension];
+  const mediaTypeLabels = {
+    "application/pdf": "PDF",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+    "text/markdown": "Markdown",
+    "text/plain": "Text",
+  };
+  return mediaTypeLabels[documentValue.media_type] ?? "File";
+}
+
+function formatShortDate(value) {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    dateStyle: "short",
   }).format(new Date(value));
 }
 
@@ -403,9 +967,6 @@ async function initialize() {
   try {
     state.session = await api("/v1/session");
     const collections = Object.keys(state.session.collectionRoles || {});
-    document.querySelector("#avatar").textContent = state.session.subject
-      .slice(0, 2)
-      .toUpperCase();
     if (!state.session.hasGrant || collections.length === 0) {
       showView("no-access");
       return;
@@ -426,6 +987,10 @@ async function loadEstates(restoreRoute = false) {
   );
   state.estates = payload.items;
   renderEstates();
+  if (restoreRoute && window.location.hash === "#assessment-checks") {
+    await openAssessmentChecks();
+    return;
+  }
   const route = restoreRoute ? requestedEstateRoute() : null;
   if (
     route &&
@@ -448,45 +1013,255 @@ function renderEstates() {
   elements.estateActive.textContent = estates.filter(
     (estate) => estate.status === "active",
   ).length;
-  elements.estateEvaluated.textContent = estates.filter(
-    (estate) => estate.generate_evaluations,
+  elements.estateAssessed.textContent = state.estates.filter(
+    (record) => record.assessment_status === "assessed",
   ).length;
   elements.estateList.replaceChildren(
     ...state.estates.map((record) => {
       const estate = recordValue(record);
       const article = document.createElement("article");
-      article.className = "estate-card";
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.estateId = estate.estate_id;
-      const badge = text("span", estate.status, `badge ${estate.status}`);
+      article.className = "estate-card estate-row";
+      const lifecycle = text("span", estate.status, `badge ${estate.status}`);
+      lifecycle.dataset.label = "Lifecycle";
       const nameCell = document.createElement("div");
       nameCell.className = "estate-name";
       const nameCopy = document.createElement("div");
+      const openButton = fluentButton(estate.name, "lightweight", "estate-name-button");
+      openButton.dataset.estateId = estate.estate_id;
+      openButton.setAttribute("aria-label", `Open ${estate.name}`);
+      const title = document.createElement("h2");
+      title.append(openButton);
       nameCopy.append(
-        text("h2", estate.name),
+        title,
         text("p", estate.description || "No estate description has been added."),
       );
-      nameCell.append(text("span", "K", "estate-row-icon"), nameCopy);
+      const estateIcon = document.createElement("span");
+      estateIcon.className = "estate-row-icon";
+      estateIcon.setAttribute("aria-hidden", "true");
+      estateIcon.append(fluentIcon("folder-24", "fluent-icon-large"));
+      nameCell.append(estateIcon, nameCopy);
       const footer = document.createElement("footer");
-      footer.append(text("span", formatDate(estate.updated_at)));
-      button.append(
-        nameCell,
-        badge,
-        text("span", estate.generate_evaluations ? "On" : "Off", "evaluation-state"),
-        footer,
-        text("span", "›", "card-link"),
+      footer.dataset.label = "Last modified";
+      footer.append(text("span", formatShortDate(estate.updated_at)));
+      const documentCount = text(
+        "span",
+        `${record.document_count}`,
+        "estate-document-count",
       );
-      article.append(button);
+      documentCount.dataset.label = "Documents";
+      const assessment = assessmentStatus(record);
+      assessment.dataset.label = "Assessment";
+      article.append(
+        nameCell,
+        documentCount,
+        assessment,
+        lifecycle,
+        footer,
+        text("span", "", "estate-action-space"),
+      );
+      const actions = document.createElement("div");
+      actions.className = "estate-actions";
+      const menuButton = document.createElement("fluent-button");
+      menuButton.setAttribute("appearance", "lightweight");
+      menuButton.className = "estate-menu-trigger";
+      menuButton.dataset.estateMenuToggle = estate.estate_id;
+      menuButton.setAttribute("aria-label", `Actions for ${estate.name}`);
+      menuButton.setAttribute("aria-haspopup", "menu");
+      menuButton.setAttribute("aria-expanded", "false");
+      menuButton.append(fluentIcon("more-horizontal-20"));
+      const menu = document.createElement("fluent-menu");
+      menu.className = "estate-menu";
+      menu.dataset.estateMenu = estate.estate_id;
+      menu.setAttribute("aria-label", `Actions for ${estate.name}`);
+      menu.hidden = true;
+      const editButton = document.createElement("fluent-menu-item");
+      editButton.dataset.estateEdit = estate.estate_id;
+      editButton.textContent = "Edit";
+      editButton.disabled = estate.status === "archived";
+      if (editButton.disabled) {
+        editButton.title = "Archived estates cannot be edited";
+      }
+      const deleteButton = document.createElement("fluent-menu-item");
+      deleteButton.className = "destructive-menu-item";
+      deleteButton.dataset.estateDelete = estate.estate_id;
+      deleteButton.textContent = "Delete";
+      menu.append(editButton, deleteButton);
+      actions.append(menuButton, menu);
+      article.append(actions);
       return article;
     }),
   );
   elements.estateEmpty.hidden = estates.length !== 0;
+  elements.estateListToolbar.hidden = estates.length === 0;
   elements.estateList.closest(".estate-list-shell").hidden = estates.length === 0;
+}
+
+function estateRecord(estateId) {
+  return state.estates.find((record) => recordValue(record).estate_id === estateId);
+}
+
+function closeEstateMenus({ restoreFocus = false } = {}) {
+  const openId = state.openEstateMenuId;
+  document.querySelectorAll("[data-estate-menu]").forEach((menu) => {
+    menu.hidden = true;
+    menu.closest(".estate-card")?.classList.remove("menu-open");
+  });
+  document.querySelectorAll("[data-estate-menu-toggle]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+  state.openEstateMenuId = null;
+  if (restoreFocus && openId) {
+    document.querySelector(`[data-estate-menu-toggle="${CSS.escape(openId)}"]`)?.focus();
+  }
+}
+
+function toggleEstateMenu(estateId, { focusFirst = false } = {}) {
+  const shouldOpen = state.openEstateMenuId !== estateId;
+  closeEstateMenus();
+  if (!shouldOpen) return;
+  const menu = document.querySelector(`[data-estate-menu="${CSS.escape(estateId)}"]`);
+  const trigger = document.querySelector(
+    `[data-estate-menu-toggle="${CSS.escape(estateId)}"]`,
+  );
+  menu.hidden = false;
+  menu.closest(".estate-card")?.classList.add("menu-open");
+  trigger.setAttribute("aria-expanded", "true");
+  state.openEstateMenuId = estateId;
+  if (focusFirst) {
+    menu.querySelector('[role="menuitem"]:not(:disabled)')?.focus();
+  }
+}
+
+function assessmentStatus(record) {
+  const labels = {
+    no_documents: "No documents",
+    not_assessed: "Not assessed",
+    partially_assessed: "Assessed",
+    assessed: "Assessed",
+  };
+  const label = labels[record.assessment_status] ?? "Assessment unavailable";
+  const coverage =
+    record.document_count > 0
+      ? ` · ${record.assessed_document_count} of ${record.document_count}`
+      : "";
+  return text(
+    "span",
+    `${label}${coverage}`,
+    `assessment-status ${record.assessment_status ?? "unknown"}`,
+  );
+}
+
+async function openAssessmentChecks() {
+  clearAlert();
+  showView("assessment-checks");
+  setBusy(elements.assessmentChecksView, true, "Loading assessment checks…");
+  try {
+    await ensureAssessmentChecks();
+    renderAssessmentChecks();
+    history.replaceState(null, "", "#assessment-checks");
+    document.querySelector("#assessmentChecksTitle").focus?.();
+  } catch (error) {
+    showAlert(error.message);
+  } finally {
+    setBusy(elements.assessmentChecksView, false);
+  }
+}
+
+async function ensureAssessmentChecks() {
+  if (state.assessmentChecks) return state.assessmentChecks;
+  const payload = await api("/v1/assessment-checks");
+  state.assessmentChecks = payload.items;
+  return state.assessmentChecks;
+}
+
+function renderAssessmentChecks() {
+  const groups = new Map();
+  state.assessmentChecks.forEach((check) => {
+    const group = groups.get(check.category) ?? [];
+    group.push(check);
+    groups.set(check.category, group);
+  });
+  const tablist = document.createElement("fluent-tabs");
+  tablist.className = "assessment-check-tabs";
+  tablist.setAttribute("aria-label", "Assessment check categories");
+  const panels = document.createElement("div");
+  panels.className = "assessment-check-panels";
+  [...groups.entries()].forEach(([category, checks], index) => {
+    const tab = document.createElement("fluent-tab");
+    tab.id = `assessment-check-tab-${index}`;
+    tab.setAttribute("aria-controls", `assessment-check-panel-${index}`);
+    tab.dataset.assessmentCheckTab = `${index}`;
+    tab.append(text("span", category), text("span", `${checks.length}`, "tab-count"));
+    tablist.append(tab);
+
+    const section = document.createElement("fluent-tab-panel");
+    section.id = `assessment-check-panel-${index}`;
+    section.className = "assessment-check-panel";
+    section.setAttribute("aria-labelledby", tab.id);
+    section.tabIndex = 0;
+    section.append(
+      text("h2", category),
+      text(
+        "p",
+        `${checks.length} deterministic check${checks.length === 1 ? "" : "s"} in this category`,
+        "assessment-check-count",
+      ),
+    );
+    const list = document.createElement("div");
+    list.className = "assessment-check-list";
+    checks.forEach((check, checkIndex) => {
+      const article = document.createElement("article");
+      article.className = "assessment-check-card";
+      const number = text("span", `${checkIndex + 1}`, "assessment-check-number");
+      number.setAttribute("aria-hidden", "true");
+      const content = document.createElement("div");
+      const impact = document.createElement("p");
+      impact.className = "assessment-check-impact";
+      impact.append(
+        text("strong", "Likely agent impact"),
+        document.createTextNode(` ${check.agent_impact}`),
+      );
+      content.append(
+        text("h3", check.label),
+        text("p", check.what_it_checks),
+        impact,
+      );
+      article.append(number, content);
+      list.append(article);
+    });
+    section.append(list);
+    panels.append(section);
+  });
+  elements.assessmentCheckGroups.replaceChildren(tablist, panels);
+  switchAssessmentCheckCategory(
+    Math.min(state.assessmentCheckCategory, groups.size - 1),
+    false,
+  );
+}
+
+function switchAssessmentCheckCategory(index, focus = true) {
+  const tabs = [
+    ...elements.assessmentCheckGroups.querySelectorAll("[data-assessment-check-tab]"),
+  ];
+  const panels = [
+    ...elements.assessmentCheckGroups.querySelectorAll(".assessment-check-panel"),
+  ];
+  if (!tabs[index]) return;
+  state.assessmentCheckCategory = index;
+  tabs.forEach((tab, tabIndex) => {
+    const selected = tabIndex === index;
+    tab.setAttribute("aria-selected", `${selected}`);
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  panels.forEach((panel, panelIndex) => {
+    panel.hidden = panelIndex !== index;
+  });
+  if (focus) tabs[index].focus();
 }
 
 async function openEstate(estateId, targetTab = "sources") {
   clearAlert();
+  resetTransformationProgress();
   showView("estate");
   setBusy(elements.estateView, true, "Loading estate…");
   try {
@@ -498,18 +1273,24 @@ async function openEstate(estateId, targetTab = "sources") {
         api(`/v1/estates/${estateId}/runs`),
         api(`/v1/estates/${estateId}/decisions`),
         api(`/v1/estates/${estateId}/artifacts`),
+        ensureAssessmentChecks(),
       ]);
     state.estate = estate;
     state.sources = sources.items;
     state.documents = documents.items;
     state.runs = runs.items;
     state.decisions = new Map(
-      decisions.items.map((decision) => [decision.document_id, decision]),
+      decisions.items.map((item) => {
+        const decision = recordValue(item);
+        return [decision.document_id, decision];
+      }),
     );
     state.artifacts = artifacts.items;
     state.selectedDocuments.clear();
+    switchApprovalReviewTab("assessment", false);
     await restoreWorkflowEvidence(estateId);
     renderEstate();
+    switchSourceInputTab("location", false);
     switchTab(targetTab, false);
     history.replaceState(null, "", `#estate/${estateId}/${targetTab}`);
   } catch (error) {
@@ -520,10 +1301,12 @@ async function openEstate(estateId, targetTab = "sources") {
 }
 
 async function restoreWorkflowEvidence(estateId) {
-  const runs = state.runs.map(recordValue);
-  const latestDiscovery = [...runs]
-    .reverse()
-    .find((run) => run.kind === "discover" && ["completed", "partial"].includes(run.status));
+  const runs = state.runs
+    .map(recordValue)
+    .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+  const latestDiscovery = runs
+    .filter((run) => run.kind === "discover" && ["completed", "partial"].includes(run.status))
+    .at(-1);
   state.discoveryRunId = latestDiscovery?.run_id ?? null;
   state.reports = new Map();
   if (state.discoveryRunId) {
@@ -533,19 +1316,76 @@ async function restoreWorkflowEvidence(estateId) {
       )}`,
     );
     state.reports = new Map(reports.items.map((report) => [report.document_id, report]));
+    const currentDocuments = new Map(
+      state.documents
+        .map(recordValue)
+        .filter((document) => !document.deleted)
+        .map((document) => [document.document_id, document]),
+    );
+    const completedDocumentIds =
+      latestDiscovery.completed_document_ids?.length > 0
+        ? latestDiscovery.completed_document_ids
+        : [...state.reports.keys()];
+    const discoveryIsCurrent =
+      completedDocumentIds.length > 0 &&
+      completedDocumentIds.every((documentId) => {
+        const document = currentDocuments.get(documentId);
+        return (
+          document &&
+          state.reports.get(documentId)?.source_version === document.source_version
+        );
+      });
+    if (!discoveryIsCurrent) {
+      state.discoveryRunId = null;
+      state.reports = new Map();
+    }
   }
-  const latestRecommendation = [...runs]
-    .reverse()
-    .find((run) => run.kind === "recommend" && ["completed", "partial"].includes(run.status));
+  setProposalStatus("idle");
+  const latestRecommendation = runs.filter((run) => run.kind === "recommend").at(-1);
   state.proposalRunId = latestRecommendation?.run_id ?? null;
   state.proposals = [];
-  if (state.proposalRunId) {
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  if (latestRecommendation?.status === "failed") {
+    setProposalStatus(
+      "error",
+      "No improvement plan was created",
+      latestRecommendation.error ||
+        "Run discovery again, reselect the documents, and retry.",
+    );
+  } else if (latestRecommendation && ["queued", "running"].includes(latestRecommendation.status)) {
+    setProposalStatus(
+      "working",
+      "Creating improvement plan",
+      "The latest recommendation run is still in progress.",
+    );
+  } else if (
+    state.discoveryRunId &&
+    latestRecommendation &&
+    ["completed", "partial"].includes(latestRecommendation.status)
+  ) {
     const proposals = await api(
       `/v1/estates/${estateId}/proposals?run_id=${encodeURIComponent(
         state.proposalRunId,
       )}`,
     );
-    state.proposals = proposals.items;
+    state.proposals = proposals.items.filter((proposal) => {
+      const report = state.reports.get(proposal.document_id);
+      return report?.report_id === proposal.report_id;
+    });
+    if (state.proposals.length > 0 && latestRecommendation.status === "partial") {
+      setProposalStatus(
+        "warning",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan" : "plans"
+        } restored`,
+        latestRecommendation.error || "Some selected documents were skipped.",
+      );
+    }
+    if (state.proposals.length > 0) {
+      await loadEvaluationSuggestions();
+    }
   }
 }
 
@@ -616,7 +1456,7 @@ function renderSources() {
       copy.className = "item-copy";
       copy.append(
         text("h3", source.display_name),
-        text("p", `${source.kind} · ${source.locator}`),
+        text("p", sourceDisplayDetail(source)),
       );
       row.append(
         copy,
@@ -637,36 +1477,88 @@ function renderSources() {
   updateWorkflowProgress();
 }
 
+function sourceDisplayDetail(source) {
+  const labels = {
+    sharepoint: "SharePoint",
+    url: "URL",
+    upload: "Uploaded file",
+    zip: "Uploaded ZIP bundle",
+  };
+  const label = labels[source.kind] ?? "Registered source";
+  const isPublicLocation =
+    ["sharepoint", "url"].includes(source.kind) &&
+    !source.locator?.toLocaleLowerCase().startsWith("asset:");
+  const detail = isPublicLocation
+    ? `${label} · ${source.locator}`
+    : label;
+  if (source.kind !== "sharepoint") return detail;
+  const access =
+    source.credential_mode === "application"
+      ? "Organization-managed access"
+      : "Signed-in user access";
+  return `${detail} · ${access}`;
+}
+
+function updateSourceCredentialOptions() {
+  const isSharePoint = elements.sourceKind.value === "sharepoint";
+  elements.sharePointCredentialField.hidden = !isSharePoint;
+  elements.sharePointCredentialMode.disabled = !isSharePoint;
+}
+
+function switchSourceInputTab(name, focus = true) {
+  document.querySelectorAll("[data-source-input-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.sourceInputPanel !== name;
+  });
+  document.querySelectorAll("[data-source-input-tab]").forEach((button) => {
+    const selected = button.dataset.sourceInputTab === name;
+    button.setAttribute("aria-selected", `${selected}`);
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) elements.sourceInputTabs.setAttribute("activeid", button.id);
+    if (selected && focus) button.focus();
+  });
+}
+
 function renderDocuments() {
+  if (state.activeFindingDocumentId) {
+    closeDocumentFindings({ restoreFocus: false });
+  }
   elements.documentRows.replaceChildren(
+    elements.documentRowsHeader,
     ...state.documents
       .filter((record) => !recordValue(record).deleted)
       .map((record) => {
         const documentValue = recordValue(record);
         const report = state.reports.get(documentValue.document_id);
-        const row = document.createElement("tr");
-        const selectCell = document.createElement("td");
+        const row = document.createElement("fluent-data-grid-row");
+        row.dataset.documentRow = documentValue.document_id;
+        const selectCell = document.createElement("fluent-data-grid-cell");
+        selectCell.setAttribute("grid-column", "1");
         selectCell.className = "select-cell";
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
+        const checkbox = document.createElement("fluent-checkbox");
         checkbox.dataset.documentId = documentValue.document_id;
         checkbox.checked = state.selectedDocuments.has(documentValue.document_id);
-        checkbox.disabled = !report;
+        checkbox.disabled = isArchived();
         checkbox.setAttribute("aria-label", `Select ${documentValue.title}`);
         selectCell.append(checkbox);
-        const documentCell = document.createElement("td");
+        const documentCell = document.createElement("fluent-data-grid-cell");
+        documentCell.setAttribute("grid-column", "2");
         documentCell.className = "document-cell";
         documentCell.append(
           text("strong", documentValue.title),
-          text("p", `${documentValue.media_type} · ${formatDate(documentValue.modified_at)}`),
+          text("p", fileFormatLabel(documentValue)),
         );
-        const viewDocument = text("button", "View source", "text-button");
-        viewDocument.type = "button";
+        const viewDocument = fluentButton(
+          "Review extracted text",
+          "lightweight",
+          "text-button",
+        );
         viewDocument.dataset.viewDocument = documentValue.document_id;
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
+        viewDocument.dataset.sourceRetained = `${record.source_retained === true}`;
         documentCell.append(viewDocument);
-        const findingsCell = document.createElement("td");
+        const findingsCell = document.createElement("fluent-data-grid-cell");
+        findingsCell.setAttribute("grid-column", "3");
         findingsCell.className = "results-cell";
         if (report) {
           findingsCell.append(
@@ -675,7 +1567,7 @@ function renderDocuments() {
               `${report.checks_completed?.length ?? 7} checks run`,
               "checks-completed",
             ),
-            documentFindings(report),
+            findingReviewButton(report, documentValue),
           );
         } else {
           findingsCell.append(text("span", "Run discovery to assess this source version.", "pending-result"));
@@ -715,8 +1607,111 @@ function updateSelection() {
   const count = state.selectedDocuments.size;
   elements.selectionSummary.textContent = `${count} document${
     count === 1 ? "" : "s"
-  } selected`;
+  } selected for improvement planning`;
   elements.recommendButton.disabled = count === 0 || !state.discoveryRunId;
+}
+
+function invalidateAssessmentEvidence() {
+  state.discoveryRunId = null;
+  state.reports = new Map();
+  state.selectedDocuments.clear();
+  resetTransformationProgress();
+  state.proposalRunId = null;
+  state.proposals = [];
+  state.evaluationSuggestions = [];
+  state.selectedEvaluationSuggestions.clear();
+  state.evaluationSuggestionErrors = [];
+  setProposalStatus("idle");
+  renderDocuments();
+  renderProposals();
+}
+
+function proposalAssessmentResults(report) {
+  const section = document.createElement("section");
+  section.className = "proposal-assessment";
+  const heading = text("h4", "Deterministic assessment");
+  const headingId = `proposal-assessment-${crypto.randomUUID()}`;
+  heading.id = headingId;
+  section.setAttribute("aria-labelledby", headingId);
+
+  if (!report) {
+    section.append(
+      heading,
+      text(
+        "p",
+        "The assessment evidence for this source version is unavailable. Run discovery again.",
+        "proposal-assessment-warning",
+      ),
+    );
+    return section;
+  }
+
+  const completedCodes = report.checks_completed ?? [];
+  const findingCodes = new Set(
+    report.findings?.length
+      ? report.findings.map((finding) => finding.code)
+      : (report.finding_codes ?? []).filter(
+          (code) => RESULT_PRESENTATION[code] || !ACCOUNTABILITY_ONLY_FINDINGS.has(code),
+        ),
+  );
+  const checksByCode = new Map(
+    (state.assessmentChecks ?? []).map((check) => [check.code, check]),
+  );
+  const passedChecks = completedCodes
+    .filter((code) => !findingCodes.has(code))
+    .map((code) => checksByCode.get(code))
+    .filter(Boolean);
+  const findings = classifyFindings(report);
+  const failedCheckCount = completedCodes.filter((code) => findingCodes.has(code)).length;
+  const highPriority = findings.filter((finding) => finding.tone === "high").length;
+
+  const summary = document.createElement("div");
+  summary.className = "assessment-outcome-summary";
+  summary.append(
+    metric("Checks completed", completedCodes.length),
+    metric("Checks needing attention", failedCheckCount),
+    metric("Passed", passedChecks.length),
+  );
+  section.append(
+    heading,
+    text(
+      "p",
+      highPriority > 0
+        ? `${highPriority} high-priority ${highPriority === 1 ? "finding needs" : "findings need"} content-owner review.`
+        : "No high-priority findings were detected.",
+      highPriority > 0 ? "proposal-assessment-warning" : "proposal-assessment-clear",
+    ),
+    summary,
+  );
+
+  if (findings.length > 0) {
+    section.append(text("h5", "Checks that need attention"));
+    const failedList = document.createElement("ul");
+    failedList.className = "result-list proposal-finding-list";
+    failedList.setAttribute("aria-label", "Checks that need attention");
+    failedList.append(...findings.map(resultItem));
+    section.append(failedList);
+  }
+
+  const passedList = document.createElement("ul");
+  passedList.className = "passed-check-list";
+  passedChecks.forEach((check) => {
+    const item = document.createElement("li");
+    item.append(
+      text("strong", check.label),
+      text("span", check.category),
+      text("p", check.what_it_checks),
+    );
+    passedList.append(item);
+  });
+  section.append(
+    fluentDisclosure(
+      `${passedChecks.length} checks passed`,
+      passedList,
+      "passed-checks",
+    ),
+  );
+  return section;
 }
 
 function renderProposals() {
@@ -729,18 +1724,22 @@ function renderProposals() {
         ),
       );
       const decision = state.decisions.get(proposal.document_id);
+      const currentReport = state.reports.get(proposal.document_id);
+      const report = currentReport?.report_id === proposal.report_id ? currentReport : null;
       const card = document.createElement("article");
       card.className = "proposal-card";
       card.dataset.proposalId = proposal.recommendation_id;
       const heading = document.createElement("div");
       heading.className = "proposal-heading";
+      const decisionLabel =
+        decision?.outcome === "approve"
+          ? "Approved"
+          : decision?.outcome === "decline"
+            ? "Declined"
+            : "Awaiting decision";
       heading.append(
         text("h3", documentValue?.title || proposal.expected_artifact),
-        text(
-          "span",
-          decision?.outcome || "Awaiting decision",
-          `decision-badge ${decision?.outcome || ""}`,
-        ),
+        text("span", decisionLabel, `decision-badge ${decision?.outcome || ""}`),
       );
       const changes = document.createElement("ul");
       changes.className = "changes";
@@ -752,32 +1751,75 @@ function renderProposals() {
         }),
       );
       const estimate = proposal.token_estimate;
+      const recommendation = document.createElement("section");
+      recommendation.className = "proposal-recommendation";
+      recommendation.append(
+        text("h4", "Recommended changes"),
+        text("p", proposal.rationale, "proposal-rationale"),
+        changes,
+      );
+      const risk = document.createElement("p");
+      risk.className = "proposal-risk";
+      risk.append(
+        text("strong", "Review constraint:"),
+        document.createTextNode(` ${proposal.risk}`),
+      );
+      recommendation.append(risk);
+      const usage = fluentDisclosure(
+        `View estimated model usage · ${estimate.expected_total.toLocaleString()} tokens`,
+        tokenEstimateGraphic(estimate, proposal.expected_artifact),
+        "token-estimate-disclosure",
+      );
       const actions = document.createElement("div");
       actions.className = "proposal-actions";
-      const approve = text("button", "Approve transformation", "button primary");
-      approve.type = "button";
-      approve.disabled = isArchived();
+      const approve = fluentButton(
+        decision?.outcome === "approve" ? "Transformation approved" : "Approve transformation",
+        "accent",
+        "primary",
+      );
+      approve.disabled = isArchived() || decision?.outcome === "approve";
       approve.dataset.decision = "approve";
       approve.dataset.proposalId = proposal.recommendation_id;
-      const decline = text("button", "Decline", "button danger");
-      decline.type = "button";
-      decline.disabled = isArchived();
+      const decline = fluentButton(
+        decision?.outcome === "decline" ? "Transformation declined" : "Decline",
+        "lightweight",
+        "danger",
+      );
+      decline.disabled = isArchived() || decision?.outcome === "decline";
       decline.dataset.decision = "decline";
       decline.dataset.proposalId = proposal.recommendation_id;
       actions.append(approve, decline);
       card.append(
         heading,
-        text("p", proposal.rationale),
-        changes,
-        tokenEstimateGraphic(estimate, proposal.expected_artifact),
+        proposalAssessmentResults(report),
+        recommendation,
+        usage,
+        ...(decision?.outcome === "approve"
+          ? [
+              text(
+                "p",
+                "Approved. This document is ready to transform.",
+                "decision-confirmation",
+              ),
+            ]
+          : []),
         actions,
       );
       return card;
     }),
   );
-  elements.proposalEmpty.hidden = state.proposals.length !== 0;
+  elements.proposalEmpty.hidden =
+    state.proposals.length !== 0 || !elements.proposalStatus.hidden;
+  renderEvaluationOptions();
   updateApprovals();
   updateWorkflowProgress();
+}
+
+function setProposalStatus(kind, title = "", detail = "") {
+  elements.proposalStatus.hidden = kind === "idle";
+  elements.proposalStatus.dataset.state = kind;
+  elements.proposalStatusTitle.textContent = title;
+  elements.proposalStatusDetail.textContent = detail;
 }
 
 function tokenEstimateGraphic(estimate, filename) {
@@ -956,14 +1998,14 @@ function renderArtifacts() {
         );
       }
       if (artifact.status !== "approved") {
-        const approve = text("button", "Approve for publication", "button primary");
-        approve.type = "button";
+        const approve = fluentButton("Approve for publication", "accent", "primary");
         approve.dataset.approveArtifact = artifact.artifact_id;
         approve.dataset.artifactRevision = record.revision;
         approve.disabled = isArchived();
         actions.append(approve);
       } else {
-        const view = text("a", "Open approved HTML", "button secondary");
+        const view = text("fluent-anchor", "Open approved HTML", "secondary");
+        view.setAttribute("appearance", "neutral");
         view.href = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`;
         view.target = "_blank";
         view.rel = "noopener";
@@ -984,7 +2026,7 @@ function renderArtifacts() {
       comparison.append(
         comparisonPanel(
           "Before reshaping",
-          "Original normalized source used for this transformation.",
+          "Complete extracted text from the retained source file.",
           sourceContent,
         ),
         comparisonPanel(
@@ -1028,11 +2070,10 @@ function switchTab(name, focus = true) {
     panel.hidden = panel.dataset.panel !== name;
   });
   document.querySelectorAll("[data-tab]").forEach((button) => {
-    if (button.dataset.tab === name) {
-      button.setAttribute("aria-current", "page");
-    } else {
-      button.removeAttribute("aria-current");
-    }
+    const selected = button.dataset.tab === name;
+    button.setAttribute("aria-selected", `${selected}`);
+    button.tabIndex = selected ? 0 : -1;
+    if (selected) elements.workflowTabs.setAttribute("activeid", button.id);
   });
   if (state.estate) {
     history.replaceState(
@@ -1063,7 +2104,7 @@ async function createEstate(event) {
         generate_evaluations: data.has("generate_evaluations"),
       }),
     });
-    elements.createDialog.close();
+    hideDialog(elements.createDialog);
     elements.createForm.reset();
     document.querySelector("#artifactTemplate").value = "shaper_{source_stem}.html";
     state.estates.push(record);
@@ -1075,34 +2116,115 @@ async function createEstate(event) {
   }
 }
 
-function openDeleteDialog() {
-  const estate = recordValue(state.estate);
+function openEditDialog(estateId) {
+  const record = estateRecord(estateId);
+  if (!record || recordValue(record).status === "archived") return;
+  const estate = recordValue(record);
+  state.actionEstate = record;
+  closeEstateMenus();
+  elements.editForm.reset();
+  elements.editEstateName.value = estate.name;
+  elements.editEstateDescription.value = estate.description || "";
+  elements.editArtifactTemplate.value = estate.artifact_name_template;
+  elements.editEvaluations.checked = estate.generate_evaluations;
+  elements.editError.hidden = true;
+  elements.editError.textContent = "";
+  showDialog(elements.editDialog, elements.editEstateName);
+}
+
+function closeEditDialog() {
+  hideDialog(elements.editDialog);
+  elements.editForm.reset();
+  elements.editError.hidden = true;
+  elements.editError.textContent = "";
+  state.actionEstate = null;
+}
+
+async function editEstate(event) {
+  event.preventDefault();
+  const record = state.actionEstate;
+  if (!record) return;
+  const estate = recordValue(record);
+  const data = new FormData(elements.editForm);
+  elements.editConfirmButton.disabled = true;
+  elements.editError.hidden = true;
+  try {
+    const updated = await api(`/v1/estates/${estate.estate_id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        expected_revision: record.revision,
+        name: data.get("name"),
+        description: data.get("description"),
+        artifact_name_template: data.get("artifact_name_template"),
+        generate_evaluations: data.has("generate_evaluations"),
+      }),
+    });
+    state.estates = state.estates.map((item) =>
+      recordValue(item).estate_id === estate.estate_id
+        ? {
+            ...updated,
+            document_count: item.document_count,
+            assessed_document_count: item.assessed_document_count,
+            assessment_status: item.assessment_status,
+          }
+        : item,
+    );
+    closeEditDialog();
+    renderEstates();
+    document
+      .querySelector(
+        `[data-estate-menu-toggle="${CSS.escape(recordValue(updated).estate_id)}"]`,
+      )
+      ?.focus();
+    announce(`${recordValue(updated).name} updated`);
+  } catch (error) {
+    elements.editError.textContent = error.message;
+    elements.editError.hidden = false;
+  } finally {
+    elements.editConfirmButton.disabled = false;
+  }
+}
+
+function selectedActionEstate() {
+  return state.actionEstate || state.estate;
+}
+
+function openDeleteDialog(estateId) {
+  if (estateId) {
+    state.actionEstate = estateRecord(estateId);
+  }
+  const estate = recordValue(selectedActionEstate());
+  if (!estate) return;
+  closeEstateMenus();
   elements.deleteEstateName.textContent = estate.name;
   elements.deleteForm.reset();
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   elements.deleteError.textContent = "";
-  elements.deleteDialog.showModal();
-  elements.deleteConfirmation.focus();
+  showDialog(elements.deleteDialog, elements.deleteConfirmation);
 }
 
 function closeDeleteDialog() {
-  elements.deleteDialog.close();
+  hideDialog(elements.deleteDialog);
   elements.deleteForm.reset();
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   elements.deleteError.textContent = "";
+  state.actionEstate = null;
 }
 
 function updateDeleteConfirmation() {
-  const estate = recordValue(state.estate);
+  const estate = recordValue(selectedActionEstate());
+  if (!estate) return;
   elements.deleteConfirmButton.disabled =
     elements.deleteConfirmation.value !== estate.name;
 }
 
 async function deleteEstate(event) {
   event.preventDefault();
-  const estate = recordValue(state.estate);
+  const record = selectedActionEstate();
+  const estate = recordValue(record);
+  if (!record || !estate) return;
   if (elements.deleteConfirmation.value !== estate.name) {
     updateDeleteConfirmation();
     return;
@@ -1111,10 +2233,10 @@ async function deleteEstate(event) {
   elements.deleteConfirmButton.disabled = true;
   elements.deleteError.hidden = true;
   try {
-    if (!isArchived()) {
-      state.estate = await api(`/v1/estates/${estate.estate_id}/archive`, {
+    if (estate.status !== "archived") {
+      await api(`/v1/estates/${estate.estate_id}/archive`, {
         method: "POST",
-        body: JSON.stringify({ expected_revision: state.estate.revision }),
+        body: JSON.stringify({ expected_revision: record.revision }),
       });
     }
     await api(`/v1/estates/${estate.estate_id}/purge`, {
@@ -1150,6 +2272,7 @@ async function addSource(event) {
     );
     state.sources.push(record);
     elements.sourceForm.reset();
+    updateSourceCredentialOptions();
     renderSources();
     announce("Source registered. Connection has not been claimed.");
   } catch (error) {
@@ -1177,11 +2300,11 @@ async function uploadFiles(event) {
     elements.uploadForm.reset();
     elements.fileSummary.textContent = "No files selected";
     renderSources();
-    renderDocuments();
+    invalidateAssessmentEvidence();
     announce(
       `${result.documents.length} document${
         result.documents.length === 1 ? "" : "s"
-      } inventoried`,
+      } inventoried. Run discovery to assess the updated estate.`,
     );
   } catch (error) {
     showAlert(error.message);
@@ -1220,9 +2343,21 @@ async function runDiscovery() {
 
 async function requestRecommendations() {
   clearAlert();
-  const panel = document.querySelector('[data-panel="discover"]');
-  setBusy(panel, true, "Preparing recommendations and token estimates…");
+  switchApprovalReviewTab("assessment", false);
+  const selectedCount = state.selectedDocuments.size;
+  state.proposals = [];
+  setProposalStatus(
+    "working",
+    "Creating improvement plan",
+    `Reviewing assessment evidence for ${selectedCount} selected ${
+      selectedCount === 1 ? "document" : "documents"
+    }. This may take a moment.`,
+  );
+  renderProposals();
+  switchTab("recommend");
+  elements.recommendButton.disabled = true;
   try {
+    await ensureAssessmentChecks();
     const result = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/recommendation-runs`,
       {
@@ -1234,18 +2369,49 @@ async function requestRecommendations() {
       },
     );
     state.proposalRunId = recordValue(result.run).run_id;
-    await waitForRun(state.proposalRunId);
+    const runRecord = await waitForRun(state.proposalRunId);
+    const run = recordValue(runRecord);
     state.proposals = await api(
       `/v1/estates/${recordValue(state.estate).estate_id}/proposals?run_id=${encodeURIComponent(
         state.proposalRunId,
       )}`,
     ).then((payload) => payload.items);
+    if (state.proposals.length === 0) {
+      throw new Error(
+        run.error ||
+          "No improvement plans were created. Run discovery again, then reselect the documents.",
+      );
+    }
+    await loadEvaluationSuggestions();
     renderProposals();
-    switchTab("recommend");
+    if (run.failed_document_ids?.length) {
+      setProposalStatus(
+        "warning",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan" : "plans"
+        } created`,
+        run.error || "Some selected documents were skipped. Run discovery again for those sources.",
+      );
+    } else {
+      setProposalStatus(
+        "success",
+        `${state.proposals.length} improvement ${
+          state.proposals.length === 1 ? "plan is" : "plans are"
+        } ready to review`,
+        "Review each assessment result and proposed change before approving a transformation.",
+      );
+    }
+    announce(`${state.proposals.length} improvement plans ready to review`);
   } catch (error) {
+    setProposalStatus(
+      "error",
+      "No improvement plan was created",
+      `${error.message} Return to Assess, run discovery again if the source changed, and retry.`,
+    );
+    renderProposals();
     showAlert(error.message);
   } finally {
-    setBusy(panel, false);
+    updateSelection();
   }
 }
 
@@ -1254,14 +2420,17 @@ async function decide(proposalId, outcome) {
   const proposal = state.proposals.find(
     (item) => item.recommendation_id === proposalId,
   );
-  if (!proposal) return;
+  if (!proposal) {
+    showAlert("The selected transformation proposal is no longer available. Refresh the estate.");
+    return;
+  }
   const current = state.decisions.get(proposal.document_id);
   const card = document
     .querySelector(`[data-proposal-id="${CSS.escape(proposalId)}"]`)
     ?.closest(".proposal-card");
   if (card) setBusy(card, true, "Recording decision…");
   try {
-    const decision = await api(`/v1/proposals/${proposalId}/decision`, {
+    const response = await api(`/v1/proposals/${proposalId}/decision`, {
       method: "PUT",
       body: JSON.stringify({
         outcome,
@@ -1272,6 +2441,7 @@ async function decide(proposalId, outcome) {
         expected_current_decision_id: current?.decision_id ?? null,
       }),
     });
+    const decision = recordValue(response);
     state.decisions.set(proposal.document_id, decision);
     renderProposals();
     announce(`Transformation ${outcome === "approve" ? "approved" : "declined"}`);
@@ -1282,16 +2452,160 @@ async function decide(proposalId, outcome) {
   }
 }
 
+const TRANSFORMATION_CHECK_LABELS = {
+  reshape: "Create complete reshaped content",
+  source_preservation: "Preserve source facts, numbers, and operative clauses",
+  grounding: "Validate claims against the version-pinned source",
+  quality: "Run deterministic citation, structure, and validation checks",
+};
+
+function resetTransformationProgress() {
+  state.transformationAbortController?.abort();
+  state.transformationAbortController = null;
+  state.transformationOperationId = null;
+  state.transformationProgress.clear();
+  elements.transformationProgress.hidden = true;
+  elements.transformationProgress.removeAttribute("data-status");
+  elements.transformationProgressAnnouncement.textContent =
+    "Preparing transformation checks…";
+  elements.transformationProgressList.replaceChildren();
+}
+
+function initializeTransformationProgress(documentIds) {
+  state.transformationProgress = new Map(
+    documentIds.map((documentId) => [
+      documentId,
+      {
+        checks: new Map(
+          Object.keys(TRANSFORMATION_CHECK_LABELS).map((check) => [
+            check,
+            {
+              status:
+                check === "quality" && !elements.generateEvaluations.checked
+                  ? "skipped"
+                  : "waiting",
+              detail:
+                check === "quality" && !elements.generateEvaluations.checked
+                  ? "Optional checks were not selected."
+                  : "Waiting to run.",
+            },
+          ]),
+        ),
+      },
+    ]),
+  );
+  elements.transformationProgress.hidden = false;
+  elements.transformationProgress.dataset.status = "running";
+  elements.transformationProgressAnnouncement.textContent =
+    "Preparing approved documents and their validation checks.";
+  renderTransformationProgress();
+}
+
+function renderTransformationProgress() {
+  const statusIcons = {
+    waiting: "circle-20",
+    running: "sync-circle-20",
+    passed: "checkmark-circle-20",
+    review: "warning-20",
+    failed: "dismiss-circle-20",
+    skipped: "circle-20",
+  };
+  const documents = [...state.transformationProgress.entries()].map(
+    ([documentId, progress]) => {
+      const documentValue = recordValue(
+        state.documents.find(
+          (documentRecord) => recordValue(documentRecord).document_id === documentId,
+        ),
+      );
+      const section = document.createElement("section");
+      section.className = "transformation-progress-document";
+      section.append(text("h4", documentValue?.title || documentId));
+      const list = document.createElement("ul");
+      list.className = "transformation-check-list";
+      progress.checks.forEach((result, check) => {
+        const item = document.createElement("li");
+        item.className = "transformation-check";
+        item.dataset.status = result.status;
+        const symbol = fluentIcon(
+          statusIcons[result.status] || "circle-20",
+          "transformation-check-icon",
+        );
+        const content = document.createElement("span");
+        content.append(
+          text("strong", TRANSFORMATION_CHECK_LABELS[check]),
+          text("span", result.detail, "transformation-check-status"),
+        );
+        item.append(symbol, content);
+        list.append(item);
+      });
+      section.append(list);
+      return section;
+    },
+  );
+  elements.transformationProgressList.replaceChildren(...documents);
+}
+
+function updateTransformationProgress(event) {
+  const progress = event.document_id
+    ? state.transformationProgress.get(event.document_id)
+    : null;
+  if (event.type === "run_started") {
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation started for ${event.document_count} approved document${
+        event.document_count === 1 ? "" : "s"
+      }.`;
+  } else if (event.type === "document_started" && progress) {
+    progress.checks.get("reshape").status = "running";
+    progress.checks.get("reshape").detail = "Creating a complete reshaped document.";
+    elements.transformationProgressAnnouncement.textContent =
+      `Transforming ${event.artifact_name}.`;
+  } else if (event.type === "check_updated" && progress) {
+    progress.checks.set(event.check, {
+      status: event.status,
+      detail: event.detail,
+    });
+    elements.transformationProgressAnnouncement.textContent =
+      `${TRANSFORMATION_CHECK_LABELS[event.check]}: ${event.detail}`;
+  } else if (event.type === "document_completed") {
+    elements.transformationProgressAnnouncement.textContent =
+      `${event.artifact_name} completed and is ready for review.`;
+  } else if (event.type === "document_failed" && progress) {
+    const active =
+      [...progress.checks.values()].find((result) => result.status === "running") ||
+      progress.checks.get("reshape");
+    active.status = "failed";
+    active.detail = event.detail;
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation failed for one document: ${event.detail}`;
+  } else if (event.type === "run_completed") {
+    elements.transformationProgress.dataset.status = event.status;
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation ${event.status}. ${event.completed_document_ids.length} document${
+        event.completed_document_ids.length === 1 ? "" : "s"
+      } ready for review.`;
+  }
+  renderTransformationProgress();
+}
+
 async function transformApproved() {
   clearAlert();
-  const approvedIds = state.proposals
+  const estateId = recordValue(state.estate).estate_id;
+  const operationId = crypto.randomUUID();
+  const abortController = new AbortController();
+  state.transformationOperationId = operationId;
+  state.transformationAbortController = abortController;
+  const isCurrentOperation = () =>
+    state.transformationOperationId === operationId &&
+    recordValue(state.estate).estate_id === estateId;
+  const approvedProposals = state.proposals
     .filter(
       (proposal) =>
         state.decisions.get(proposal.document_id)?.outcome === "approve",
-    )
-    .map((proposal) => proposal.recommendation_id);
-  const panel = document.querySelector('[data-panel="recommend"]');
-  setBusy(panel, true, "Creating approved agent-ready HTML…");
+    );
+  const approvedIds = approvedProposals.map((proposal) => proposal.recommendation_id);
+  initializeTransformationProgress(approvedProposals.map((proposal) => proposal.document_id));
+  elements.transformButton.disabled = true;
+  elements.generateEvaluations.disabled = true;
   try {
     const estateRecord = state.estate;
     const estate = recordValue(estateRecord);
@@ -1311,26 +2625,40 @@ async function transformApproved() {
       );
       if (estateIndex >= 0) state.estates[estateIndex] = state.estate;
     }
-    const result = await api(
-      `/v1/estates/${recordValue(state.estate).estate_id}/transformation-runs`,
-      {
-        method: "POST",
-        body: JSON.stringify({ ids: approvedIds }),
+    const result = await streamTransformation(
+      estateId,
+      approvedIds,
+      (event) => {
+        if (isCurrentOperation()) updateTransformationProgress(event);
       },
+      abortController.signal,
     );
-    await waitForRun(recordValue(result.run).run_id);
+    if (!isCurrentOperation()) return;
+    if (!["completed", "partial"].includes(result.status)) {
+      throw new Error(result.error || `Transformation ended with status ${result.status}`);
+    }
     state.artifacts = await api(
-      `/v1/estates/${recordValue(state.estate).estate_id}/artifacts`,
+      `/v1/estates/${estateId}/artifacts`,
     ).then((payload) => payload.items);
+    if (!isCurrentOperation()) return;
     renderArtifacts();
     switchTab("transform");
     announce(
-      `Transformation ${recordValue(result.run).status}. ${state.artifacts.length} artifact records available.`,
+      `Transformation ${result.status}. ${state.artifacts.length} artifact records available.`,
     );
   } catch (error) {
+    if (!isCurrentOperation()) return;
+    elements.transformationProgress.dataset.status = "failed";
+    elements.transformationProgressAnnouncement.textContent =
+      `Transformation stopped: ${error.message}`;
     showAlert(error.message);
   } finally {
-    setBusy(panel, false);
+    if (isCurrentOperation()) {
+      state.transformationAbortController = null;
+      state.transformationOperationId = null;
+      elements.generateEvaluations.disabled = false;
+      updateApprovals();
+    }
   }
 }
 
@@ -1359,11 +2687,18 @@ async function approveArtifact(artifactId, revision) {
   }
 }
 
-async function openDocument(documentId, sourceVersion, title) {
+async function openDocument(documentId, sourceVersion, title, sourceRetained) {
   clearAlert();
   elements.documentDialogTitle.textContent = title;
+  elements.documentDownload.hidden = !sourceRetained;
+  elements.documentSourceStatus.textContent = sourceRetained
+    ? "Findings use this lossless text derivative. The exact uploaded file is retained separately as the source of record."
+    : "This document predates source retention. Re-upload the original file to retain it; the extracted text below remains available.";
+  elements.documentDownload.href =
+    `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
+    `${encodeURIComponent(documentId)}/source?source_version=${encodeURIComponent(sourceVersion)}`;
   elements.documentContent.textContent = "Loading document content…";
-  elements.documentDialog.showModal();
+  showDialog(elements.documentDialog, elements.documentDialogTitle);
   try {
     elements.documentContent.textContent = await apiText(
       `/v1/estates/${recordValue(state.estate).estate_id}/documents/` +
@@ -1373,20 +2708,21 @@ async function openDocument(documentId, sourceVersion, title) {
     );
   } catch (error) {
     elements.documentContent.textContent = "";
-    elements.documentDialog.close();
+    hideDialog(elements.documentDialog);
     showAlert(error.message);
   }
 }
 
 async function archiveEstate() {
   const estate = recordValue(state.estate);
-  if (
-    !window.confirm(
-      `Archive "${estate.name}"? The estate will become read-only and cannot be restored.`,
-    )
-  ) {
-    return;
-  }
+  elements.archiveDescription.textContent =
+    `Archive "${estate.name}"? The estate will become read-only and cannot be restored.`;
+  showDialog(elements.archiveDialog, elements.archiveConfirmButton);
+}
+
+async function confirmArchiveEstate() {
+  const estate = recordValue(state.estate);
+  hideDialog(elements.archiveDialog);
   clearAlert();
   setBusy(elements.estateView, true, "Archiving estate…");
   try {
@@ -1407,7 +2743,7 @@ function openPurgeDialog() {
   const estate = recordValue(state.estate);
   elements.purgePhrase.textContent = `PURGE ${estate.name}`;
   elements.purgeForm.reset();
-  elements.purgeDialog.showModal();
+  showDialog(elements.purgeDialog, elements.purgePhrase);
 }
 
 async function purgeEstate(event) {
@@ -1424,7 +2760,7 @@ async function purgeEstate(event) {
         reason: data.get("reason"),
       }),
     });
-    elements.purgeDialog.close();
+    hideDialog(elements.purgeDialog);
     state.estate = null;
     announce("Knowledge estate purged");
     await loadEstates();
@@ -1435,34 +2771,76 @@ async function purgeEstate(event) {
   }
 }
 
+function interactiveEventTarget(event) {
+  return event.composedPath().find(
+    (candidate) =>
+      candidate instanceof Element &&
+      (candidate.matches("fluent-button, fluent-anchor") ||
+        (candidate.matches("button, a") && candidate.getRootNode() === document)),
+  );
+}
+
 document.addEventListener("click", async (event) => {
-  const target = event.target.closest("button, a");
+  const eventPath = event.composedPath();
+  if (
+    !eventPath.some(
+      (candidate) => candidate instanceof Element && candidate.matches(".estate-actions"),
+    )
+  ) {
+    closeEstateMenus();
+  }
+  const target = interactiveEventTarget(event);
   if (!target) return;
   if (target.dataset.action === "home") {
     event.preventDefault();
     await loadEstates();
+  } else if (target.dataset.action === "assessment-checks") {
+    await openAssessmentChecks();
+  } else if (target.dataset.assessmentCheckTab) {
+    switchAssessmentCheckCategory(Number(target.dataset.assessmentCheckTab), false);
+  } else if (target.id === "downloadEvaluations") {
+    downloadEvaluationDataset();
   } else if (target.dataset.action === "open-create") {
-    elements.createDialog.showModal();
+    showDialog(elements.createDialog, document.querySelector("#estateName"));
   } else if (target.dataset.action === "close-create") {
-    elements.createDialog.close();
+    hideDialog(elements.createDialog);
+  } else if (target.dataset.action === "close-edit") {
+    closeEditDialog();
+  } else if (target.dataset.estateMenuToggle) {
+    toggleEstateMenu(target.dataset.estateMenuToggle);
+  } else if (target.dataset.estateEdit) {
+    openEditDialog(target.dataset.estateEdit);
+  } else if (target.dataset.estateDelete) {
+    openDeleteDialog(target.dataset.estateDelete);
   } else if (target.dataset.action === "open-delete") {
     openDeleteDialog();
   } else if (target.dataset.action === "close-delete") {
     closeDeleteDialog();
   } else if (target.dataset.action === "close-purge") {
-    elements.purgeDialog.close();
+    hideDialog(elements.purgeDialog);
   } else if (target.dataset.action === "close-document") {
-    elements.documentDialog.close();
+    hideDialog(elements.documentDialog);
+  } else if (target.dataset.action === "close-archive") {
+    hideDialog(elements.archiveDialog);
+  } else if (target.id === "archiveConfirmButton") {
+    await confirmArchiveEstate();
+  } else if (target.id === "chooseFilesButton") {
+    elements.files.click();
+  } else if (target.dataset.action === "close-findings") {
+    closeDocumentFindings();
+  } else if (target.dataset.reviewFindings) {
+    openDocumentFindings(target);
   } else if (target.dataset.viewDocument) {
     await openDocument(
       target.dataset.viewDocument,
       target.dataset.sourceVersion,
       target.dataset.documentTitle,
+      target.dataset.sourceRetained === "true",
     );
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {
-    switchTab(target.dataset.tab);
+    switchTab(target.dataset.tab, false);
   } else if (target.dataset.decision) {
     await decide(target.dataset.proposalId, target.dataset.decision);
   } else if (target.dataset.approveArtifact) {
@@ -1473,10 +2851,138 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  const assessmentTab = event.target.closest("[data-assessment-check-tab]");
+  if (
+    assessmentTab &&
+    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+  ) {
+    event.preventDefault();
+    const tabs = [
+      ...elements.assessmentCheckGroups.querySelectorAll("[data-assessment-check-tab]"),
+    ];
+    const current = tabs.indexOf(assessmentTab);
+    let next = 0;
+    if (event.key === "End") {
+      next = tabs.length - 1;
+    } else if (event.key === "ArrowLeft") {
+      next = current <= 0 ? tabs.length - 1 : current - 1;
+    } else if (event.key === "ArrowRight") {
+      next = current === tabs.length - 1 ? 0 : current + 1;
+    }
+    switchAssessmentCheckCategory(next);
+    return;
+  }
+  if (event.key === "Escape" && state.openEstateMenuId) {
+    event.preventDefault();
+    closeEstateMenus({ restoreFocus: true });
+    return;
+  }
+  const trigger = event.target.closest("[data-estate-menu-toggle]");
+  if (trigger && event.key === "ArrowDown") {
+    event.preventDefault();
+    const estateId = trigger.dataset.estateMenuToggle;
+    if (state.openEstateMenuId === estateId) {
+      document
+        .querySelector(`[data-estate-menu="${CSS.escape(estateId)}"]`)
+        ?.querySelector('[role="menuitem"]:not(:disabled)')
+        ?.focus();
+    } else {
+      toggleEstateMenu(estateId, { focusFirst: true });
+    }
+    return;
+  }
+
+  const menu = event.target.closest("[data-estate-menu]");
+  if (!menu) return;
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const items = [...menu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+  if (items.length === 0) return;
+  const current = items.indexOf(document.activeElement);
+  let next = 0;
+  if (event.key === "End") {
+    next = items.length - 1;
+  } else if (event.key === "ArrowUp") {
+    next = current <= 0 ? items.length - 1 : current - 1;
+  } else if (event.key === "ArrowDown") {
+    next = current === items.length - 1 ? 0 : current + 1;
+  }
+  items[next].focus();
+});
+
+document.addEventListener("focusin", (event) => {
+  if (state.openEstateMenuId && !event.target.closest(".estate-actions")) {
+    closeEstateMenus();
+  }
+});
+
 elements.createForm.addEventListener("submit", createEstate);
+elements.editForm.addEventListener("submit", editEstate);
 elements.deleteForm.addEventListener("submit", deleteEstate);
 elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
+elements.sourceInputTabs.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-source-input-tab]");
+  if (tab) switchSourceInputTab(tab.dataset.sourceInputTab, false);
+});
+elements.sourceInputTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-source-input-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [...elements.sourceInputTabs.querySelectorAll("[data-source-input-tab]")];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchSourceInputTab(tabs[next].dataset.sourceInputTab);
+});
+elements.workflowTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [...elements.workflowTabs.querySelectorAll("[data-tab]")];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchTab(tabs[next].dataset.tab, false);
+  tabs[next].focus();
+});
+elements.approvalReviewTabs.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-approval-review-tab]");
+  if (tab) switchApprovalReviewTab(tab.dataset.approvalReviewTab, false);
+});
+elements.approvalReviewTabs.addEventListener("keydown", (event) => {
+  const tab = event.target.closest("[data-approval-review-tab]");
+  if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = [
+    ...elements.approvalReviewTabs.querySelectorAll("[data-approval-review-tab]"),
+  ];
+  const current = tabs.indexOf(tab);
+  let next = 0;
+  if (event.key === "End") {
+    next = tabs.length - 1;
+  } else if (event.key === "ArrowLeft") {
+    next = current <= 0 ? tabs.length - 1 : current - 1;
+  } else if (event.key === "ArrowRight") {
+    next = current === tabs.length - 1 ? 0 : current + 1;
+  }
+  switchApprovalReviewTab(tabs[next].dataset.approvalReviewTab);
+});
 elements.sourceForm.addEventListener("submit", addSource);
+elements.sourceKind.addEventListener("change", updateSourceCredentialOptions);
+updateSourceCredentialOptions();
 elements.uploadForm.addEventListener("submit", uploadFiles);
 elements.discoverButton.addEventListener("click", runDiscovery);
 elements.recommendButton.addEventListener("click", requestRecommendations);
@@ -1484,13 +2990,31 @@ elements.transformButton.addEventListener("click", transformApproved);
 elements.archiveButton.addEventListener("click", archiveEstate);
 elements.purgeButton.addEventListener("click", openPurgeDialog);
 elements.purgeForm.addEventListener("submit", purgeEstate);
+elements.createDialog.addEventListener("dismiss", () => hideDialog(elements.createDialog));
+elements.editDialog.addEventListener("dismiss", closeEditDialog);
+elements.deleteDialog.addEventListener("dismiss", closeDeleteDialog);
+elements.documentDialog.addEventListener("dismiss", () => hideDialog(elements.documentDialog));
+elements.documentFindingsDialog.addEventListener("dismiss", closeDocumentFindings);
+elements.purgeDialog.addEventListener("dismiss", () => hideDialog(elements.purgeDialog));
+elements.archiveDialog.addEventListener("dismiss", () => hideDialog(elements.archiveDialog));
+elements.evaluationTarget.addEventListener("change", renderEvaluationOptions);
+elements.evaluationSuggestionList.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-evaluation-suggestion]");
+  if (!checkbox) return;
+  if (checkbox.checked) {
+    state.selectedEvaluationSuggestions.add(checkbox.dataset.evaluationSuggestion);
+  } else {
+    state.selectedEvaluationSuggestions.delete(checkbox.dataset.evaluationSuggestion);
+  }
+  renderEvaluationOptions();
+});
 elements.files.addEventListener("change", () => {
   const count = elements.files.files.length;
   elements.fileSummary.textContent =
     count === 0 ? "No files selected" : `${count} file${count === 1 ? "" : "s"} selected`;
 });
 elements.documentRows.addEventListener("change", (event) => {
-  const checkbox = event.target.closest('input[type="checkbox"][data-document-id]');
+  const checkbox = event.target.closest("fluent-checkbox[data-document-id]");
   if (!checkbox) return;
   if (checkbox.checked) {
     state.selectedDocuments.add(checkbox.dataset.documentId);
@@ -1499,5 +3023,35 @@ elements.documentRows.addEventListener("change", (event) => {
   }
   updateSelection();
 });
+elements.documentFindingsDialog.addEventListener("close", () => {
+  if (state.transitioningFindingPresentation) {
+    state.transitioningFindingPresentation = false;
+    return;
+  }
+  state.activeFindingDocumentId = null;
+  updateFindingButtons();
+  if (state.restoreFindingFocus && state.findingTrigger?.isConnected) {
+    state.findingTrigger.focus();
+  }
+  state.restoreFindingFocus = true;
+  state.findingTrigger = null;
+});
+elements.documentFindingsDialog.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeDocumentFindings();
+});
+document.addEventListener("keydown", (event) => {
+  if (
+    event.key === "Escape" &&
+    state.activeFindingDocumentId &&
+    !isDialogOpen(elements.documentFindingsDialog) &&
+    !elements.documentFindingsPanel.hidden
+  ) {
+    event.preventDefault();
+    closeDocumentFindings();
+  }
+});
+findingsDialogMedia.addEventListener("change", moveOpenFindingsToCurrentLayout);
 
 initialize();
