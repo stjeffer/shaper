@@ -5983,3 +5983,459 @@ td { padding: var(--space-3); }
 @media (max-width: 760px) {
   :root[data-color-scheme="dark"] .workspace::before { inset-left: 0; }
 }
+
+/* ============================================================
+   Architectural editorial layer — unified with the Shaper site
+   Near-black canvas, thin rules, generous rhythm, cyan signal.
+   ============================================================ */
+:root[data-color-scheme="dark"] {
+  --ed-canvas: #050505;
+  --ed-surface: #0b0f11;
+  --ed-surface-2: #10161a;
+  --ed-line: rgb(150 190 200 / 16%);
+  --ed-line-strong: rgb(150 190 200 / 30%);
+  --ed-ink: #e9f1ef;
+  --ed-ink-muted: #93a3a6;
+  --ed-cyan: #6de0d2;
+  --ed-lime: #bef264;
+  --ed-gutter: 48px;
+}
+
+:root[data-color-scheme="dark"] body {
+  background: var(--ed-canvas);
+  color: var(--ed-ink);
+  font-family: "Segoe UI", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+:root[data-color-scheme="dark"] .app-shell {
+  background: var(--ed-canvas);
+  gap: 0;
+}
+
+:root[data-color-scheme="dark"] .sidebar {
+  background: var(--ed-canvas);
+  border-right: 1px solid var(--ed-line);
+  box-shadow: none;
+  gap: 24px;
+  padding: 24px 16px;
+}
+
+:root[data-color-scheme="dark"] .workspace {
+  background: var(--ed-canvas);
+  padding: 56px var(--ed-gutter) 96px;
+  max-width: 1360px;
+  margin-inline: auto;
+  gap: 56px;
+  min-width: 0;
+}
+
+:root[data-color-scheme="dark"] .workspace::before { display: none; }
+
+/* Typography ------------------------------------------------ */
+:root[data-color-scheme="dark"] h1 {
+  font-size: clamp(1.9rem, 3.2vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+  text-wrap: balance;
+}
+
+:root[data-color-scheme="dark"] h2 {
+  font-size: 1.35rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0;
+}
+
+:root[data-color-scheme="dark"] h3 {
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+
+:root[data-color-scheme="dark"] p {
+  color: var(--ed-ink-muted);
+  line-height: 1.65;
+  max-width: 68ch;
+  margin: 0;
+}
+
+:root[data-color-scheme="dark"] .eyebrow,
+:root[data-color-scheme="dark"] .panel-heading > .eyebrow,
+:root[data-color-scheme="dark"] .section-heading .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--ed-cyan);
+  opacity: 0.85;
+}
+
+:root[data-color-scheme="dark"] .hint,
+:root[data-color-scheme="dark"] .quiet,
+:root[data-color-scheme="dark"] .field-help,
+:root[data-color-scheme="dark"] small {
+  color: var(--ed-ink-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* Headings blocks ------------------------------------------- */
+:root[data-color-scheme="dark"] .page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--ed-line);
+}
+
+:root[data-color-scheme="dark"] .page-heading > div { display: grid; gap: 12px; min-width: 0; }
+
+:root[data-color-scheme="dark"] .portfolio-hero,
+:root[data-color-scheme="dark"] .assessment-checks-heading { align-items: flex-end; }
+
+:root[data-color-scheme="dark"] .panel-heading {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+/* Panels and cards ------------------------------------------ */
+:root[data-color-scheme="dark"] .panel,
+:root[data-color-scheme="dark"] .state-card,
+:root[data-color-scheme="dark"] .form-card,
+:root[data-color-scheme="dark"] .lifecycle-card,
+:root[data-color-scheme="dark"] .registered-sources-panel,
+:root[data-color-scheme="dark"] .source-input-panel,
+:root[data-color-scheme="dark"] .approval-review-panel,
+:root[data-color-scheme="dark"] .document-findings-panel,
+:root[data-color-scheme="dark"] .comparison-panel,
+:root[data-color-scheme="dark"] .evaluation-options,
+:root[data-color-scheme="dark"] .transformation-progress,
+:root[data-color-scheme="dark"] .table-scroll {
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 28px 28px;
+  min-width: 0;
+}
+
+:root[data-color-scheme="dark"] .table-scroll { padding: 0; overflow-x: auto; }
+
+:root[data-color-scheme="dark"] .estate-grid,
+:root[data-color-scheme="dark"] .documents-grid,
+:root[data-color-scheme="dark"] .assessment-principles,
+:root[data-color-scheme="dark"] .portfolio-metrics,
+:root[data-color-scheme="dark"] .metrics {
+  display: grid;
+  gap: 1px;
+  background: var(--ed-line);
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  overflow: hidden;
+}
+
+:root[data-color-scheme="dark"] .estate-grid > *,
+:root[data-color-scheme="dark"] .documents-grid > *,
+:root[data-color-scheme="dark"] .assessment-principles > article,
+:root[data-color-scheme="dark"] .portfolio-metrics > *,
+:root[data-color-scheme="dark"] .metrics > * {
+  background: var(--ed-surface);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 26px 24px;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  transition: background 150ms ease;
+}
+
+:root[data-color-scheme="dark"] .estate-grid > *:hover,
+:root[data-color-scheme="dark"] .documents-grid > *:hover { background: var(--ed-surface-2); }
+
+:root[data-color-scheme="dark"] .assessment-principles > article strong,
+:root[data-color-scheme="dark"] .metrics strong,
+:root[data-color-scheme="dark"] .portfolio-metrics strong {
+  font-weight: 600;
+  color: var(--ed-ink);
+}
+
+:root[data-color-scheme="dark"] .source-workspace-grid,
+:root[data-color-scheme="dark"] .discovery-review-layout {
+  display: grid;
+  gap: 32px;
+  align-items: start;
+  min-width: 0;
+}
+
+/* Lists and tables ------------------------------------------ */
+:root[data-color-scheme="dark"] .item-list,
+:root[data-color-scheme="dark"] .proposal-list,
+:root[data-color-scheme="dark"] .evaluation-suggestion-list,
+:root[data-color-scheme="dark"] .transformation-progress-list,
+:root[data-color-scheme="dark"] .artifact-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-color-scheme="dark"] .item-list > li,
+:root[data-color-scheme="dark"] .proposal-list > li,
+:root[data-color-scheme="dark"] .evaluation-suggestion-list > li,
+:root[data-color-scheme="dark"] .transformation-progress-list > li,
+:root[data-color-scheme="dark"] .artifact-list > li {
+  border-top: 1px solid var(--ed-line);
+  padding: 18px 0;
+  background: transparent;
+  border-radius: 0;
+  min-width: 0;
+}
+
+:root[data-color-scheme="dark"] .item-list > li:first-child,
+:root[data-color-scheme="dark"] .proposal-list > li:first-child { border-top: 0; }
+
+:root[data-color-scheme="dark"] table { border-collapse: collapse; width: 100%; }
+
+:root[data-color-scheme="dark"] th,
+:root[data-color-scheme="dark"] td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ed-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+:root[data-color-scheme="dark"] th {
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  color: var(--ed-ink-muted);
+  background: transparent;
+}
+
+/* Status chips ---------------------------------------------- */
+:root[data-color-scheme="dark"] .badge,
+:root[data-color-scheme="dark"] .count,
+:root[data-color-scheme="dark"] .source-status,
+:root[data-color-scheme="dark"] .proposal-status,
+:root[data-color-scheme="dark"] .decision-badge,
+:root[data-color-scheme="dark"] .assessment-status,
+:root[data-color-scheme="dark"] .estate-state,
+:root[data-color-scheme="dark"] .result-severity,
+:root[data-color-scheme="dark"] .review-required {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ed-line-strong);
+  background: transparent;
+  color: var(--ed-ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: none;
+  white-space: nowrap;
+}
+
+/* Tabs ------------------------------------------------------- */
+:root[data-color-scheme="dark"] .source-input-tabs,
+:root[data-color-scheme="dark"] .approval-review-tabs,
+:root[data-color-scheme="dark"] .assessment-check-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--ed-line);
+  padding: 0 0 0;
+  background: transparent;
+  margin-bottom: 24px;
+}
+
+:root[data-color-scheme="dark"] .source-input-tabs button,
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"] {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--ed-ink-muted);
+  padding: 12px 16px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+:root[data-color-scheme="dark"] .source-input-tabs button[aria-selected="true"],
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"][aria-selected="true"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"][aria-selected="true"] {
+  color: var(--ed-ink);
+  border-bottom-color: var(--ed-cyan);
+  font-weight: 600;
+}
+
+/* Buttons --------------------------------------------------- */
+:root[data-color-scheme="dark"] fluent-button::part(control),
+:root[data-color-scheme="dark"] fluent-anchor::part(control) {
+  border-radius: 4px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  min-height: 40px;
+  padding-inline: 18px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"]::part(control),
+:root[data-color-scheme="dark"] .primary::part(control) {
+  background: var(--ed-cyan);
+  color: #04120f;
+  border-color: var(--ed-cyan);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"]:hover::part(control),
+:root[data-color-scheme="dark"] .primary:hover::part(control) {
+  background: #8ceade;
+  box-shadow: 0 0 0 1px rgb(109 224 210 / 40%);
+}
+
+:root[data-color-scheme="dark"] .secondary::part(control),
+:root[data-color-scheme="dark"] fluent-button[appearance="outline"]::part(control) {
+  background: transparent;
+  border-color: var(--ed-line-strong);
+  color: var(--ed-ink);
+}
+
+:root[data-color-scheme="dark"] .secondary:hover::part(control) {
+  border-color: var(--ed-cyan);
+  color: var(--ed-cyan);
+}
+
+:root[data-color-scheme="dark"] .back-link::part(control) {
+  padding-inline: 0;
+  color: var(--ed-ink-muted);
+}
+
+:root[data-color-scheme="dark"] .nav-item::part(control) {
+  border-radius: 4px;
+  justify-content: flex-start;
+}
+
+:root[data-color-scheme="dark"] .nav-item[aria-current="page"]::part(control) {
+  background: rgb(109 224 210 / 10%);
+  color: var(--ed-cyan);
+}
+
+:root[data-color-scheme="dark"] .shaper-mark path:first-child { stroke: var(--ed-cyan); }
+:root[data-color-scheme="dark"] .shaper-mark path:last-child { stroke: var(--ed-lime); }
+
+/* Toolbars, actions, dialogs -------------------------------- */
+:root[data-color-scheme="dark"] .list-toolbar,
+:root[data-color-scheme="dark"] .transformation-actions,
+:root[data-color-scheme="dark"] .lifecycle-actions,
+:root[data-color-scheme="dark"] .dialog-actions,
+:root[data-color-scheme="dark"] .sticky-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-color-scheme="dark"] .sticky-actions {
+  background: rgb(5 5 5 / 92%);
+  border-top: 1px solid var(--ed-line);
+  padding: 16px var(--ed-gutter);
+  backdrop-filter: blur(6px);
+}
+
+:root[data-color-scheme="dark"] fluent-dialog::part(control) {
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-line-strong);
+  border-radius: 4px;
+  padding: 32px;
+}
+
+:root[data-color-scheme="dark"] .dialog-heading { display: grid; gap: 10px; margin-bottom: 24px; }
+:root[data-color-scheme="dark"] .dialog-body { display: grid; gap: 20px; }
+:root[data-color-scheme="dark"] .dialog-actions { margin-top: 28px; justify-content: flex-end; }
+
+/* Forms ----------------------------------------------------- */
+:root[data-color-scheme="dark"] label { font-weight: 400; color: var(--ed-ink-muted); }
+
+:root[data-color-scheme="dark"] fluent-text-field::part(root),
+:root[data-color-scheme="dark"] fluent-text-area::part(control),
+:root[data-color-scheme="dark"] fluent-select::part(control),
+:root[data-color-scheme="dark"] .select-field select {
+  background: var(--ed-canvas);
+  border: 1px solid var(--ed-line-strong);
+  border-radius: 4px;
+  color: var(--ed-ink);
+}
+
+:root[data-color-scheme="dark"] .file-drop {
+  border: 1px dashed var(--ed-line-strong);
+  border-radius: 4px;
+  background: var(--ed-canvas);
+  padding: 32px;
+  text-align: center;
+}
+
+:root[data-color-scheme="dark"] .empty-state {
+  border: 1px dashed var(--ed-line);
+  border-radius: 4px;
+  padding: 48px 32px;
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  background: transparent;
+}
+
+/* Overflow safety ------------------------------------------- */
+:root[data-color-scheme="dark"] .workspace *,
+:root[data-color-scheme="dark"] fluent-dialog * { min-width: 0; }
+
+:root[data-color-scheme="dark"] .entity-title,
+:root[data-color-scheme="dark"] .item-list li,
+:root[data-color-scheme="dark"] td,
+:root[data-color-scheme="dark"] .estate-grid > *,
+:root[data-color-scheme="dark"] .documents-grid > *,
+:root[data-color-scheme="dark"] pre,
+:root[data-color-scheme="dark"] code {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+:root[data-color-scheme="dark"] pre {
+  background: var(--ed-canvas);
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  padding: 20px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  :root[data-color-scheme="dark"] { --ed-gutter: 24px; }
+  :root[data-color-scheme="dark"] .workspace { padding: 32px var(--ed-gutter) 72px; gap: 40px; }
+  :root[data-color-scheme="dark"] .panel,
+  :root[data-color-scheme="dark"] .state-card,
+  :root[data-color-scheme="dark"] .form-card { padding: 20px; }
+  :root[data-color-scheme="dark"] .page-heading { gap: 20px; }
+}
