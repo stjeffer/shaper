@@ -5794,3 +5794,40 @@ td { padding: var(--space-3); }
   .state-card,
   .empty-state { padding: var(--space-6); }
 }
+
+
+/* Shared shaper brand mark */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.shaper-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  overflow: visible;
+  fill: none;
+}
+
+.shaper-mark path {
+  stroke-width: 4;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.shaper-mark path:first-child { stroke: #79e7dc; }
+.shaper-mark path:last-child { stroke: #b8ed50; }
+
+.brand:hover .shaper-mark path,
+.brand:focus-visible .shaper-mark path {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shaper-mark path { transition: filter 160ms ease; }
+}
