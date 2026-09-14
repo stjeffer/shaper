@@ -3,16 +3,24 @@ let fluentLoadError = null;
 
 try {
   const {
-    StandardLuminance,
     accentBaseColor,
     baseLayerLuminance,
+    neutralBaseColor,
     SwatchRGB,
   } = await import(
     "./vendor/fluent-web-components-2.6.1.min.js"
   );
 
-  baseLayerLuminance.setValueFor(provider, StandardLuminance.DarkMode);
-  accentBaseColor.setValueFor(provider, SwatchRGB.from({ r: 0.45, g: 0.85, b: 0.4 }));
+  // shaper theme: near-black cool canvas with a lime signal accent.
+  baseLayerLuminance.setValueFor(provider, 0.06);
+  accentBaseColor.setValueFor(
+    provider,
+    SwatchRGB.from({ r: 0.647, g: 0.878, b: 0.376 }),
+  );
+  neutralBaseColor.setValueFor(
+    provider,
+    SwatchRGB.from({ r: 0.51, g: 0.58, b: 0.62 }),
+  );
   document.documentElement.dataset.colorScheme = "dark";
 } catch (error) {
   fluentLoadError = error;
@@ -20,7 +28,7 @@ try {
   console.error("The Microsoft Fluent control library could not be loaded.", error);
 }
 
-await import("./app.js?v=20260914-fluent2-v11");
+await import("./app.js?v=20260914-shaper-v2");
 
 if (fluentLoadError) {
   const alert = document.querySelector("#alert");
