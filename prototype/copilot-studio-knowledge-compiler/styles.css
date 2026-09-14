@@ -1975,3 +1975,119 @@ input[type="checkbox"]:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Categorized findings — severity groups on a timeline rail */
+.result-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8, 32px);
+}
+.result-group-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.result-group-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.result-group-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.result-group-high .result-group-dot {
+  background: var(--danger);
+}
+.result-group-warning .result-group-dot {
+  background: var(--warn);
+}
+.result-group-advisory .result-group-dot {
+  background: var(--accent);
+}
+.result-group-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.result-group .result-list {
+  gap: var(--space-6);
+  margin-left: 4px;
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--line);
+}
+.result-group .result-list > * {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.result-group .result-list > *::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-5) - 5px);
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--bg, #06090b);
+}
+.result-group-high .result-list > *::before {
+  border-color: var(--danger);
+}
+.result-group-warning .result-list > *::before {
+  border-color: var(--warn);
+}
+.result-group-advisory .result-list > *::before {
+  border-color: var(--accent);
+}
+.result-group .result-item-icon {
+  display: none;
+}
+.result-group .result-heading {
+  margin-bottom: var(--space-1);
+}
+.result-group .result-copy strong {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.result-group .result-evidence {
+  margin-top: var(--space-3);
+  border: 0;
+  background: none;
+}
+.result-group .result-evidence summary {
+  padding: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.result-group .result-evidence figure {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+.result-group .result-evidence blockquote {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.result-group .result-evidence figcaption {
+  margin-top: var(--space-2);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
