@@ -215,20 +215,26 @@ function isDialogOpen(dialog) {
 }
 
 function fluentButton(label, appearance = "neutral", className = "") {
-  const button = text("fluent-button", label, className);
+  const button = text("button", label, className);
   button.type = "button";
-  button.setAttribute("appearance", appearance);
+  button.dataset.appearance = appearance;
   return button;
 }
 
 function fluentDisclosure(label, content, className) {
-  const accordion = document.createElement("fluent-accordion");
-  accordion.className = className;
-  const item = document.createElement("fluent-accordion-item");
-  item.setAttribute("heading", label);
-  item.append(content);
-  accordion.append(item);
-  return accordion;
+  const details = document.createElement("details");
+  details.className = `disclosure ${className || ""}`.trim();
+  const summary = document.createElement("summary");
+  summary.append(text("span", label));
+  const chevron = document.createElement("span");
+  chevron.className = "disclosure-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  summary.append(chevron);
+  const body = document.createElement("div");
+  body.className = "disclosure-body";
+  body.append(content);
+  details.append(summary, body);
+  return details;
 }
 
 const findingsDialogMedia = window.matchMedia("(max-width: 1240px)");
@@ -370,7 +376,9 @@ function renderEvaluationOptions() {
   const items = state.evaluationSuggestions.map((suggestion) => {
     const item = document.createElement("article");
     item.className = "evaluation-suggestion";
-    const checkbox = document.createElement("fluent-checkbox");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "checkbox-control";
     checkbox.checked = state.selectedEvaluationSuggestions.has(suggestion.id);
     checkbox.dataset.evaluationSuggestion = suggestion.id;
     checkbox.setAttribute("aria-label", `Include evaluation: ${suggestion.query}`);
@@ -754,8 +762,9 @@ function findingReviewButton(report, documentValue) {
     return text("span", "No findings", "no-findings");
   }
   const highPriority = classified.filter((finding) => finding.tone === "high").length;
-  const button = document.createElement("fluent-button");
-  button.setAttribute("appearance", "lightweight");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.appearance = "lightweight";
   button.className = "findings-review-button";
   button.dataset.reviewFindings = documentValue.document_id;
   button.setAttribute(
@@ -800,7 +809,7 @@ function updateFindingButtons() {
   elements.documentRows.querySelectorAll("[data-review-findings]").forEach((button) => {
     const active = button.dataset.reviewFindings === state.activeFindingDocumentId;
     button.setAttribute("aria-pressed", `${active}`);
-    button.closest("fluent-data-grid-row")?.classList.toggle("findings-active", active);
+    button.closest(".grid-row")?.classList.toggle("findings-active", active);
   });
 }
 
@@ -1061,28 +1070,35 @@ function renderEstates() {
       );
       const actions = document.createElement("div");
       actions.className = "estate-actions";
-      const menuButton = document.createElement("fluent-button");
-      menuButton.setAttribute("appearance", "lightweight");
+      const menuButton = document.createElement("button");
+      menuButton.type = "button";
+      menuButton.dataset.appearance = "lightweight";
       menuButton.className = "estate-menu-trigger";
       menuButton.dataset.estateMenuToggle = estate.estate_id;
       menuButton.setAttribute("aria-label", `Actions for ${estate.name}`);
       menuButton.setAttribute("aria-haspopup", "menu");
       menuButton.setAttribute("aria-expanded", "false");
       menuButton.append(fluentIcon("more-horizontal-20"));
-      const menu = document.createElement("fluent-menu");
+      const menu = document.createElement("div");
+      menu.setAttribute("role", "menu");
       menu.className = "estate-menu";
       menu.dataset.estateMenu = estate.estate_id;
       menu.setAttribute("aria-label", `Actions for ${estate.name}`);
       menu.hidden = true;
-      const editButton = document.createElement("fluent-menu-item");
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.setAttribute("role", "menuitem");
+      editButton.className = "menu-item";
       editButton.dataset.estateEdit = estate.estate_id;
       editButton.textContent = "Edit";
       editButton.disabled = estate.status === "archived";
       if (editButton.disabled) {
         editButton.title = "Archived estates cannot be edited";
       }
-      const deleteButton = document.createElement("fluent-menu-item");
-      deleteButton.className = "destructive-menu-item";
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.setAttribute("role", "menuitem");
+      deleteButton.className = "menu-item destructive-menu-item";
       deleteButton.dataset.estateDelete = estate.estate_id;
       deleteButton.textContent = "Delete";
       menu.append(editButton, deleteButton);
@@ -1181,20 +1197,25 @@ function renderAssessmentChecks() {
     group.push(check);
     groups.set(check.category, group);
   });
-  const tablist = document.createElement("fluent-tabs");
+  const tablist = document.createElement("div");
+  tablist.setAttribute("role", "tablist");
   tablist.className = "assessment-check-tabs";
   tablist.setAttribute("aria-label", "Assessment check categories");
   const panels = document.createElement("div");
   panels.className = "assessment-check-panels";
   [...groups.entries()].forEach(([category, checks], index) => {
-    const tab = document.createElement("fluent-tab");
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.setAttribute("role", "tab");
+    tab.className = "pill-tab";
     tab.id = `assessment-check-tab-${index}`;
     tab.setAttribute("aria-controls", `assessment-check-panel-${index}`);
     tab.dataset.assessmentCheckTab = `${index}`;
     tab.append(text("span", category), text("span", `${checks.length}`, "tab-count"));
     tablist.append(tab);
 
-    const section = document.createElement("fluent-tab-panel");
+    const section = document.createElement("div");
+    section.setAttribute("role", "tabpanel");
     section.id = `assessment-check-panel-${index}`;
     section.className = "assessment-check-panel";
     section.setAttribute("aria-labelledby", tab.id);
@@ -1529,20 +1550,24 @@ function renderDocuments() {
       .map((record) => {
         const documentValue = recordValue(record);
         const report = state.reports.get(documentValue.document_id);
-        const row = document.createElement("fluent-data-grid-row");
+        const row = document.createElement("div");
+        row.setAttribute("role", "row");
+        row.className = "grid-row";
         row.dataset.documentRow = documentValue.document_id;
-        const selectCell = document.createElement("fluent-data-grid-cell");
-        selectCell.setAttribute("grid-column", "1");
-        selectCell.className = "select-cell";
-        const checkbox = document.createElement("fluent-checkbox");
+        const selectCell = document.createElement("div");
+        selectCell.setAttribute("role", "cell");
+        selectCell.className = "grid-cell select-cell";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "checkbox-control";
         checkbox.dataset.documentId = documentValue.document_id;
         checkbox.checked = state.selectedDocuments.has(documentValue.document_id);
         checkbox.disabled = isArchived();
         checkbox.setAttribute("aria-label", `Select ${documentValue.title}`);
         selectCell.append(checkbox);
-        const documentCell = document.createElement("fluent-data-grid-cell");
-        documentCell.setAttribute("grid-column", "2");
-        documentCell.className = "document-cell";
+        const documentCell = document.createElement("div");
+        documentCell.setAttribute("role", "cell");
+        documentCell.className = "grid-cell document-cell";
         documentCell.append(
           text("strong", documentValue.title),
           text("p", fileFormatLabel(documentValue)),
@@ -1557,9 +1582,9 @@ function renderDocuments() {
         viewDocument.dataset.documentTitle = documentValue.title;
         viewDocument.dataset.sourceRetained = `${record.source_retained === true}`;
         documentCell.append(viewDocument);
-        const findingsCell = document.createElement("fluent-data-grid-cell");
-        findingsCell.setAttribute("grid-column", "3");
-        findingsCell.className = "results-cell";
+        const findingsCell = document.createElement("div");
+        findingsCell.setAttribute("role", "cell");
+        findingsCell.className = "grid-cell results-cell";
         if (report) {
           findingsCell.append(
             text(
@@ -2004,8 +2029,7 @@ function renderArtifacts() {
         approve.disabled = isArchived();
         actions.append(approve);
       } else {
-        const view = text("fluent-anchor", "Open approved HTML", "secondary");
-        view.setAttribute("appearance", "neutral");
+        const view = text("a", "Open approved HTML", "secondary link-button");
         view.href = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`;
         view.target = "_blank";
         view.rel = "noopener";
@@ -2775,8 +2799,7 @@ function interactiveEventTarget(event) {
   return event.composedPath().find(
     (candidate) =>
       candidate instanceof Element &&
-      (candidate.matches("fluent-button, fluent-anchor") ||
-        (candidate.matches("button, a") && candidate.getRootNode() === document)),
+      candidate.matches("button, a"),
   );
 }
 
@@ -3014,7 +3037,7 @@ elements.files.addEventListener("change", () => {
     count === 0 ? "No files selected" : `${count} file${count === 1 ? "" : "s"} selected`;
 });
 elements.documentRows.addEventListener("change", (event) => {
-  const checkbox = event.target.closest("fluent-checkbox[data-document-id]");
+  const checkbox = event.target.closest("input[data-document-id]");
   if (!checkbox) return;
   if (checkbox.checked) {
     state.selectedDocuments.add(checkbox.dataset.documentId);
@@ -3055,3 +3078,20 @@ document.addEventListener("keydown", (event) => {
 findingsDialogMedia.addEventListener("change", moveOpenFindingsToCurrentLayout);
 
 initialize();
+
+
+// Plain-element dialogs: emulate the dismiss behaviour the app listens for.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const open = [...document.querySelectorAll(".dialog")].filter((dialog) => !dialog.hidden);
+  const dialog = open[open.length - 1];
+  if (!dialog) return;
+  event.preventDefault();
+  dialog.dispatchEvent(new Event("dismiss"));
+});
+
+document.addEventListener("mousedown", (event) => {
+  const dialog = event.target instanceof Element ? event.target.closest(".dialog") : null;
+  if (!dialog || event.target !== dialog) return;
+  dialog.dispatchEvent(new Event("dismiss"));
+});
