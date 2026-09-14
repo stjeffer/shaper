@@ -4749,25 +4749,814 @@ fluent-dialog form {
   }
 }
 
-/* shaper dark theme overrides */
-:root[data-color-scheme="dark"] fluent-design-system-provider {
-  --canvas: #0c1218;
-  --color-brand-background-soft: #18222c;
-  --color-brand-background-subtle: #10161d;
-  --color-status-danger-background: #3b1d22;
-  --color-status-danger-foreground: #ff9aa6;
-  --color-status-warning-background: #32280f;
-  --color-status-warning-foreground: #f2c14e;
-  --color-status-success-background: #12301a;
-  --color-status-success-foreground: #7fe0a0;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-lg: 0 8px 24px rgb(0 0 0 / 55%);
+
+/* ==========================================================================
+   shaper theme layer
+   Dark editorial surface, lime signal accent, mono micro-typography.
+   Purely presentational: no class names, DOM hooks or behaviour are changed.
+   ========================================================================== */
+
+:root[data-color-scheme="dark"] {
+  --shaper-canvas: #080d11;
+  --shaper-layer-1: #0d141a;
+  --shaper-layer-2: #111b22;
+  --shaper-layer-3: #16222b;
+  --shaper-layer-4: #1b2a34;
+  --shaper-line: #1f2e39;
+  --shaper-line-soft: rgb(255 255 255 / 7%);
+  --shaper-line-strong: #2c3f4c;
+  --shaper-fg: #e8f2f2;
+  --shaper-fg-soft: #b9c8cc;
+  --shaper-muted: #8496a0;
+  --shaper-lime: #a5e060;
+  --shaper-lime-hover: #b7ec78;
+  --shaper-lime-press: #8fca4b;
+  --shaper-lime-ink: #08120a;
+  --shaper-cyan: #45d6cf;
+  --shaper-glow: 0 0 0 1px rgb(165 224 96 / 35%), 0 10px 30px -12px rgb(165 224 96 / 45%);
+  --shaper-panel-shadow: 0 1px 0 0 rgb(255 255 255 / 4%) inset, 0 18px 40px -28px rgb(0 0 0 / 90%);
+  --shaper-mono: "DM Mono", ui-monospace, sfmono-regular, menlo, monospace;
+  --shaper-sans: "Manrope", "Segoe UI Variable", "Segoe UI", -apple-system, sans-serif;
+
+  --body-font: var(--shaper-sans);
 }
+
+:root[data-color-scheme="dark"] fluent-design-system-provider {
+  --body-font: var(--shaper-sans);
+  --canvas: var(--shaper-canvas);
+  --surface: var(--shaper-layer-1);
+  --surface-soft: var(--shaper-layer-2);
+  --ink: var(--shaper-fg);
+  --ink-soft: var(--shaper-fg-soft);
+  --muted: var(--shaper-muted);
+  --line: var(--shaper-line);
+  --line-strong: var(--shaper-line-strong);
+  --neutral-layer-1: var(--shaper-layer-1);
+  --neutral-layer-2: var(--shaper-layer-2);
+  --neutral-layer-3: var(--shaper-layer-3);
+  --neutral-layer-4: var(--shaper-layer-4);
+  --neutral-layer-floating: var(--shaper-layer-3);
+  --neutral-layer-card-container: var(--shaper-layer-2);
+  --neutral-stroke-divider-rest: var(--shaper-line);
+  --neutral-stroke-rest: var(--shaper-line-strong);
+  --neutral-stroke-hover: #3a5060;
+  --neutral-stroke-active: #46606f;
+  --neutral-stroke-strong-rest: var(--shaper-line-strong);
+  --neutral-foreground-rest: var(--shaper-fg);
+  --neutral-foreground-hint: var(--shaper-muted);
+  --neutral-fill-input-rest: #0b1319;
+  --neutral-fill-input-hover: #0e1720;
+  --neutral-fill-input-active: #0e1720;
+  --neutral-fill-stealth-rest: transparent;
+  --neutral-fill-stealth-hover: rgb(165 224 96 / 8%);
+  --neutral-fill-stealth-active: rgb(165 224 96 / 12%);
+  --neutral-fill-strong-rest: var(--shaper-layer-3);
+  --accent-fill-rest: var(--shaper-lime);
+  --accent-fill-hover: var(--shaper-lime-hover);
+  --accent-fill-active: var(--shaper-lime-press);
+  --accent-foreground-rest: var(--shaper-lime);
+  --accent-foreground-hover: var(--shaper-lime-hover);
+  --foreground-on-accent-rest: var(--shaper-lime-ink);
+  --foreground-on-accent-hover: var(--shaper-lime-ink);
+  --focus-stroke-outer: var(--shaper-lime);
+  --color-brand-background: var(--shaper-lime);
+  --color-brand-background-hover: var(--shaper-lime-hover);
+  --color-brand-background-pressed: var(--shaper-lime-press);
+  --color-brand-background-soft: #0f1a21;
+  --color-brand-background-subtle: var(--shaper-canvas);
+  --color-brand-foreground: var(--shaper-lime);
+  --color-brand-stroke: var(--shaper-lime);
+  --color-status-danger-background: rgb(255 120 130 / 12%);
+  --color-status-danger-foreground: #ff9aa6;
+  --color-status-warning-background: rgb(242 193 78 / 12%);
+  --color-status-warning-foreground: #f2c14e;
+  --color-status-success-background: rgb(165 224 96 / 14%);
+  --color-status-success-foreground: var(--shaper-lime);
+  --color-focus-stroke: var(--shaper-lime);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 55%);
+  --shadow-lg: 0 24px 60px -30px rgb(0 0 0 / 95%);
+  --shadow8: 0 20px 50px -24px rgb(0 0 0 / 90%);
+  --shadow16: 0 30px 70px -30px rgb(0 0 0 / 95%);
+}
+
+/* --- canvas ------------------------------------------------------------- */
 
 :root[data-color-scheme="dark"] html,
 :root[data-color-scheme="dark"] body {
+  color: var(--shaper-fg);
   background:
-    radial-gradient(1100px 500px at 85% -10%, rgb(116 217 94 / 4%), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgb(60 220 200 / 4%), transparent 60%),
-    #0c1218;
+    radial-gradient(1200px 620px at 78% -12%, rgb(165 224 96 / 7%), transparent 62%),
+    radial-gradient(1000px 560px at -8% 108%, rgb(69 214 207 / 6%), transparent 60%),
+    var(--shaper-canvas);
+  font-family: var(--shaper-sans);
+}
+
+:root[data-color-scheme="dark"] .app-shell,
+:root[data-color-scheme="dark"] .workspace {
+  background: transparent;
+}
+
+:root[data-color-scheme="dark"] ::selection {
+  color: var(--shaper-lime-ink);
+  background: rgb(165 224 96 / 85%);
+}
+
+:root[data-color-scheme="dark"] * {
+  scrollbar-color: #2b3d49 transparent;
+  scrollbar-width: thin;
+}
+
+:root[data-color-scheme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:root[data-color-scheme="dark"] ::-webkit-scrollbar-thumb {
+  background: #263643;
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+:root[data-color-scheme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #354b5a;
+  background-clip: content-box;
+}
+
+:root[data-color-scheme="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- sidebar + brand ---------------------------------------------------- */
+
+:root[data-color-scheme="dark"] .sidebar {
+  background:
+    linear-gradient(180deg, rgb(165 224 96 / 5%), transparent 40%),
+    #0a1015;
+  border-inline-end: 1px solid var(--shaper-line);
+}
+
+:root[data-color-scheme="dark"] .brand-mark {
+  color: var(--shaper-lime-ink);
+  background: linear-gradient(140deg, var(--shaper-lime), #7fd68f 70%, var(--shaper-cyan));
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgb(165 224 96 / 40%), 0 10px 26px -12px rgb(165 224 96 / 70%);
+  font-family: var(--shaper-mono);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+:root[data-color-scheme="dark"] .nav-item {
+  --neutral-fill-stealth-hover: rgb(165 224 96 / 10%);
+  --neutral-fill-stealth-focus: rgb(165 224 96 / 10%);
+  --neutral-fill-stealth-active: rgb(165 224 96 / 16%);
+
+  color: var(--shaper-muted);
+  border-radius: 10px;
+}
+
+:root[data-color-scheme="dark"] .nav-item:hover,
+:root[data-color-scheme="dark"] .nav-item.active {
+  color: var(--shaper-lime);
+  background: rgb(165 224 96 / 10%);
+}
+
+:root[data-color-scheme="dark"] .nav-item.active::before {
+  width: 2px;
+  background: var(--shaper-lime);
+  box-shadow: 0 0 14px 1px rgb(165 224 96 / 80%);
+}
+
+:root[data-color-scheme="dark"] .nav-item-label,
+:root[data-color-scheme="dark"] .nav-item small {
+  font-family: var(--shaper-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --- micro typography --------------------------------------------------- */
+
+:root[data-color-scheme="dark"] .eyebrow,
+:root[data-color-scheme="dark"] .estate-list-header,
+:root[data-color-scheme="dark"] [data-panel="discover"] th,
+:root[data-color-scheme="dark"] .documents-grid fluent-data-grid-row[row-type="header"],
+:root[data-color-scheme="dark"] .field-help,
+:root[data-color-scheme="dark"] .metric span,
+:root[data-color-scheme="dark"] label {
+  font-family: var(--shaper-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+:root[data-color-scheme="dark"] .eyebrow {
+  color: var(--shaper-lime);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+:root[data-color-scheme="dark"] .eyebrow::before {
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  margin-inline-end: 10px;
+  background: var(--shaper-lime);
+  content: "";
+  vertical-align: middle;
+}
+
+:root[data-color-scheme="dark"] .field-help,
+:root[data-color-scheme="dark"] label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+:root[data-color-scheme="dark"] h1,
+:root[data-color-scheme="dark"] h2,
+:root[data-color-scheme="dark"] h3 {
+  color: var(--shaper-fg);
+  font-family: var(--shaper-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+:root[data-color-scheme="dark"] h1 {
+  letter-spacing: -0.035em;
+}
+
+:root[data-color-scheme="dark"] p,
+:root[data-color-scheme="dark"] .hint,
+:root[data-color-scheme="dark"] .empty-state p {
+  color: var(--shaper-fg-soft);
+}
+
+:root[data-color-scheme="dark"] .hint,
+:root[data-color-scheme="dark"] .assessment-note {
+  color: var(--shaper-muted);
+}
+
+/* --- panels and cards --------------------------------------------------- */
+
+:root[data-color-scheme="dark"] .panel,
+:root[data-color-scheme="dark"] .form-card,
+:root[data-color-scheme="dark"] .registered-sources-panel,
+:root[data-color-scheme="dark"] .item-row,
+:root[data-color-scheme="dark"] .proposal-card,
+:root[data-color-scheme="dark"] .artifact-card,
+:root[data-color-scheme="dark"] .metric,
+:root[data-color-scheme="dark"] .state-card,
+:root[data-color-scheme="dark"] .empty-state,
+:root[data-color-scheme="dark"] .empty-state.compact,
+:root[data-color-scheme="dark"] .token-grid > div,
+:root[data-color-scheme="dark"] .assessment-note,
+:root[data-color-scheme="dark"] .lifecycle-card,
+:root[data-color-scheme="dark"] .estate-list-shell,
+:root[data-color-scheme="dark"] .source-input-panel,
+:root[data-color-scheme="dark"] .document-findings-panel,
+:root[data-color-scheme="dark"] .evaluation-options,
+:root[data-color-scheme="dark"] [data-panel="discover"] .table-scroll {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 2.5%), transparent 120px),
+    var(--shaper-layer-1);
+  border: 1px solid var(--shaper-line);
+  box-shadow: var(--shaper-panel-shadow);
+}
+
+:root[data-color-scheme="dark"] .metric,
+:root[data-color-scheme="dark"] .assessment-note,
+:root[data-color-scheme="dark"] .lifecycle-card {
+  position: relative;
+  overflow: hidden;
+}
+
+:root[data-color-scheme="dark"] .metric::before,
+:root[data-color-scheme="dark"] .lifecycle-card::before {
+  position: absolute;
+  background: linear-gradient(90deg, var(--shaper-lime), var(--shaper-cyan));
+  content: "";
+  inset: 0 0 auto;
+  height: 1px;
+  opacity: 0.7;
+}
+
+:root[data-color-scheme="dark"] .metric strong {
+  color: var(--shaper-fg);
+  font-family: var(--shaper-mono);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+:root[data-color-scheme="dark"] .metric span {
+  color: var(--shaper-muted);
+  font-size: 10px;
+}
+
+:root[data-color-scheme="dark"] .panel-heading,
+:root[data-color-scheme="dark"] .section-heading,
+:root[data-color-scheme="dark"] .findings-panel-heading,
+:root[data-color-scheme="dark"] .dialog-heading,
+:root[data-color-scheme="dark"] .dialog-actions,
+:root[data-color-scheme="dark"] .estate-card,
+:root[data-color-scheme="dark"] .result-item {
+  border-color: var(--shaper-line);
+}
+
+:root[data-color-scheme="dark"] .estate-list-header,
+:root[data-color-scheme="dark"] [data-panel="discover"] th,
+:root[data-color-scheme="dark"] .documents-grid fluent-data-grid-row[row-type="header"] {
+  color: var(--shaper-muted);
+  background: rgb(255 255 255 / 3%);
+  border-color: var(--shaper-line);
+  font-size: 10px;
+}
+
+:root[data-color-scheme="dark"] .estate-row:hover,
+:root[data-color-scheme="dark"] [data-panel="discover"] tbody tr:hover,
+:root[data-color-scheme="dark"] .documents-grid fluent-data-grid-row[data-document-row]:hover {
+  background: rgb(165 224 96 / 6%);
+}
+
+:root[data-color-scheme="dark"] .estate-row-icon,
+:root[data-color-scheme="dark"] .entity-icon,
+:root[data-color-scheme="dark"] .state-icon,
+:root[data-color-scheme="dark"] .file-drop > span {
+  color: var(--shaper-lime);
+  background: rgb(165 224 96 / 12%);
+  border: 1px solid rgb(165 224 96 / 28%);
+  border-radius: 10px;
+  box-shadow: inset 0 0 20px -8px rgb(165 224 96 / 60%);
+}
+
+:root[data-color-scheme="dark"] .estate-menu {
+  background: var(--shaper-layer-3);
+  border: 1px solid var(--shaper-line-strong);
+  box-shadow: 0 24px 60px -28px rgb(0 0 0 / 95%);
+}
+
+/* --- tabs / workflow ---------------------------------------------------- */
+
+:root[data-color-scheme="dark"] .workflow,
+:root[data-color-scheme="dark"] .source-input-tabs,
+:root[data-color-scheme="dark"] .approval-review-tabs,
+:root[data-color-scheme="dark"] .assessment-check-tabs {
+  border-bottom: 1px solid var(--shaper-line);
+}
+
+:root[data-color-scheme="dark"] .workflow button,
+:root[data-color-scheme="dark"] .source-input-tabs button,
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"],
+:root[data-color-scheme="dark"] fluent-tab {
+  color: var(--shaper-muted);
+  font-family: var(--shaper-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 160ms ease;
+}
+
+:root[data-color-scheme="dark"] .workflow button:hover,
+:root[data-color-scheme="dark"] .source-input-tabs button:hover,
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"]:hover,
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"]:hover {
+  color: var(--shaper-fg);
+}
+
+:root[data-color-scheme="dark"] .workflow button[aria-current],
+:root[data-color-scheme="dark"] .source-input-tabs button[aria-selected="true"],
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"][aria-selected="true"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"][aria-selected="true"] {
+  color: var(--shaper-lime);
+  box-shadow: inset 0 -2px var(--shaper-lime), 0 10px 24px -20px rgb(165 224 96 / 90%);
+}
+
+/* --- buttons ------------------------------------------------------------ */
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"],
+:root[data-color-scheme="dark"] fluent-anchor[appearance="accent"],
+:root[data-color-scheme="dark"] .primary {
+  --accent-fill-rest: var(--shaper-lime);
+  --accent-fill-hover: var(--shaper-lime-hover);
+  --accent-fill-active: var(--shaper-lime-press);
+  --foreground-on-accent-rest: var(--shaper-lime-ink);
+
+  border-radius: 8px;
+  box-shadow: 0 10px 26px -14px rgb(165 224 96 / 75%);
+  font-weight: 600;
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="accent"]:hover,
+:root[data-color-scheme="dark"] fluent-anchor[appearance="accent"]:hover,
+:root[data-color-scheme="dark"] .primary:hover {
+  box-shadow: 0 14px 34px -12px rgb(165 224 96 / 85%);
+  transform: translateY(-1px);
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="outline"],
+:root[data-color-scheme="dark"] fluent-button[appearance="neutral"],
+:root[data-color-scheme="dark"] .secondary,
+:root[data-color-scheme="dark"] .quiet {
+  --neutral-fill-rest: rgb(255 255 255 / 4%);
+  --neutral-fill-hover: rgb(165 224 96 / 10%);
+  --neutral-fill-active: rgb(165 224 96 / 14%);
+  --neutral-stroke-rest: var(--shaper-line-strong);
+  --neutral-stroke-hover: rgb(165 224 96 / 45%);
+  --neutral-stroke-active: rgb(165 224 96 / 55%);
+
+  color: var(--shaper-fg);
+}
+
+:root[data-color-scheme="dark"] fluent-button[appearance="lightweight"],
+:root[data-color-scheme="dark"] fluent-anchor[appearance="lightweight"] {
+  color: var(--shaper-fg-soft);
+}
+
+:root[data-color-scheme="dark"] .icon-button {
+  color: var(--shaper-muted);
+  border-radius: 8px;
+}
+
+:root[data-color-scheme="dark"] .icon-button:hover {
+  color: var(--shaper-lime);
+  background: rgb(165 224 96 / 10%);
+}
+
+:root[data-color-scheme="dark"] .danger,
+:root[data-color-scheme="dark"] .destructive {
+  --accent-fill-rest: #ff7d8a;
+  --accent-fill-hover: #ff929d;
+  --accent-fill-active: #e86b78;
+  --foreground-on-accent-rest: #1a0508;
+
+  color: var(--color-status-danger-foreground);
+  box-shadow: 0 10px 26px -16px rgb(255 125 138 / 70%);
+}
+
+:root[data-color-scheme="dark"] .back-link,
+:root[data-color-scheme="dark"] .document-download {
+  color: var(--shaper-lime);
+  font-family: var(--shaper-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:root[data-color-scheme="dark"] :focus-visible,
+:root[data-color-scheme="dark"] fluent-button:focus-visible,
+:root[data-color-scheme="dark"] fluent-anchor:focus-visible {
+  outline: 2px solid var(--shaper-lime);
+  outline-offset: 2px;
+}
+
+/* --- inputs ------------------------------------------------------------- */
+
+:root[data-color-scheme="dark"] input,
+:root[data-color-scheme="dark"] select,
+:root[data-color-scheme="dark"] textarea,
+:root[data-color-scheme="dark"] .form-card input,
+:root[data-color-scheme="dark"] .form-card select,
+:root[data-color-scheme="dark"] .form-card textarea {
+  color: var(--shaper-fg);
+  background: #0a1218;
+  border: 1px solid var(--shaper-line-strong);
+  border-radius: 8px;
+}
+
+:root[data-color-scheme="dark"] input::placeholder,
+:root[data-color-scheme="dark"] textarea::placeholder {
+  color: #5f717c;
+}
+
+:root[data-color-scheme="dark"] input:hover,
+:root[data-color-scheme="dark"] select:hover,
+:root[data-color-scheme="dark"] textarea:hover {
+  border-color: rgb(165 224 96 / 40%);
+}
+
+:root[data-color-scheme="dark"] input:focus,
+:root[data-color-scheme="dark"] select:focus,
+:root[data-color-scheme="dark"] textarea:focus {
+  border-color: var(--shaper-lime);
+  box-shadow: 0 0 0 3px rgb(165 224 96 / 18%);
+  outline: none;
+}
+
+:root[data-color-scheme="dark"] fluent-text-field,
+:root[data-color-scheme="dark"] fluent-text-area,
+:root[data-color-scheme="dark"] fluent-select {
+  --neutral-fill-input-rest: #0a1218;
+  --neutral-fill-input-hover: #0d1720;
+  --neutral-fill-input-active: #0d1720;
+  --neutral-stroke-input-rest: var(--shaper-line-strong);
+  --neutral-stroke-input-hover: rgb(165 224 96 / 45%);
+  --neutral-stroke-input-active: var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] .file-drop {
+  background: rgb(165 224 96 / 3%);
+  border: 1px dashed rgb(165 224 96 / 30%);
+  border-radius: 14px;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+:root[data-color-scheme="dark"] .file-drop:hover,
+:root[data-color-scheme="dark"] .file-drop.dragover {
+  background: rgb(165 224 96 / 8%);
+  border-color: var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] .checkbox-option,
+:root[data-color-scheme="dark"] .dialog-option {
+  border: 1px solid var(--shaper-line);
+  border-radius: 10px;
+}
+
+:root[data-color-scheme="dark"] .checkbox-option:hover,
+:root[data-color-scheme="dark"] .dialog-option:hover {
+  border-color: rgb(165 224 96 / 40%);
+  background: rgb(165 224 96 / 5%);
+}
+
+/* --- badges, counts, statuses ------------------------------------------ */
+
+:root[data-color-scheme="dark"] .badge,
+:root[data-color-scheme="dark"] .count,
+:root[data-color-scheme="dark"] .source-status,
+:root[data-color-scheme="dark"] .proposal-status,
+:root[data-color-scheme="dark"] .decision-badge,
+:root[data-color-scheme="dark"] .assessment-status,
+:root[data-color-scheme="dark"] .result-severity,
+:root[data-color-scheme="dark"] .review-required,
+:root[data-color-scheme="dark"] .estate-state {
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 999px;
+  font-family: var(--shaper-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:root[data-color-scheme="dark"] .badge,
+:root[data-color-scheme="dark"] .count,
+:root[data-color-scheme="dark"] .estate-state {
+  color: var(--shaper-fg-soft);
+  background: rgb(255 255 255 / 4%);
+}
+
+:root[data-color-scheme="dark"] .assessment-status.assessed,
+:root[data-color-scheme="dark"] .source-status.ready,
+:root[data-color-scheme="dark"] .decision-badge.approved,
+:root[data-color-scheme="dark"] .proposal-status.approved {
+  color: var(--shaper-lime);
+  background: rgb(165 224 96 / 14%);
+  border-color: rgb(165 224 96 / 35%);
+}
+
+:root[data-color-scheme="dark"] .badge.archived {
+  color: var(--shaper-muted);
+}
+
+/* --- dialogs ------------------------------------------------------------ */
+
+:root[data-color-scheme="dark"] fluent-dialog::part(overlay) {
+  backdrop-filter: blur(10px);
+  background: rgb(4 8 11 / 78%);
+}
+
+:root[data-color-scheme="dark"] fluent-dialog::part(control) {
+  background: var(--shaper-layer-2);
+  border: 1px solid var(--shaper-line-strong);
+  border-radius: 16px;
+  box-shadow: 0 40px 90px -40px rgb(0 0 0 / 95%);
+}
+
+:root[data-color-scheme="dark"] fluent-dialog.document-dialog::part(control) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+:root[data-color-scheme="dark"] .dialog-body,
+:root[data-color-scheme="dark"] .document-content,
+:root[data-color-scheme="dark"] .result-evidence figure {
+  background: #0a1218;
+  border-color: var(--shaper-line);
+}
+
+:root[data-color-scheme="dark"] .document-content,
+:root[data-color-scheme="dark"] .result-evidence figure,
+:root[data-color-scheme="dark"] pre,
+:root[data-color-scheme="dark"] code {
+  font-family: var(--shaper-mono);
+}
+
+:root[data-color-scheme="dark"] .dialog-error,
+:root[data-color-scheme="dark"] .destructive-warning,
+:root[data-color-scheme="dark"] .alert {
+  color: var(--color-status-danger-foreground);
+  background: rgb(255 125 138 / 10%);
+  border: 1px solid rgb(255 125 138 / 30%);
+  border-radius: 10px;
+}
+
+/* --- progress, spinners, overlays -------------------------------------- */
+
+:root[data-color-scheme="dark"] fluent-progress-ring,
+:root[data-color-scheme="dark"] .spinner {
+  --accent-fill-rest: var(--shaper-lime);
+
+  color: var(--shaper-lime);
+  border-top-color: var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] .busy-overlay {
+  backdrop-filter: blur(6px);
+  background: rgb(6 10 14 / 72%);
+}
+
+:root[data-color-scheme="dark"] .transformation-progress,
+:root[data-color-scheme="dark"] .transformation-progress-list {
+  border-color: var(--shaper-line);
+}
+
+:root[data-color-scheme="dark"] .skip-link {
+  color: var(--shaper-lime-ink);
+  background: var(--shaper-lime);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-color-scheme="dark"] * {
+    transition-duration: 1ms !important;
+  }
+
+  :root[data-color-scheme="dark"] fluent-button[appearance="accent"]:hover {
+    transform: none;
+  }
+}
+
+/* fluent-tabs (workflow, source input, review) selected + hover states */
+:root[data-color-scheme="dark"] fluent-tabs {
+  --neutral-foreground-rest: var(--shaper-muted);
+  --neutral-foreground-hover: var(--shaper-fg);
+  --neutral-fill-stealth-rest: transparent;
+  --neutral-fill-stealth-hover: rgb(165 224 96 / 8%);
+  --neutral-fill-stealth-active: rgb(165 224 96 / 12%);
+  --accent-fill-rest: var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] fluent-tab[aria-selected="true"] {
+  --neutral-foreground-rest: var(--shaper-lime);
+
+  color: var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] fluent-tab strong {
+  font-weight: 500;
+}
+
+:root[data-color-scheme="dark"] fluent-tab-panel {
+  background: transparent;
+}
+
+/* refinements: sidebar label fit, icon tiles, display heading */
+:root[data-color-scheme="dark"] .nav-item-label,
+:root[data-color-scheme="dark"] .nav-item small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-color-scheme="dark"] .estate-row-icon,
+:root[data-color-scheme="dark"] .entity-icon,
+:root[data-color-scheme="dark"] .state-icon,
+:root[data-color-scheme="dark"] .file-drop > span {
+  color: var(--shaper-lime);
+  background: linear-gradient(150deg, #16232b, #0e161c);
+  border: 1px solid rgb(165 224 96 / 22%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+:root[data-color-scheme="dark"] .page-heading h1,
+:root[data-color-scheme="dark"] .estate-heading h1,
+:root[data-color-scheme="dark"] .portfolio-hero h1 {
+  font-size: clamp(2rem, 3.4vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+}
+
+:root[data-color-scheme="dark"] .page-heading,
+:root[data-color-scheme="dark"] .portfolio-hero {
+  position: relative;
+}
+
+:root[data-color-scheme="dark"] .page-heading::after,
+:root[data-color-scheme="dark"] .portfolio-hero::after {
+  display: block;
+  width: 96px;
+  height: 2px;
+  margin-top: 20px;
+  background: linear-gradient(90deg, var(--shaper-lime), rgb(69 214 207 / 0%));
+  content: "";
+}
+
+:root[data-color-scheme="dark"] .entity-title,
+:root[data-color-scheme="dark"] .estate-name strong {
+  letter-spacing: -0.01em;
+}
+
+/* corrections: keep long helper copy readable, drop stray heading rule */
+:root[data-color-scheme="dark"] .field-help {
+  color: var(--shaper-muted);
+  font-family: var(--shaper-sans);
+  font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+:root[data-color-scheme="dark"] .page-heading::after,
+:root[data-color-scheme="dark"] .portfolio-hero::after {
+  display: none;
+}
+
+:root[data-color-scheme="dark"] .estate-heading,
+:root[data-color-scheme="dark"] .page-heading {
+  padding-bottom: 4px;
+}
+
+/* tab indicator + disabled controls */
+:root[data-color-scheme="dark"] fluent-tabs::part(activeIndicator) {
+  background: var(--shaper-lime);
+  border-radius: 999px;
+  box-shadow: 0 0 12px 0 rgb(165 224 96 / 70%);
+}
+
+:root[data-color-scheme="dark"] fluent-tab[aria-selected="true"] {
+  box-shadow: inset 0 -2px var(--shaper-lime);
+}
+
+:root[data-color-scheme="dark"] fluent-button[disabled],
+:root[data-color-scheme="dark"] fluent-anchor[disabled],
+:root[data-color-scheme="dark"] button[disabled],
+:root[data-color-scheme="dark"] input[disabled],
+:root[data-color-scheme="dark"] select[disabled],
+:root[data-color-scheme="dark"] textarea[disabled] {
+  --accent-fill-rest: rgb(255 255 255 / 6%);
+  --accent-fill-hover: rgb(255 255 255 / 6%);
+  --foreground-on-accent-rest: #6c7d87;
+  --neutral-fill-rest: rgb(255 255 255 / 4%);
+
+  color: #6c7d87;
+  box-shadow: none;
+  opacity: 0.65;
+  transform: none;
+}
+
+:root[data-color-scheme="dark"] .sticky-actions,
+:root[data-color-scheme="dark"] .transformation-actions,
+:root[data-color-scheme="dark"] .lifecycle-actions,
+:root[data-color-scheme="dark"] .evaluation-options-footer {
+  background: linear-gradient(180deg, rgb(165 224 96 / 6%), rgb(165 224 96 / 2%));
+  border: 1px solid rgb(165 224 96 / 22%);
+  border-radius: 14px;
+}
+
+/* final: single clean tab underline, quieter lifecycle actions */
+:root[data-color-scheme="dark"] fluent-tabs::part(activeIndicator) {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root[data-color-scheme="dark"] .lifecycle-actions {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+/* no boxed outlines on selected tabs */
+:root[data-color-scheme="dark"] .source-input-tabs button,
+:root[data-color-scheme="dark"] .source-input-tabs button[aria-selected="true"],
+:root[data-color-scheme="dark"] .approval-review-tabs [role="tab"],
+:root[data-color-scheme="dark"] .assessment-check-tabs [role="tab"],
+:root[data-color-scheme="dark"] .workflow button {
+  background: transparent;
+  border-color: transparent;
+}
+
+:root[data-color-scheme="dark"] fluent-tab {
+  --neutral-stroke-rest: transparent;
+  --neutral-stroke-hover: transparent;
+  --neutral-stroke-active: transparent;
+  --neutral-stroke-focus: transparent;
+  --neutral-fill-rest: transparent;
+  --neutral-fill-hover: rgb(165 224 96 / 8%);
+  --neutral-fill-active: rgb(165 224 96 / 12%);
 }
