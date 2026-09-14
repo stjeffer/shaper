@@ -735,13 +735,18 @@ function classifyFindings(report = {}) {
   return classified;
 }
 
+const FINDING_GROUPS = [
+  { tone: "high", label: "High priority" },
+  { tone: "warning", label: "Needs review" },
+  { tone: "advisory", label: "Advisory" },
+];
+
 function documentFindings(report, documentTitle = "Document") {
   const classified = classifyFindings(report);
-  const results = document.createElement("ul");
-  results.className = "result-list";
-  results.setAttribute("aria-label", `${documentTitle} content quality findings`);
-  results.append(...classified.map(resultItem));
   if (classified.length === 0) {
+    const results = document.createElement("ul");
+    results.className = "result-list";
+    results.setAttribute("aria-label", `${documentTitle} content quality findings`);
     results.append(
       resultItem({
         label: "No content issues detected",
@@ -753,7 +758,45 @@ function documentFindings(report, documentTitle = "Document") {
     return results;
   }
 
-  return results;
+  const groups = new Map();
+  for (const finding of classified) {
+    const tone = ["high", "warning", "advisory"].includes(finding.tone)
+      ? finding.tone
+      : "advisory";
+    if (!groups.has(tone)) groups.set(tone, []);
+    groups.get(tone).push(finding);
+  }
+
+  const container = document.createElement("div");
+  container.className = "result-groups";
+  container.setAttribute("aria-label", `${documentTitle} content quality findings`);
+  for (const { tone, label } of FINDING_GROUPS) {
+    const items = groups.get(tone);
+    if (!items?.length) continue;
+    const section = document.createElement("section");
+    section.className = `result-group result-group-${tone}`;
+    const heading = document.createElement("div");
+    heading.className = "result-group-heading";
+    heading.append(
+      text("span", "", "result-group-dot"),
+      text(
+        "h3",
+        `${label} \u00b7 ${items.length}`,
+        "result-group-label",
+      ),
+    );
+    const list = document.createElement("ul");
+    list.className = "result-list";
+    list.setAttribute("aria-label", `${label} findings`);
+    items.forEach((finding) => {
+      const item = resultItem(finding);
+      item.querySelector(".result-severity")?.remove();
+      list.append(item);
+    });
+    section.append(heading, list);
+    container.append(section);
+  }
+  return container;
 }
 
 function findingReviewButton(report, documentValue) {
