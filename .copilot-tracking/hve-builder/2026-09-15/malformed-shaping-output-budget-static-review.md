@@ -33,4 +33,3 @@ between the prompt, `CandidatePayload`, and `ToolRequest`.
 
 This was a read-only static review. Runtime behavior is covered separately by the
 version 1.6 behavior report and repository tests.
-
