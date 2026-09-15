@@ -12,12 +12,15 @@ from shaper.domain import DocumentFinding, TokenEstimate
 from shaper.domain.models import canonical_hash
 from shaper.prompts import SHAPING_PROMPT
 
-ESTIMATOR_VERSION = "1.5"
+ESTIMATOR_VERSION = "1.6"
 ESTIMATED_MODEL_CALLS = 2
 _WORD = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _LEXICAL_MULTIPLIER = 1.5
 _CONTEXT_ENVELOPE_OVERHEAD = 800
 _REPAIR_VALIDATION_OVERHEAD = 600
+_STRUCTURED_OUTPUT_OVERHEAD = 800
+_MIN_REASONING_TOKEN_RESERVE = 500
+_MAX_REASONING_TOKEN_RESERVE = 3_000
 _SAFETY_FACTOR = 1.25
 
 
@@ -63,6 +66,10 @@ class TokenEstimator:
             )
         )
         changes_tokens = _lexical_tokens(json.dumps(tuple(proposed_changes)))
+        reasoning_token_reserve = min(
+            _MAX_REASONING_TOKEN_RESERVE,
+            max(_MIN_REASONING_TOKEN_RESERVE, source_tokens),
+        )
         input_expected = (
             source_tokens
             + assessment_tokens
@@ -74,7 +81,12 @@ class TokenEstimator:
         input_min = max(1, math.floor(input_expected * 0.85))
         input_max = math.ceil(input_expected * 1.2)
         output_factor = min(2.0, 1.15 + 0.12 * len(proposed_changes))
-        output_expected = max(1_500, math.ceil(source_tokens * output_factor))
+        output_expected = max(
+            1_500,
+            math.ceil(source_tokens * output_factor)
+            + _STRUCTURED_OUTPUT_OVERHEAD
+            + reasoning_token_reserve,
+        )
         output_min = max(1, math.floor(output_expected * 0.7))
         output_max = math.ceil(output_expected * 1.4)
         expected_total = input_expected + output_expected
@@ -90,7 +102,10 @@ class TokenEstimator:
         assumptions = (
             "Source tokens use a deterministic lexical approximation.",
             "Input includes the current shaping prompt, response schema, and context envelope.",
-            "Output range scales with source size and proposed intervention count.",
+            (
+                "Output includes source-sized content, structured JSON, and a bounded "
+                "reasoning-token reserve."
+            ),
             (
                 "Maximum reserves an initial response, the rejected candidate and "
                 "validation payload in one targeted repair attempt, and the repair response."

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Literal, Protocol
+from typing import Literal, Protocol, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from shaper.domain import CollectionRole, Principal, SourceSpan
 
@@ -30,10 +30,10 @@ class ToolArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     span_id: str | None = None
-    radius: int | None = None
+    radius: int | None = Field(default=None, ge=0, le=3)
     name: str | None = None
     text: str | None = None
-    limit: int | None = None
+    limit: int | None = Field(default=None, ge=0, le=20)
 
 
 class ToolRequest(BaseModel):
@@ -43,6 +43,24 @@ class ToolRequest(BaseModel):
 
     name: Literal["find_conflicts", "get_neighbors", "get_span", "get_taxonomy"]
     arguments: ToolArguments = Field(default_factory=ToolArguments)
+
+    @model_validator(mode="after")
+    def validate_tool_arguments(self) -> Self:
+        required_fields = {
+            "get_span": ("span_id",),
+            "get_neighbors": ("span_id", "radius"),
+            "get_taxonomy": ("name",),
+            "find_conflicts": ("text", "limit"),
+        }
+        allowed_fields = frozenset(required_fields[self.name])
+        for field_name in allowed_fields:
+            value = getattr(self.arguments, field_name)
+            if value is None or (isinstance(value, str) and not value):
+                raise ValueError(f"Tool {self.name!r} requires argument {field_name!r}")
+        for field_name in ToolArguments.model_fields.keys() - allowed_fields:
+            if getattr(self.arguments, field_name) is not None:
+                raise ValueError(f"Tool {self.name!r} does not accept argument {field_name!r}")
+        return self
 
 
 class ReadOnlyToolRegistry:

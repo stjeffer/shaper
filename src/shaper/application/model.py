@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 from collections.abc import Iterable
+from typing import Literal
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import APIConnectionError, AzureOpenAI, OpenAIError
 
 from shaper.application.ports import ModelResult
+
+logger = logging.getLogger(__name__)
 
 
 class ModelProviderError(RuntimeError):
@@ -85,6 +89,7 @@ class AzureOpenAIModelGateway:
         api_version: str = "2024-10-21",
         request_timeout_seconds: float = 90,
         default_max_output_tokens: int = 8_000,
+        reasoning_effort: Literal["minimal", "low", "medium", "high"] = "low",
     ) -> None:
         if request_timeout_seconds <= 0:
             raise ValueError("Azure OpenAI request timeout must be positive")
@@ -112,6 +117,7 @@ class AzureOpenAIModelGateway:
             raise ValueError("Azure OpenAI requires an API key or managed identity")
         self._deployment = deployment
         self._default_max_output_tokens = default_max_output_tokens
+        self._reasoning_effort = reasoning_effort
 
     def generate(
         self,
@@ -142,11 +148,44 @@ class AzureOpenAIModelGateway:
                     if max_output_tokens is None
                     else max_output_tokens
                 ),
+                reasoning_effort=self._reasoning_effort,
             )
-            content = response.choices[0].message.content
+            choice = response.choices[0]
+            content = choice.message.content
+            usage = response.usage
+            completion_details = None if usage is None else usage.completion_tokens_details
+            logger.info(
+                "Azure OpenAI completion response_id=%s finish_reason=%s "
+                "content_characters=%d prompt_tokens=%s completion_tokens=%s "
+                "reasoning_tokens=%s refusal=%s",
+                response.id,
+                choice.finish_reason,
+                0 if content is None else len(content),
+                None if usage is None else usage.prompt_tokens,
+                None if usage is None else usage.completion_tokens,
+                (None if completion_details is None else completion_details.reasoning_tokens),
+                bool(getattr(choice.message, "refusal", None)),
+            )
+            if choice.finish_reason == "length":
+                raise ModelProviderError(
+                    "Azure OpenAI exhausted the approved completion limit before "
+                    "producing structured output; retry requires a newly estimated "
+                    "and approved budget",
+                    retryable=False,
+                )
+            if choice.finish_reason == "content_filter":
+                raise ModelProviderError(
+                    "Azure OpenAI content filtering prevented structured output",
+                    retryable=False,
+                )
+            refusal = getattr(choice.message, "refusal", None)
+            if refusal:
+                raise ModelProviderError(
+                    "Azure OpenAI refused to produce structured output",
+                    retryable=False,
+                )
             if content is None:
                 raise ModelProviderError("Model returned no structured content", retryable=False)
-            usage = response.usage
             return ModelResult(
                 payload=json.loads(content),
                 response_id=response.id,

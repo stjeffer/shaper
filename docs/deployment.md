@@ -200,10 +200,11 @@ The `agent_impact` field is an additive, optional field in persisted
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
-The transformation estimator and shaping prompt are version `1.5`. The estimate
-includes the structured assessment-finding payload and reserves an initial
-candidate plus one targeted repair. It also stores a cryptographic hash of the
-exact shaping prompt. Proposals created before version `1.5` remain stored, but
+The transformation estimator and shaping prompt are version `1.6`. The estimate
+includes the structured assessment-finding payload, structured-output overhead,
+and a bounded hidden-reasoning reserve. It reserves an initial candidate plus one
+targeted repair and stores a cryptographic hash of the exact shaping prompt.
+Proposals created before version `1.6` remain stored, but
 the new revision rejects them before model use because they do not bind the
 approved budget and actions to the current evidence and instructions. Run
 **Create improvement plan** again and obtain a new approval before transforming
@@ -216,9 +217,11 @@ request. The model receives the verified report's structured findings as
 diagnostic evidence and the approved transformation requirements as its sole
 change authority.
 
-Azure OpenAI requests use a 90-second per-request timeout and the proposal's
-approved output maximum as the provider-side completion-token cap. A timeout is
-reported as a provider failure; it does not silently trigger an unbounded retry.
+Azure OpenAI requests use low reasoning effort, a 90-second per-request timeout,
+and the proposal's approved output maximum as the provider-side completion-token
+cap. A timeout does not silently trigger an unbounded retry. Completion-limit
+exhaustion, content filtering, refusal, and malformed JSON are reported
+separately without logging model content.
 
 The authenticated
 `POST /v1/estates/{estate_id}/transformation-runs/stream` endpoint returns
@@ -258,10 +261,10 @@ After the revision becomes ready:
 13. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-14. If the estate contains a proposal created before estimator version `1.5`,
+14. If the estate contains a proposal created before estimator version `1.6`,
    confirm transformation stops before model use and instructs the reviewer to
    create and approve a current improvement plan.
-15. Create and approve a version `1.5` plan, then confirm progress reports
+15. Create and approve a version `1.6` plan, then confirm progress reports
    **model attempt 1 of 2**. If preservation fails, confirm the exact validation
    rule is reported and only one targeted repair can run.
 16. Confirm assessment findings remain visible as evidence while flag-only

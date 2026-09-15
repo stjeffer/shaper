@@ -645,10 +645,10 @@ one targeted repair`"| shaping
 
 The estimator derives fixed request overhead from the active shaping prompt,
 structured-response schema, and assessment-finding payload. It adds the source,
-request-envelope, and expected output ranges, then reserves the initial response,
-one targeted repair, and a safety margin. The shaping loop accounts for
-provider-reported input and output tokens after every response and stops when the
-approved maximum is exceeded.
+request envelope, structured JSON overhead, and a bounded hidden-reasoning reserve,
+then reserves the initial response, one targeted repair, and a safety margin. The
+shaping loop accounts for provider-reported input and output tokens after every
+complete response and stops when the approved maximum is exceeded.
 
 Runtime system prompts are version-controlled Markdown resources in
 `src/shaper/prompts/`. Shaping and model-assisted evaluation use separate prompts
@@ -668,20 +668,24 @@ flag-only findings cannot trigger invented metadata, normalized terminology,
 reconstructed embedded content, or silently consolidated rules.
 
 The prompt requires schema-constrained, source-preserving content with exact
-source-span citations. After each candidate, the deterministic preservation gate
-checks exact retention of numeric and duration facts and category-level retention
-of duties, advisory language, permissions, prohibitions, and exceptions. Low
-lexical coverage is review evidence rather than an automatic rejection because a
-faithful clearer rewrite need not copy 70 percent of the original vocabulary. A
-blocking finding returns the rejected candidate, structured rule details, and
-remedies for one targeted repair. The repair receives the same assessment
-evidence and approved requirements. Repeated findings stop immediately. If the
-repair fails, transformation reports the exact blocking rule and persists no
-artifact.
+source-span citations. Claims provide concise block-level provenance rather than
+duplicating the complete answer. After each candidate, the deterministic
+preservation gate checks exact retention of numeric and duration facts and
+category-level retention of duties, advisory language, permissions, prohibitions,
+and exceptions. Low lexical coverage is review evidence rather than an automatic
+rejection because a faithful clearer rewrite need not copy 70 percent of the
+original vocabulary. A blocking finding returns the rejected candidate, structured
+rule details, and remedies for one targeted repair. The repair receives the same
+assessment evidence and approved requirements. Repeated findings stop immediately.
+If the repair fails, transformation reports the exact blocking rule and persists
+no artifact.
 
-Each Azure OpenAI request has a 90-second timeout and a provider-side output
-token cap derived from the approved estimate. These per-request limits complement
-the overall elapsed-time and token budgets rather than replacing them.
+Each Azure OpenAI request has a 90-second timeout, low reasoning effort, and a
+provider-side completion-token cap derived from the approved estimate. The gateway
+records non-content completion metadata and distinguishes completion-limit
+exhaustion, content filtering, refusal, and genuinely malformed JSON. These
+per-request limits complement the overall elapsed-time and token budgets rather
+than replacing them.
 
 An estimator-version or shaping-prompt change invalidates an earlier approval for
 execution. The service rejects the stale estimate or prompt hash before calling

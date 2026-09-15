@@ -6,9 +6,9 @@ import json
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal, Protocol, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from shaper.application.agent_tools import ReadOnlyToolRegistry, ToolRequest
 from shaper.application.ports import ModelGateway, Validator
@@ -56,6 +56,25 @@ class CandidatePayload(BaseModel):
     applicability: Applicability = Field(default_factory=Applicability)
     reason: str | None = None
     tool: ToolRequest | None = None
+
+    @model_validator(mode="after")
+    def validate_status_fields(self) -> Self:
+        if self.status == "candidate":
+            if not self.answer or not self.canonical_questions or not self.claims:
+                raise ValueError("Candidate response requires an answer, questions, and claims")
+            if self.reason is not None or self.tool is not None:
+                raise ValueError("Candidate response cannot include reason or tool")
+        elif self.status == "tool":
+            if self.tool is None:
+                raise ValueError("Tool response requires a tool request")
+            if self.answer or self.canonical_questions or self.claims or self.reason is not None:
+                raise ValueError("Tool response cannot include candidate or abstain fields")
+        else:
+            if not self.reason:
+                raise ValueError("Abstain response requires a reason")
+            if self.answer or self.canonical_questions or self.claims or self.tool is not None:
+                raise ValueError("Abstain response cannot include candidate or tool fields")
+        return self
 
 
 @dataclass(frozen=True)

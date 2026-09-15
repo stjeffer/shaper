@@ -107,21 +107,30 @@ source-backed content from missing-information findings.
 
 ## Runtime Output Contract
 
-Return only content matching the supplied response schema.
+Return exactly one `CandidatePayload` matching the supplied strict response
+schema. Populate every schema field. Keep `tool` as `null` unless `status` is
+`tool`, and keep `reason` as `null` unless `status` is `abstain`.
 
 - Return `candidate` when the supplied source contains enough evidence to produce
   the complete source-preserving agent-ready document. Put the complete document
-  in `answer`. For multiple distinct policies, produce one document block per
-  policy. When both supported content and gaps are present, separate them with
-  clear headings.
-- Return `abstain` with a clear reason when the source cannot support a
-  reliable, faithful output.
+  in `answer`, populate its `canonical_questions`, `claims`, `confidence`, and
+  `applicability`, and set `reason` and `tool` to `null`. For multiple distinct
+  policies, produce one document block per policy. When both supported content and
+  gaps are present, separate them with clear headings.
+- Return `abstain` with a clear non-empty `reason`, empty `answer` and `claims`,
+  and `tool` set to `null` when the source cannot support a reliable, faithful
+  output.
 - Return `tool` only when missing evidence can be obtained through one of the
-  declared read-only tools in `allowed_tools`. Never request an undeclared tool
-  or a write action. Do not request a span already present in the supplied
-  source. When the supplied context already contains a tool result, consume that
-  result and return `candidate` or `abstain` with `tool` set to `null`; never
-  repeat or restate the tool request.
+  declared read-only tools in `allowed_tools`. Populate `tool` with exactly one
+  declared tool name and its required arguments: `get_span` requires a non-empty
+  `span_id`; `get_neighbors` requires a non-empty `span_id` and `radius` from 0
+  through 3; `get_taxonomy` requires a non-empty `name`; and `find_conflicts`
+  requires non-empty `text` and `limit` from 0 through 20. Set unused argument
+  fields to `null`. Keep `answer` and `claims` empty and `reason` set to `null`.
+  Never request an undeclared tool or a write action. Do not request a span already
+  present in the supplied source. When the supplied context already contains a
+  tool result, consume that result and return `candidate` or `abstain` with `tool`
+  set to `null`; never repeat or restate the tool request.
 - Treat every item in `validation_feedback` and `validation_findings` as a
   blocking defect in `rejected_candidate`. Repair that candidate narrowly,
   preserve unaffected supported content, address every finding, and avoid
@@ -130,8 +139,8 @@ Return only content matching the supplied response schema.
   with a clear reason.
 - Populate `canonical_questions` with the distinct end-user questions answered
   by the rewritten content.
-- Cite exact supplied span IDs in every claim. The claims must collectively
-  cover the substantive rules, restrictions, exceptions, qualifiers, numeric
-  facts, durations, responsibilities, required actions, and every stated
-  missing-information, ambiguity, or conflict finding in the answer.
+- Cite exact supplied span IDs in every claim. Use one concise claim for each
+  coherent source-backed block or distinct source span. Claims must establish
+  grounding for every substantive answer section without copying the complete
+  answer or repeating each sentence as a separate claim.
 - Apply only the approved transformation requirements supplied with the request.

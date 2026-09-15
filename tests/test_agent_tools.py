@@ -74,6 +74,33 @@ def test_given_unknown_tool_when_parsed_then_request_is_rejected() -> None:
         ToolRequest.model_validate({"name": "publish_release"})
 
 
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        ("get_span", {}),
+        ("get_neighbors", {"span_id": "span-1"}),
+        ("get_taxonomy", {}),
+        ("find_conflicts", {"text": "policy"}),
+    ],
+)
+def test_given_missing_required_argument_when_parsed_then_request_is_rejected(
+    name: str,
+    arguments: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError, match="requires argument"):
+        ToolRequest.model_validate({"name": name, "arguments": arguments})
+
+
+def test_given_unused_tool_argument_when_parsed_then_request_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="does not accept argument"):
+        ToolRequest.model_validate(
+            {
+                "name": "get_span",
+                "arguments": {"span_id": "span-1", "text": "unused"},
+            }
+        )
+
+
 def test_given_query_only_principal_when_tool_invoked_then_authorization_fails() -> None:
     # Arrange
     registry = ReadOnlyToolRegistry(

@@ -40,13 +40,30 @@ class FailingClient:
 class CapturingCompletions:
     """Capture Azure chat-completion parameters."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        content: str | None = "{}",
+        finish_reason: str = "stop",
+        refusal: str | None = None,
+    ) -> None:
         self.kwargs: dict[str, object] | None = None
+        self.content = content
+        self.finish_reason = finish_reason
+        self.refusal = refusal
 
     def create(self, **kwargs: object) -> object:
         self.kwargs = kwargs
-        message = type("Message", (), {"content": "{}"})()
-        choice = type("Choice", (), {"message": message})()
+        message = type(
+            "Message",
+            (),
+            {"content": self.content, "refusal": self.refusal},
+        )()
+        choice = type(
+            "Choice",
+            (),
+            {"message": message, "finish_reason": self.finish_reason},
+        )()
         return type(
             "Response",
             (),
@@ -61,15 +78,27 @@ class CapturingCompletions:
 class CapturingChat:
     """Expose capturing chat completions."""
 
-    def __init__(self) -> None:
-        self.completions = CapturingCompletions()
+    def __init__(self, completions: CapturingCompletions | None = None) -> None:
+        self.completions = completions or CapturingCompletions()
 
 
 class CapturingClient:
     """Expose a captured chat boundary."""
 
-    def __init__(self) -> None:
-        self.chat = CapturingChat()
+    def __init__(self, completions: CapturingCompletions | None = None) -> None:
+        self.chat = CapturingChat(completions)
+
+
+def configured_gateway(
+    monkeypatch: pytest.MonkeyPatch,
+    completions: CapturingCompletions,
+) -> AzureOpenAIModelGateway:
+    gateway = object.__new__(AzureOpenAIModelGateway)
+    monkeypatch.setattr(gateway, "_client", CapturingClient(completions), raising=False)
+    monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+    monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
+    monkeypatch.setattr(gateway, "_reasoning_effort", "low", raising=False)
+    return gateway
 
 
 def test_given_optional_nested_fields_when_schema_strict_then_all_properties_are_required() -> None:
@@ -138,6 +167,7 @@ def test_given_openai_transport_failure_when_generated_then_error_is_classified(
     monkeypatch.setattr(gateway, "_client", FailingClient(), raising=False)
     monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
     monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
+    monkeypatch.setattr(gateway, "_reasoning_effort", "low", raising=False)
 
     with pytest.raises(ModelProviderError) as captured:
         gateway.generate(
@@ -158,6 +188,7 @@ def test_given_caller_system_prompt_when_generated_then_azure_sends_it(
     monkeypatch.setattr(gateway, "_client", client, raising=False)
     monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
     monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
+    monkeypatch.setattr(gateway, "_reasoning_effort", "low", raising=False)
 
     gateway.generate(
         system_prompt=EVALUATION_PROMPT,
@@ -172,6 +203,56 @@ def test_given_caller_system_prompt_when_generated_then_azure_sends_it(
         {"role": "user", "content": "candidate and source"},
     ]
     assert client.chat.completions.kwargs["max_completion_tokens"] == 1_234
+    assert client.chat.completions.kwargs["reasoning_effort"] == "low"
+
+
+@pytest.mark.parametrize(
+    ("finish_reason", "refusal", "expected_message"),
+    [
+        ("length", None, "exhausted the approved completion limit"),
+        ("content_filter", None, "content filtering prevented"),
+        ("stop", "Unable to comply", "refused to produce"),
+    ],
+)
+def test_given_incomplete_provider_outcome_when_generated_then_reason_is_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+    finish_reason: str,
+    refusal: str | None,
+    expected_message: str,
+) -> None:
+    gateway = configured_gateway(
+        monkeypatch,
+        CapturingCompletions(
+            content='{"status":',
+            finish_reason=finish_reason,
+            refusal=refusal,
+        ),
+    )
+
+    with pytest.raises(ModelProviderError, match=expected_message) as captured:
+        gateway.generate(
+            system_prompt=EVALUATION_PROMPT,
+            prompt="test",
+            schema={"type": "object"},
+        )
+
+    assert not captured.value.retryable
+
+
+def test_given_malformed_json_after_stop_when_generated_then_error_is_malformed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = configured_gateway(
+        monkeypatch,
+        CapturingCompletions(content='{"status":', finish_reason="stop"),
+    )
+
+    with pytest.raises(ModelProviderError, match="malformed structured output"):
+        gateway.generate(
+            system_prompt=EVALUATION_PROMPT,
+            prompt="test",
+            schema={"type": "object"},
+        )
 
 
 def test_given_invalid_provider_limits_when_created_then_configuration_is_rejected() -> None:

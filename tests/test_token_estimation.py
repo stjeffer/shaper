@@ -25,11 +25,13 @@ def test_given_equivalent_inputs_when_estimated_then_range_and_identity_are_stab
     assert first == second
     assert first.input_min <= first.input_max
     assert first.output_min <= first.output_max
-    assert first.estimator_version == ESTIMATOR_VERSION == "1.5"
+    assert first.estimator_version == ESTIMATOR_VERSION == "1.6"
     assert first.prompt_hash is not None
     assert ESTIMATED_MODEL_CALLS == 2
     assert first.enforced_maximum >= ESTIMATED_MODEL_CALLS * (first.input_max + first.output_max)
     assert first.enforced_maximum >= (2 * first.input_max) + (3 * first.output_max)
+    assert first.output_max >= 2_100
+    assert "reasoning-token reserve" in first.assumptions[2]
     assert "one targeted repair attempt" in first.assumptions[-1]
 
 

@@ -13,6 +13,7 @@ from shaper.application.agent_tools import ReadOnlyToolRegistry
 from shaper.application.model import DeterministicModelGateway
 from shaper.application.ports import ModelResult
 from shaper.application.shaping import (
+    CandidatePayload,
     ShapingBudget,
     ShapingBudgetExceeded,
     ShapingLoop,
@@ -97,6 +98,49 @@ def candidate_payload() -> dict[str, object]:
         "claims": [{"text": "Employees receive leave.", "span_ids": ["span-1"]}],
         "confidence": 0.9,
     }
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (
+            {
+                "status": "candidate",
+                "canonical_questions": [],
+                "answer": "",
+                "claims": [],
+                "reason": "unexpected",
+            },
+            "requires an answer",
+        ),
+        (
+            {
+                "status": "tool",
+                "canonical_questions": [],
+                "answer": "",
+                "claims": [],
+                "tool": None,
+            },
+            "requires a tool request",
+        ),
+        (
+            {
+                "status": "abstain",
+                "canonical_questions": [],
+                "answer": "",
+                "claims": [],
+                "reason": None,
+            },
+            "requires a reason",
+        ),
+    ],
+)
+def test_given_status_field_mismatch_when_parsed_then_candidate_is_rejected(
+    payload: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        CandidatePayload.model_validate(payload)
 
 
 def run_loop(
