@@ -2827,6 +2827,7 @@ function renderTransformationProgress() {
         const content = document.createElement("span");
         content.append(
           text("strong", TRANSFORMATION_CHECK_LABELS[check]),
+          document.createTextNode(" "),
           text("span", result.detail, "transformation-check-status"),
         );
         item.append(symbol, content);
