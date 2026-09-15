@@ -13,6 +13,7 @@ _MATERIAL_FACT = re.compile(
     r"(?:[$£€]\s?\d[\d,.]*|\b\d[\d,.]*\s?(?:%|percent|days?|weeks?|months?|years?|hours?)?\b)",
     re.IGNORECASE,
 )
+_LEADING_ENUMERATOR = re.compile(r"(?im)^\s*(?:#{1,6}\s*)?(?:(?:step|question)\s+)?\d+[.):]\s+")
 _OPERATIVE_CLAUSE = re.compile(
     r"\b(?:must(?:\s+not)?|shall(?:\s+not)?|should(?:\s+not)?|required|prohibited|"
     r"may(?!\s+(?:\d{1,2}\b|(?:19|20)\d{2}\b))(?:\s+(?:only|not))?|"
@@ -241,12 +242,8 @@ class DeterministicValidator:
                     )
                 )
 
-        source_facts = {
-            self._normalize_material_fact(fact) for fact in _MATERIAL_FACT.findall(source_text)
-        }
-        answer_facts = {
-            self._normalize_material_fact(fact) for fact in _MATERIAL_FACT.findall(unit.answer)
-        }
+        source_facts = _material_facts(source_text)
+        answer_facts = _material_facts(unit.answer)
         missing_facts = sorted(source_facts - answer_facts)
         if missing_facts:
             findings.append(
@@ -255,6 +252,16 @@ class DeterministicValidator:
                     "content.material_fact",
                     "The reshaped document omits source values or durations: "
                     f"{', '.join(missing_facts[:8])}",
+                )
+            )
+        introduced_facts = sorted(answer_facts - source_facts)
+        if introduced_facts:
+            findings.append(
+                self._blocking(
+                    unit,
+                    "content.material_fact",
+                    "The reshaped document introduces source-unsupported values or durations: "
+                    f"{', '.join(introduced_facts[:8])}",
                 )
             )
 
@@ -280,21 +287,32 @@ class DeterministicValidator:
             )
         source_clauses = _split_clauses(source_text)
         answer_clauses = _split_clauses(unit.answer)
-        aligned_answer_clauses = _align_clauses(source_clauses, answer_clauses)
-        reassigned_facts = any(
-            {self._normalize_material_fact(fact) for fact in _MATERIAL_FACT.findall(source_clause)}
-            != {
-                self._normalize_material_fact(fact)
-                for fact in _MATERIAL_FACT.findall(aligned_answer_clauses[source_index])
-            }
-            for source_index, source_clause in enumerate(source_clauses)
+        reassigned_fact_clause = next(
+            (
+                source_clause
+                for source_index, source_clause in enumerate(source_clauses)
+                if (source_clause_facts := _material_facts(source_clause))
+                and not source_clause_facts
+                <= set().union(
+                    *(
+                        _material_facts(candidate_clause)
+                        for candidate_clause in _matching_clauses(
+                            source_clause,
+                            answer_clauses,
+                            source_clauses,
+                        )
+                    )
+                )
+            ),
+            None,
         )
-        if reassigned_facts and not missing_facts:
+        if reassigned_fact_clause is not None and not missing_facts:
             findings.append(
                 self._blocking(
                     unit,
                     "content.material_fact",
-                    "The reshaped document changes or relocates source values or durations",
+                    "The reshaped document changes or relocates source values or durations. "
+                    f"Source clause to preserve: {reassigned_fact_clause[:120]}",
                 )
             )
         material_clauses = [
@@ -305,8 +323,6 @@ class DeterministicValidator:
         omitted_material_clauses = []
         for source_index, clause in material_clauses:
             clause_words = _meaningful_words(clause)
-            related_answer_words = _meaningful_words(aligned_answer_clauses[source_index])
-            overlap = len(clause_words.intersection(related_answer_words)) / len(clause_words)
             other_source_words = set().union(
                 *(
                     _meaningful_words(other_clause)
@@ -315,16 +331,36 @@ class DeterministicValidator:
                 )
             )
             distinguishing_words = clause_words - other_source_words
-            distinguishing_coverage = (
-                len(distinguishing_words.intersection(related_answer_words))
-                / len(distinguishing_words)
-                if distinguishing_words
-                else 1.0
+            candidate_matches = _related_answer_clauses(
+                clause,
+                answer_clauses,
+                source_clauses,
             )
-            if (
-                overlap < _CLAUSE_PRESERVATION_THRESHOLD
-                or distinguishing_coverage < _CLAUSE_PRESERVATION_THRESHOLD
-            ):
+            clause_preserved = any(
+                _word_coverage(clause_words, _meaningful_words(candidate_clause))
+                >= _CLAUSE_PRESERVATION_THRESHOLD
+                and (
+                    not distinguishing_words
+                    or _word_coverage(
+                        distinguishing_words,
+                        _meaningful_words(candidate_clause),
+                    )
+                    >= _CLAUSE_PRESERVATION_THRESHOLD
+                )
+                for candidate_clause in candidate_matches
+            )
+            if not clause_preserved and len(source_clauses) == 1:
+                pooled_answer_words = set().union(
+                    *(_meaningful_words(answer_clause) for answer_clause in answer_clauses)
+                )
+                clause_preserved = _word_coverage(
+                    clause_words, pooled_answer_words
+                ) >= _CLAUSE_PRESERVATION_THRESHOLD and (
+                    not distinguishing_words
+                    or _word_coverage(distinguishing_words, pooled_answer_words)
+                    >= _CLAUSE_PRESERVATION_THRESHOLD
+                )
+            if not clause_preserved:
                 omitted_material_clauses.append(clause[:120])
         if omitted_material_clauses:
             findings.append(
@@ -336,24 +372,36 @@ class DeterministicValidator:
                 )
             )
         for rule_id, pattern, label in _PRESERVATION_CATEGORIES:
-            omitted_category = any(
-                pattern.search(source_clause)
-                and not pattern.search(aligned_answer_clauses[source_index])
-                for source_index, source_clause in enumerate(source_clauses)
+            omitted_category_clause = next(
+                (
+                    source_clause
+                    for source_index, source_clause in enumerate(source_clauses)
+                    if pattern.search(source_clause)
+                    and not _preserves_pattern(
+                        source_clause,
+                        answer_clauses,
+                        source_clauses,
+                        pattern,
+                    )
+                ),
+                None,
             )
-            if omitted_category:
+            if omitted_category_clause is not None:
                 findings.append(
                     self._blocking(
                         unit,
                         rule_id,
-                        f"The reshaped document omits source {label}",
+                        f"The reshaped document omits source {label}. "
+                        f"Source clause to preserve: {omitted_category_clause[:120]}",
                     )
                 )
         permission_modal_changed = any(
-            bool(pattern.search(aligned_answer_clauses[source_index]))
-            != bool(pattern.search(source_clause))
+            _pattern_association_changed(
+                pattern,
+                source_clauses,
+                answer_clauses,
+            )
             for pattern in _PERMISSION_MODAL_PATTERNS
-            for source_index, source_clause in enumerate(source_clauses)
         )
         if permission_modal_changed and not any(
             finding.rule_id == "content.permission_clause" for finding in findings
@@ -365,10 +413,10 @@ class DeterministicValidator:
                     "The reshaped document changes or relocates a source permission modality",
                 )
             )
-        obligation_modal_changed = any(
-            bool(_OBLIGATION_MODAL_PATTERN.search(aligned_answer_clauses[source_index]))
-            != bool(_OBLIGATION_MODAL_PATTERN.search(source_clause))
-            for source_index, source_clause in enumerate(source_clauses)
+        obligation_modal_changed = _pattern_association_changed(
+            _OBLIGATION_MODAL_PATTERN,
+            source_clauses,
+            answer_clauses,
         )
         if obligation_modal_changed and not any(
             finding.rule_id == "content.operative_clause" for finding in findings
@@ -380,10 +428,10 @@ class DeterministicValidator:
                     "The reshaped document changes or relocates a mandatory source duty",
                 )
             )
-        prohibition_changed = any(
-            bool(_PROHIBITION_PATTERN.search(aligned_answer_clauses[source_index]))
-            != bool(_PROHIBITION_PATTERN.search(source_clause))
-            for source_index, source_clause in enumerate(source_clauses)
+        prohibition_changed = _pattern_association_changed(
+            _PROHIBITION_PATTERN,
+            source_clauses,
+            answer_clauses,
         )
         if prohibition_changed and not any(
             finding.rule_id == "content.prohibition_clause" for finding in findings
@@ -395,10 +443,10 @@ class DeterministicValidator:
                     "The reshaped document reverses or relocates a source prohibition",
                 )
             )
-        named_modal_negation_changed = any(
-            bool(_NEGATED_NAMED_MODAL_PATTERN.search(aligned_answer_clauses[source_index]))
-            != bool(_NEGATED_NAMED_MODAL_PATTERN.search(source_clause))
-            for source_index, source_clause in enumerate(source_clauses)
+        named_modal_negation_changed = _pattern_association_changed(
+            _NEGATED_NAMED_MODAL_PATTERN,
+            source_clauses,
+            answer_clauses,
         )
         if named_modal_negation_changed:
             findings.append(
@@ -409,24 +457,39 @@ class DeterministicValidator:
                 )
             )
         for label, pattern in _RESTRICTIVE_QUALIFIERS:
-            omitted_qualifier = any(
-                bool(pattern.search(aligned_answer_clauses[source_index]))
-                != bool(pattern.search(source_clause))
-                for source_index, source_clause in enumerate(source_clauses)
+            changed_qualifier_clause = next(
+                (
+                    source_clause
+                    for source_index, source_clause in enumerate(source_clauses)
+                    if pattern.search(source_clause)
+                    and not _preserves_pattern(
+                        source_clause,
+                        answer_clauses,
+                        source_clauses,
+                        pattern,
+                    )
+                ),
+                None,
             )
-            if omitted_qualifier:
+            if changed_qualifier_clause is not None or _pattern_association_changed(
+                pattern,
+                source_clauses,
+                answer_clauses,
+            ):
+                excerpt = (
+                    f" Source clause to preserve: {changed_qualifier_clause[:120]}"
+                    if changed_qualifier_clause is not None
+                    else ""
+                )
                 findings.append(
                     self._blocking(
                         unit,
                         "content.qualifier_clause",
-                        f"The reshaped document omits a source {label} restriction",
+                        f"The reshaped document changes or omits a source {label} restriction."
+                        f"{excerpt}",
                     )
                 )
         return tuple(findings)
-
-    @staticmethod
-    def _normalize_material_fact(value: str) -> str:
-        return re.sub(r"[\s,]+", "", value.casefold())
 
     @staticmethod
     def _blocking(unit: AnswerUnit, rule_id: str, message: str) -> ValidationFinding:
@@ -442,13 +505,26 @@ def _split_clauses(text: str) -> list[str]:
     return [
         clause.strip()
         for clause in re.split(
-            r"(?<=[.!?])\s+|\n+|(?:,\s+(?:and\s+)?|\s+and\s+)(?=(?:must|shall|"
+            r"(?<=[.!?])\s+|\n+|;\s+|"
+            r",\s+(?:and|but|while|whereas)\s+(?=[\w'-]+\s+(?:must|shall|should|"
+            r"may|can|will|is|are|has|have|receive|receives|access|submit|submits)\b)|"
+            r"\s+(?:while|whereas)\s+(?=[\w'-]+\s+(?:must|shall|should|may|can|will|"
+            r"is|are|has|have|receive|receives|access|submit|submits)\b)|"
+            r"(?:,\s+(?:and\s+)?|\s+and\s+)(?=(?:must|shall|"
             r"should|may|can|is\s+responsible\s+for)\b)",
             text,
             flags=re.IGNORECASE,
         )
         if clause.strip()
     ]
+
+
+def _material_facts(text: str) -> set[str]:
+    without_enumerators = _LEADING_ENUMERATOR.sub("", text)
+    return {
+        re.sub(r"[\s,]+", "", fact.casefold())
+        for fact in _MATERIAL_FACT.findall(without_enumerators)
+    }
 
 
 def _meaningful_words(text: str) -> set[str]:
@@ -472,6 +548,120 @@ def _clause_overlap(source_clause: str, candidate_clause: str) -> float:
         return 0.0
     candidate_words = _meaningful_words(candidate_clause) - _ALIGNMENT_CONTROL_WORDS
     return len(source_words.intersection(candidate_words)) / len(source_words)
+
+
+def _word_coverage(required_words: set[str], candidate_words: set[str]) -> float:
+    if not required_words:
+        return 1.0
+    return len(required_words.intersection(candidate_words)) / len(required_words)
+
+
+def _matching_clauses(
+    source_clause: str,
+    candidate_clauses: Sequence[str],
+    peer_source_clauses: Sequence[str] = (),
+    identity_threshold: float = _CLAUSE_PRESERVATION_THRESHOLD,
+) -> tuple[str, ...]:
+    source_identity_words = _identity_words(source_clause, peer_source_clauses)
+    return tuple(
+        candidate_clause
+        for candidate_clause in candidate_clauses
+        if _is_policy_clause(candidate_clause)
+        and _clause_overlap(source_clause, candidate_clause) >= _CLAUSE_MATCH_THRESHOLD
+        and _word_coverage(
+            source_identity_words,
+            _meaningful_words(candidate_clause) - _ALIGNMENT_CONTROL_WORDS,
+        )
+        >= identity_threshold
+    )
+
+
+def _identity_words(source_clause: str, peer_source_clauses: Sequence[str]) -> set[str]:
+    source_words = _meaningful_words(source_clause) - _ALIGNMENT_CONTROL_WORDS
+    other_source_words = set().union(
+        *(
+            _meaningful_words(peer_clause) - _ALIGNMENT_CONTROL_WORDS
+            for peer_clause in peer_source_clauses
+            if peer_clause != source_clause
+        )
+    )
+    distinguishing_words = source_words - other_source_words
+    return distinguishing_words or source_words
+
+
+def _related_answer_clauses(
+    source_clause: str,
+    answer_clauses: Sequence[str],
+    source_clauses: Sequence[str],
+    identity_threshold: float = _CLAUSE_PRESERVATION_THRESHOLD,
+) -> tuple[str, ...]:
+    return _matching_clauses(
+        source_clause,
+        answer_clauses,
+        source_clauses,
+        identity_threshold,
+    )
+
+
+def _preserves_pattern(
+    source_clause: str,
+    answer_clauses: Sequence[str],
+    source_clauses: Sequence[str],
+    pattern: re.Pattern[str],
+) -> bool:
+    return any(
+        pattern.search(candidate_clause)
+        for candidate_clause in _related_answer_clauses(
+            source_clause,
+            answer_clauses,
+            source_clauses,
+            identity_threshold=0.75,
+        )
+    )
+
+
+def _pattern_association_changed(
+    pattern: re.Pattern[str],
+    source_clauses: Sequence[str],
+    answer_clauses: Sequence[str],
+) -> bool:
+    source_policy_clauses = tuple(
+        source_clause for source_clause in source_clauses if _is_policy_clause(source_clause)
+    )
+    answer_policy_clauses = tuple(
+        answer_clause for answer_clause in answer_clauses if _is_policy_clause(answer_clause)
+    )
+    if any(
+        pattern.search(source_clause)
+        and not _preserves_pattern(
+            source_clause,
+            answer_policy_clauses,
+            source_policy_clauses,
+            pattern,
+        )
+        for source_index, source_clause in enumerate(source_clauses)
+        if _is_policy_clause(source_clause)
+    ):
+        return True
+    return any(
+        pattern.search(answer_clause)
+        and not any(
+            pattern.search(source_clause)
+            and answer_clause
+            in _matching_clauses(
+                source_clause,
+                (answer_clause,),
+                source_policy_clauses,
+                identity_threshold=0.75,
+            )
+            for source_clause in source_policy_clauses
+        )
+        for answer_clause in answer_policy_clauses
+    )
+
+
+def _is_policy_clause(clause: str) -> bool:
+    return not clause.rstrip().endswith(("?", ":"))
 
 
 def _align_clauses(source_clauses: Sequence[str], candidate_clauses: Sequence[str]) -> list[str]:

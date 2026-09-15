@@ -84,6 +84,37 @@ def decision(unit: AnswerUnit, expected_revision: int) -> ReviewDecision:
     )
 
 
+def preservation_rule_ids(
+    document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+) -> set[str]:
+    """Validate a candidate against a single source span."""
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=document.source_id,
+        source_version=document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=document.source_id,
+        source_version=document.source_version,
+        canonical_questions=("What does the policy require?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-preservation",
+            model="fake",
+            prompt_version="1.7",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+    return {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+
 def test_given_missing_cited_span_when_validated_then_finding_blocks_publication(
     source_document: SourceDocument,
 ) -> None:
@@ -1184,6 +1215,107 @@ def test_given_material_facts_swapped_between_subjects_when_validated_then_block
     )
 
     rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_fact" in rule_ids
+
+
+def test_given_merged_source_clauses_when_all_subjects_are_retained_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees may access records only with manager approval. "
+        "Contractors can access archives after security approval."
+    )
+    candidate_text = (
+        "Employees may access records only with manager approval, while contractors can "
+        "access archives after security approval."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert not {
+        "content.material_clause",
+        "content.permission_clause",
+        "content.qualifier_clause",
+    }.intersection(rule_ids)
+
+
+@pytest.mark.parametrize(
+    ("source_text", "candidate_text", "expected_rule"),
+    [
+        (
+            "Employees receive 10 vacation days. Contractors receive 20 vacation days.",
+            "Employees receive 20 vacation days, while contractors receive 10 vacation days.",
+            "content.material_fact",
+        ),
+        (
+            "Employees may access records only with manager approval. "
+            "Contractors can access archives after security approval.",
+            "Employees may access archives after security approval, while contractors can "
+            "access records only with manager approval.",
+            "content.qualifier_clause",
+        ),
+        (
+            "Employees must submit the form. Contractors must not submit the form.",
+            "Employees must not submit the form; contractors must submit the form.",
+            "content.prohibition_clause",
+        ),
+    ],
+)
+def test_given_merged_clause_swaps_source_attributes_when_validated_then_blocks(
+    source_document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+    expected_rule: str,
+) -> None:
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert expected_rule in rule_ids
+
+
+def test_given_reordered_qa_with_advisory_and_temporal_qualifiers_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Meridian Holdings — Employee Benefits Handbook\n"
+        "Employees should contact HR after enrollment changes. "
+        "Employees should retain receipts during claims review."
+    )
+    candidate_text = (
+        "# Meridian Holdings — Employee Benefits Handbook\n"
+        "## What should employees retain during claims review?\n"
+        "Employees should retain receipts during claims review.\n"
+        "## What should employees do after enrollment changes?\n"
+        "Employees should contact HR after enrollment changes."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert not {
+        "content.material_clause",
+        "content.advisory_clause",
+        "content.qualifier_clause",
+    }.intersection(rule_ids)
+
+
+def test_given_added_list_numbering_when_policy_facts_are_unchanged_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit a request. Managers review the request."
+    candidate_text = "1. Employees submit a request.\n2. Managers review the request."
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert "content.material_fact" not in rule_ids
+
+
+def test_given_source_unsupported_number_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit a request. Managers review the request."
+    candidate_text = "Employees submit a request. Managers review it within 5 days."
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
 
     assert "content.material_fact" in rule_ids
 
