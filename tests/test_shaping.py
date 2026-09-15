@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 
 import pytest
 
@@ -103,6 +104,8 @@ def run_loop(
     validator: Validator | None = None,
     budget: ShapingBudget | None = None,
     context_spans: Sequence[SourceSpan] | None = None,
+    monotonic: Callable[[], float] | None = None,
+    on_model_attempt: Callable[[int, int], None] | None = None,
 ) -> tuple[ShapingOutcome, Checkpoints]:
     """Run the shaping loop with deterministic adapters."""
     checkpoints = Checkpoints()
@@ -116,6 +119,8 @@ def run_loop(
         validator=validator or Validator(),
         checkpoints=checkpoints,
         budget=budget,
+        monotonic=monotonic or time.monotonic,
+        on_model_attempt=on_model_attempt,
     )
     principal = Principal(
         principal_id="person-1",
@@ -223,6 +228,29 @@ def test_given_three_rejected_candidates_when_shaped_then_fourth_candidate_can_p
     assert outcome.model_calls == 4
     assert checkpoints.states.count("candidate_rejected") == 3
     assert checkpoints.states[-1] == "candidate_accepted"
+
+
+def test_given_slow_repairs_when_within_attempt_budget_then_fourth_candidate_can_pass(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    # Arrange
+    attempts: list[tuple[int, int]] = []
+    monotonic = iter((0.0, 0.0, 45.0, 90.0, 135.0)).__next__
+
+    # Act
+    outcome, _ = run_loop(
+        [candidate_payload() for _ in range(4)],
+        source_document,
+        source_span,
+        validator=Validator(rejections=3),
+        monotonic=monotonic,
+        on_model_attempt=lambda attempt, maximum: attempts.append((attempt, maximum)),
+    )
+
+    # Assert
+    assert outcome.model_calls == 4
+    assert attempts == [(1, 4), (2, 4), (3, 4), (4, 4)]
 
 
 def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(

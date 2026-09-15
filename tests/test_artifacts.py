@@ -351,6 +351,10 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert {
             event.get("check") for event in progress_events if event["type"] == "check_updated"
         } == {"reshape", "source_preservation", "grounding", "quality"}
+        assert any(
+            event.get("detail") == "Generating reshaped content (model attempt 1 of 4)."
+            for event in progress_events
+        )
     finally:
         store.close()
 

@@ -550,6 +550,18 @@ class EstateTransformationService:
                     maximum_tokens=proposal.token_estimate.enforced_maximum,
                 ),
                 monotonic=self._monotonic,
+                on_model_attempt=lambda attempt, maximum: self._report_progress(
+                    progress,
+                    {
+                        "type": "check_updated",
+                        "document_id": proposal.document_id,
+                        "check": "reshape",
+                        "status": "running",
+                        "detail": (
+                            f"Generating reshaped content (model attempt {attempt} of {maximum})."
+                        ),
+                    },
+                ),
             ).run(
                 run_id=f"{run_id}:{document.value.document_id}",
                 document=source,

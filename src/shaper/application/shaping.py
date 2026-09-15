@@ -63,7 +63,7 @@ class ShapingBudget:
     maximum_model_calls: int = 4
     maximum_tool_calls: int = 8
     maximum_tokens: int = 8_000
-    maximum_seconds: float = 120
+    maximum_seconds: float = 300
     maximum_candidates: int = 4
 
 
@@ -118,6 +118,7 @@ class ShapingLoop:
         checkpoints: CheckpointStore,
         budget: ShapingBudget | None = None,
         monotonic: Callable[[], float] = time.monotonic,
+        on_model_attempt: Callable[[int, int], None] | None = None,
     ) -> None:
         self._model = model
         self._tools = tools
@@ -125,6 +126,7 @@ class ShapingLoop:
         self._checkpoints = checkpoints
         self._budget = budget or ShapingBudget()
         self._monotonic = monotonic
+        self._on_model_attempt = on_model_attempt
 
     def run(
         self,
@@ -165,6 +167,8 @@ class ShapingLoop:
                 },
                 sort_keys=True,
             )
+            if self._on_model_attempt is not None:
+                self._on_model_attempt(model_calls + 1, self._budget.maximum_model_calls)
             result = self._model.generate(
                 system_prompt=SHAPING_PROMPT,
                 prompt=prompt,
