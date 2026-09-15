@@ -1246,6 +1246,7 @@ function renderAssessmentChecks() {
   tablist.setAttribute("aria-label", "Assessment check categories");
   const panels = document.createElement("div");
   panels.className = "assessment-check-panels";
+  let checkNumber = 0;
   [...groups.entries()].forEach(([category, checks], index) => {
     const tab = document.createElement("button");
     tab.type = "button";
@@ -1254,7 +1255,10 @@ function renderAssessmentChecks() {
     tab.id = `assessment-check-tab-${index}`;
     tab.setAttribute("aria-controls", `assessment-check-panel-${index}`);
     tab.dataset.assessmentCheckTab = `${index}`;
-    tab.append(text("span", category), text("span", `${checks.length}`, "tab-count"));
+    tab.append(
+      text("span", category),
+      text("span", `${checks.length}`, "tab-count"),
+    );
     tablist.append(tab);
 
     const section = document.createElement("div");
@@ -1274,23 +1278,34 @@ function renderAssessmentChecks() {
     const list = document.createElement("div");
     list.className = "assessment-check-list";
     checks.forEach((check, checkIndex) => {
-      const article = document.createElement("article");
-      article.className = "assessment-check-card";
-      const number = text("span", `${checkIndex + 1}`, "assessment-check-number");
+      checkNumber += 1;
+      const article = document.createElement("details");
+      article.className = `assessment-check-card assessment-check-card-${
+        checkIndex % 6 === 0 ? "feature" : checkIndex % 5 === 0 ? "wide" : "standard"
+      }`;
+      const summary = document.createElement("summary");
+      summary.className = "assessment-check-card-summary";
+      const number = text(
+        "span",
+        `${String(checkNumber).padStart(2, "0")} / 29`,
+        "assessment-check-number",
+      );
       number.setAttribute("aria-hidden", "true");
       const content = document.createElement("div");
+      content.className = "assessment-check-copy";
+      content.append(
+        text("h3", check.label),
+        text("p", check.what_it_checks),
+      );
+      const affordance = text("span", "View impact", "assessment-check-affordance");
+      summary.append(number, content, affordance);
       const impact = document.createElement("p");
       impact.className = "assessment-check-impact";
       impact.append(
         text("strong", "Likely agent impact"),
         document.createTextNode(` ${check.agent_impact}`),
       );
-      content.append(
-        text("h3", check.label),
-        text("p", check.what_it_checks),
-        impact,
-      );
-      article.append(number, content);
+      article.append(summary, impact);
       list.append(article);
     });
     section.append(list);
