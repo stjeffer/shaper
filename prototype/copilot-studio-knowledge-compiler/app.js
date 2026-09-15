@@ -774,13 +774,20 @@ function documentFindings(report, documentTitle = "Document") {
   }
 
   const container = document.createElement("div");
-  container.className = "result-groups";
+  container.className = "findings-workspace";
   container.setAttribute("aria-label", `${documentTitle} content quality findings`);
+  const index = document.createElement("nav");
+  index.className = "findings-index";
+  index.setAttribute("aria-label", "Findings index");
+  const detail = document.createElement("div");
+  detail.className = "findings-detail";
+  detail.setAttribute("aria-live", "polite");
+  const indexedFindings = [];
   for (const { tone, label } of FINDING_GROUPS) {
     const items = groups.get(tone);
     if (!items?.length) continue;
     const section = document.createElement("section");
-    section.className = `result-group result-group-${tone}`;
+    section.className = `findings-index-group result-group-${tone}`;
     const heading = document.createElement("div");
     heading.className = "result-group-heading";
     heading.append(
@@ -791,17 +798,93 @@ function documentFindings(report, documentTitle = "Document") {
         "result-group-label",
       ),
     );
-    const list = document.createElement("ul");
-    list.className = "result-list";
+    const list = document.createElement("div");
+    list.className = "findings-index-list";
+    list.setAttribute("role", "list");
     list.setAttribute("aria-label", `${label} findings`);
     items.forEach((finding) => {
-      const item = resultItem(finding);
-      item.querySelector(".result-severity")?.remove();
-      list.append(item);
+      const findingIndex = indexedFindings.length;
+      indexedFindings.push({ ...finding, groupLabel: label });
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "findings-index-item";
+      button.dataset.findingIndex = `${findingIndex}`;
+      button.setAttribute("role", "listitem");
+      button.setAttribute("aria-pressed", `${findingIndex === 0}`);
+      button.append(
+        text("span", String(findingIndex + 1).padStart(2, "0"), "finding-number"),
+        text("span", finding.label, "finding-index-label"),
+        text("span", "›", "finding-index-arrow"),
+      );
+      list.append(button);
     });
     section.append(heading, list);
-    container.append(section);
+    index.append(section);
   }
+  const renderDetail = (findingIndex) => {
+    const finding = indexedFindings[findingIndex];
+    if (!finding) return;
+    index.querySelectorAll("[data-finding-index]").forEach((button) => {
+      button.setAttribute("aria-pressed", `${button.dataset.findingIndex === `${findingIndex}`}`);
+    });
+    const header = document.createElement("header");
+    header.className = "finding-detail-header";
+    const headingCopy = document.createElement("div");
+    headingCopy.className = "finding-detail-heading-copy";
+    headingCopy.append(
+      text("span", finding.groupLabel, `result-severity ${finding.tone}`),
+      text("h4", finding.label),
+      text("p", finding.detail, "result-detail"),
+    );
+    header.append(
+      headingCopy,
+      text("span", `${String(findingIndex + 1).padStart(2, "0")} / ${String(indexedFindings.length).padStart(2, "0")}`, "finding-position"),
+    );
+    const impact = document.createElement("section");
+    impact.className = "finding-impact-block";
+    impact.append(
+      text("p", "Agent impact", "finding-detail-label"),
+      text("p", finding.agentImpact ?? "This issue can make agent answers less reliable or complete."),
+    );
+    const evidence = document.createElement("section");
+    evidence.className = "finding-evidence-block";
+    evidence.append(text("p", `Source evidence · ${finding.evidence?.length ?? 0}`, "finding-detail-label"));
+    if (finding.evidence?.length) {
+      const evidenceList = document.createElement("div");
+      evidenceList.className = "finding-evidence-list";
+      finding.evidence.forEach((entry) => {
+        const figure = document.createElement("figure");
+        figure.append(text("figcaption", entry.location || "Source passage"), text("blockquote", entry.quote));
+        evidenceList.append(figure);
+      });
+      evidence.append(evidenceList);
+    } else {
+      evidence.append(text("p", "No source excerpt was supplied for this finding.", "finding-empty-evidence"));
+    }
+    const footer = document.createElement("footer");
+    footer.className = "finding-detail-footer";
+    footer.append(
+      text("span", finding.review_required ? "Content owner review required" : "No mandatory review", finding.review_required ? "review-required" : "finding-review-status"),
+      text("span", documentTitle, "finding-document-name"),
+    );
+    detail.replaceChildren(header, impact, evidence, footer);
+  };
+  index.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-finding-index]");
+    if (button) renderDetail(Number(button.dataset.findingIndex));
+  });
+  index.addEventListener("keydown", (event) => {
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    const buttons = [...index.querySelectorAll("[data-finding-index]")];
+    const current = buttons.indexOf(event.target.closest("[data-finding-index]"));
+    if (current < 0) return;
+    event.preventDefault();
+    const next = event.key === "ArrowDown" ? (current + 1) % buttons.length : (current - 1 + buttons.length) % buttons.length;
+    buttons[next].focus();
+    buttons[next].click();
+  });
+  container.append(index, detail);
+  renderDetail(0);
   return container;
 }
 
