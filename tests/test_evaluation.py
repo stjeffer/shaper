@@ -16,9 +16,14 @@ class CapturingGateway:
         self.system_prompt = ""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del prompt, schema
+        del prompt, schema, max_output_tokens
         self.system_prompt = system_prompt
         return ModelResult(
             payload={

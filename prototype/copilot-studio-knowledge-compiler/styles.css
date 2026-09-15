@@ -1181,6 +1181,14 @@ input[type="checkbox"]:disabled {
   font-size: 12.5px;
   color: var(--fg-faint);
 }
+.document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.document-remove {
+  color: var(--danger);
+}
 .results-cell {
   display: flex;
   flex-direction: column;
@@ -1659,11 +1667,16 @@ input[type="checkbox"]:disabled {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.comparison-source {
+  min-height: 320px;
+}
 .comparison-preview {
+  display: block;
   width: 100%;
   min-height: 320px;
   border: 1px solid var(--line);
-  background: #fff;
+  color-scheme: dark;
+  background: var(--canvas);
 }
 
 /* ---------- checks browser ---------- */

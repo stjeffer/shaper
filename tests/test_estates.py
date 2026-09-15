@@ -381,6 +381,82 @@ def test_given_scanned_files_when_ingested_then_each_file_becomes_inventory(
         store.close()
 
 
+def test_given_active_document_when_removed_then_it_is_withdrawn_and_provenance_remains(
+    tmp_path: Path,
+) -> None:
+    # Arrange
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.ADMIN, CollectionRole.COMPILE)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Policy documents",
+        locator="asset:policies",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (
+            InventoryInput("travel.md", "text/markdown", b"Book centrally.", NOW),
+            InventoryInput("leave.md", "text/markdown", b"Request leave.", NOW),
+        ),
+        principal=caller,
+    )
+    travel, leave = documents
+    repository = SQLiteEstateRepository(store)
+    try:
+        # Act & Assert
+        with pytest.raises(PermissionError):
+            inventory.remove(
+                estate.value.estate_id,
+                travel.value.document_id,
+                expected_revision=travel.revision,
+                principal=_principal(CollectionRole.QUERY),
+            )
+
+        removed = inventory.remove(
+            estate.value.estate_id,
+            travel.value.document_id,
+            expected_revision=travel.revision,
+            principal=caller,
+        )
+        assert removed.value.deleted is True
+        assert removed.revision == travel.revision + 1
+        assert repository.has_document_source(
+            travel.value.document_id,
+            travel.value.source_version,
+        )
+        assert (
+            inventory.remove(
+                estate.value.estate_id,
+                travel.value.document_id,
+                expected_revision=travel.revision,
+                principal=caller,
+            )
+            == removed
+        )
+
+        archived = estates.archive(
+            estate.value.estate_id,
+            principal=caller,
+            expected_revision=estate.revision,
+        )
+        with pytest.raises(EstateArchivedError, match="archived"):
+            inventory.remove(
+                archived.value.estate_id,
+                leave.value.document_id,
+                expected_revision=leave.revision,
+                principal=caller,
+            )
+    finally:
+        store.close()
+
+
 def test_given_exact_confirmation_when_purged_then_only_tombstone_remains(
     tmp_path: Path,
 ) -> None:

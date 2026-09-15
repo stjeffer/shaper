@@ -28,6 +28,7 @@ const state = {
   transformationAbortController: null,
   actionEstate: null,
   openEstateMenuId: null,
+  removalDocument: null,
 };
 
 const RESULT_PRESENTATION = Object.freeze({
@@ -125,6 +126,11 @@ const elements = {
   deleteConfirmation: document.querySelector("#deleteConfirmation"),
   deleteConfirmButton: document.querySelector("#deleteConfirmButton"),
   deleteError: document.querySelector("#deleteError"),
+  removeDocumentDialog: document.querySelector("#removeDocumentDialog"),
+  removeDocumentForm: document.querySelector("#removeDocumentForm"),
+  removeDocumentName: document.querySelector("#removeDocumentName"),
+  removeDocumentConfirmButton: document.querySelector("#removeDocumentConfirmButton"),
+  removeDocumentError: document.querySelector("#removeDocumentError"),
   sourceForm: document.querySelector("#sourceForm"),
   sourceKind: document.querySelector("#sourceKind"),
   sharePointCredentialField: document.querySelector("#sharePointCredentialField"),
@@ -1639,7 +1645,24 @@ function renderDocuments() {
         viewDocument.dataset.sourceVersion = documentValue.source_version;
         viewDocument.dataset.documentTitle = documentValue.title;
         viewDocument.dataset.sourceRetained = `${record.source_retained === true}`;
-        documentCell.append(viewDocument);
+        const removeDocument = fluentButton(
+          "Remove",
+          "lightweight",
+          "text-button document-remove",
+        );
+        removeDocument.dataset.removeDocument = documentValue.document_id;
+        removeDocument.setAttribute(
+          "aria-label",
+          `Remove ${documentValue.title} from this knowledge estate`,
+        );
+        removeDocument.disabled = isArchived();
+        if (removeDocument.disabled) {
+          removeDocument.title = "Archived knowledge estates are read-only";
+        }
+        const documentActions = document.createElement("div");
+        documentActions.className = "document-actions";
+        documentActions.append(viewDocument, removeDocument);
+        documentCell.append(documentActions);
         const findingsCell = document.createElement("div");
         findingsCell.setAttribute("role", "cell");
         findingsCell.className = "grid-cell results-cell";
@@ -1659,7 +1682,9 @@ function renderDocuments() {
         return row;
       }),
   );
-  elements.documentEmpty.hidden = state.documents.length !== 0;
+  elements.documentEmpty.hidden = state.documents.some(
+    (record) => !recordValue(record).deleted,
+  );
   renderDiscoverySummary();
   updateSelection();
   updateWorkflowProgress();
@@ -2023,6 +2048,55 @@ function comparisonPanel(title, description, content) {
   return panel;
 }
 
+const artifactPreviewStyles = `
+  :root {
+    color-scheme: dark;
+    font-family: "Segoe UI", "Segoe UI Web", system-ui, sans-serif;
+    background: #06090b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    color: #93a8a8;
+    background: #06090b;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  article { max-width: 72ch; margin: 0 auto; }
+  header, section, footer { padding-block: 16px; }
+  section, footer { border-top: 1px solid rgba(158, 196, 196, 0.16); }
+  h1, h2 {
+    margin: 0 0 12px;
+    color: #e7f0ee;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  h1 { font-size: 24px; }
+  h2 { font-size: 17px; }
+  p, ul, ol { margin: 0 0 12px; }
+  li + li { margin-top: 8px; }
+  @media (max-width: 480px) {
+    body { padding: 16px; }
+  }
+`;
+
+export function styleArtifactPreview(markup) {
+  const previewDocument = new DOMParser().parseFromString(markup, "text/html");
+  let viewport = previewDocument.querySelector('meta[name="viewport"]');
+  if (!viewport) {
+    viewport = previewDocument.createElement("meta");
+    viewport.name = "viewport";
+    previewDocument.head.append(viewport);
+  }
+  viewport.content = "width=device-width, initial-scale=1";
+  const style = previewDocument.createElement("style");
+  style.dataset.shaperPreview = "";
+  style.textContent = artifactPreviewStyles;
+  previewDocument.head.append(style);
+  return `<!doctype html>\n${previewDocument.documentElement.outerHTML}`;
+}
+
 async function loadArtifactComparison(artifact, sourceContent, outputPreview, outputStatus) {
   const estateId = recordValue(state.estate).estate_id;
   const sourcePath =
@@ -2043,7 +2117,7 @@ async function loadArtifactComparison(artifact, sourceContent, outputPreview, ou
   }
 
   try {
-    outputPreview.srcdoc = await apiText(outputPath);
+    outputPreview.srcdoc = styleArtifactPreview(await apiText(outputPath));
     outputPreview.hidden = false;
     outputStatus.remove();
   } catch (error) {
@@ -2336,6 +2410,61 @@ async function deleteEstate(event) {
     elements.deleteError.textContent = error.message;
     elements.deleteError.hidden = false;
     updateDeleteConfirmation();
+  }
+}
+
+function openRemoveDocumentDialog(documentId) {
+  const record = state.documents.find(
+    (candidate) => recordValue(candidate).document_id === documentId,
+  );
+  const documentValue = recordValue(record);
+  if (!record || !documentValue || documentValue.deleted || isArchived()) return;
+  state.removalDocument = record;
+  elements.removeDocumentName.textContent = documentValue.title;
+  elements.removeDocumentError.hidden = true;
+  elements.removeDocumentError.textContent = "";
+  elements.removeDocumentConfirmButton.disabled = false;
+  showDialog(elements.removeDocumentDialog, elements.removeDocumentConfirmButton);
+}
+
+function closeRemoveDocumentDialog({ restoreFocus = true } = {}) {
+  hideDialog(elements.removeDocumentDialog, { restoreFocus });
+  elements.removeDocumentError.hidden = true;
+  elements.removeDocumentError.textContent = "";
+  state.removalDocument = null;
+}
+
+async function removeDocument(event) {
+  event.preventDefault();
+  const record = state.removalDocument;
+  const documentValue = recordValue(record);
+  const estate = recordValue(state.estate);
+  if (!record || !documentValue || !estate) return;
+
+  elements.removeDocumentConfirmButton.disabled = true;
+  elements.removeDocumentError.hidden = true;
+  setBusy(elements.removeDocumentDialog, true, "Removing document…");
+  try {
+    const removed = await api(
+      `/v1/estates/${estate.estate_id}/documents/${documentValue.document_id}` +
+        `?expected_revision=${record.revision}`,
+      { method: "DELETE" },
+    );
+    state.documents = state.documents.map((candidate) =>
+      recordValue(candidate).document_id === documentValue.document_id ? removed : candidate,
+    );
+    closeRemoveDocumentDialog({ restoreFocus: false });
+    invalidateAssessmentEvidence();
+    elements.documentRows.focus();
+    announce(
+      `${documentValue.title} removed. Assessment and improvement-planning selections were cleared.`,
+    );
+  } catch (error) {
+    elements.removeDocumentError.textContent = error.message;
+    elements.removeDocumentError.hidden = false;
+    elements.removeDocumentConfirmButton.disabled = false;
+  } finally {
+    setBusy(elements.removeDocumentDialog, false);
   }
 }
 
@@ -2897,6 +3026,8 @@ document.addEventListener("click", async (event) => {
     openDeleteDialog();
   } else if (target.dataset.action === "close-delete") {
     closeDeleteDialog();
+  } else if (target.dataset.action === "close-remove-document") {
+    closeRemoveDocumentDialog();
   } else if (target.dataset.action === "close-purge") {
     hideDialog(elements.purgeDialog);
   } else if (target.dataset.action === "close-document") {
@@ -2918,6 +3049,8 @@ document.addEventListener("click", async (event) => {
       target.dataset.documentTitle,
       target.dataset.sourceRetained === "true",
     );
+  } else if (target.dataset.removeDocument) {
+    openRemoveDocumentDialog(target.dataset.removeDocument);
   } else if (target.dataset.estateId) {
     await openEstate(target.dataset.estateId);
   } else if (target.dataset.tab) {
@@ -2933,6 +3066,11 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isDialogOpen(elements.removeDocumentDialog)) {
+    event.preventDefault();
+    closeRemoveDocumentDialog();
+    return;
+  }
   const assessmentTab = event.target.closest("[data-assessment-check-tab]");
   if (
     assessmentTab &&
@@ -3002,6 +3140,7 @@ elements.createForm.addEventListener("submit", createEstate);
 elements.editForm.addEventListener("submit", editEstate);
 elements.deleteForm.addEventListener("submit", deleteEstate);
 elements.deleteConfirmation.addEventListener("input", updateDeleteConfirmation);
+elements.removeDocumentForm.addEventListener("submit", removeDocument);
 elements.sourceInputTabs.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-source-input-tab]");
   if (tab) switchSourceInputTab(tab.dataset.sourceInputTab, false);
@@ -3074,6 +3213,7 @@ elements.purgeForm.addEventListener("submit", purgeEstate);
 elements.createDialog.addEventListener("dismiss", () => hideDialog(elements.createDialog));
 elements.editDialog.addEventListener("dismiss", closeEditDialog);
 elements.deleteDialog.addEventListener("dismiss", closeDeleteDialog);
+elements.removeDocumentDialog.addEventListener("dismiss", closeRemoveDocumentDialog);
 elements.documentDialog.addEventListener("dismiss", () => hideDialog(elements.documentDialog));
 elements.documentFindingsDialog.addEventListener("dismiss", closeDocumentFindings);
 elements.purgeDialog.addEventListener("dismiss", () => hideDialog(elements.purgeDialog));

@@ -9,11 +9,27 @@ from datetime import UTC, datetime
 
 import pytest
 
-from shaper.domain import KnowledgeEstate
-from shaper.infrastructure.postgres import PostgresEstateRepository, PostgresRecordStore
+from shaper.application.review import ReviewService
+from shaper.domain import (
+    AnswerUnit,
+    Applicability,
+    Claim,
+    CollectionRole,
+    KnowledgeEstate,
+    Principal,
+    ReviewDecision,
+    UnitState,
+)
+from shaper.domain.models import Derivation, ReviewOutcome
+from shaper.infrastructure.postgres import (
+    PostgresEstateRepository,
+    PostgresRecordStore,
+    PostgresReviewStore,
+)
 from shaper.infrastructure.sqlite import ConcurrencyError
 
 NOW = datetime(2026, 9, 10, tzinfo=UTC)
+ZERO_HASH = "0" * 64
 
 
 class FakePostgresConnection:
@@ -96,3 +112,79 @@ def test_given_disconnected_postgres_store_when_probed_then_not_ready() -> None:
     store = PostgresRecordStore("postgresql://database.example/shaper")
 
     assert not store.is_ready()
+
+
+def test_given_json_backed_review_when_approved_then_strict_domain_types_are_restored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    connection = FakePostgresConnection()
+
+    def connect(_url: str, **kwargs: object) -> FakePostgresConnection:
+        assert kwargs["autocommit"] is True
+        return connection
+
+    monkeypatch.setattr("shaper.infrastructure.postgres.psycopg.connect", connect)
+    store = PostgresRecordStore("postgresql://database.example/shaper")
+    store.connect()
+    store.migrate()
+    reviews = ReviewService(PostgresReviewStore(store))
+    unit = AnswerUnit.create(
+        source_id="document-1",
+        source_version=ZERO_HASH,
+        canonical_questions=("Which health plans are eligible?",),
+        answer="Employees should confirm plan eligibility with HR.",
+        claims=(
+            Claim(
+                text="Employees should confirm plan eligibility with HR.",
+                span_ids=("span-1",),
+                qualifiers=("Confirm with HR if uncertain.",),
+            ),
+        ),
+        applicability=Applicability(
+            audiences=("Employees (internal audience)",),
+            jurisdictions=("Not specified in document",),
+            effective_from=datetime(2664, 11, 11, tzinfo=UTC),
+        ),
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.4",
+            parameters_hash=ZERO_HASH,
+        ),
+        confidence=0.9,
+    )
+    submitted = reviews.submit(unit, ())
+
+    try:
+        # Act
+        approved = reviews.decide(
+            ReviewDecision(
+                decision_id="decision-1",
+                unit_id=unit.unit_id,
+                unit_version=unit.unit_version,
+                outcome=ReviewOutcome.APPROVE,
+                actor=Principal(
+                    principal_id="reviewer-1",
+                    tenant_id="tenant-1",
+                    collection_roles={
+                        "collection-1": frozenset({CollectionRole.REVIEW}),
+                    },
+                ),
+                reason="Grounding verified.",
+                expected_revision=submitted.revision,
+                decided_at=NOW,
+            ),
+            expected_revision=submitted.revision,
+        )
+
+        # Assert
+        assert approved.unit.state is UnitState.APPROVED
+        assert approved.unit.canonical_questions == ("Which health plans are eligible?",)
+        assert approved.unit.claims[0].qualifiers == ("Confirm with HR if uncertain.",)
+        assert approved.unit.applicability.audiences == ("Employees (internal audience)",)
+        assert approved.unit.applicability.jurisdictions == ("Not specified in document",)
+        assert approved.unit.applicability.effective_from == datetime(2664, 11, 11, tzinfo=UTC)
+        assert approved.unit.conflict_unit_ids == ()
+    finally:
+        store.close()

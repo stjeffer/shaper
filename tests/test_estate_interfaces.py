@@ -77,9 +77,14 @@ class GroundedModel:
     """Return one candidate grounded in the supplied source span."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del system_prompt, schema
+        del system_prompt, schema, max_output_tokens
         span = json.loads(prompt)["source"][0]
         return ModelResult(
             payload={
@@ -369,10 +374,14 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
 
         document_record = repository.get_document(document_id)
         assert document_record is not None
-        repository.save_document(
-            document_record.value.model_copy(update={"deleted": True}),
-            expected_revision=document_record.revision,
+        removal_response = client.delete(
+            f"/v1/estates/{estate_id}/documents/{document_id}",
+            params={"expected_revision": document_record.revision},
+            headers=headers,
         )
+        assert removal_response.status_code == 200
+        assert removal_response.json()["value"]["deleted"] is True
+        assert removal_response.json()["revision"] == document_record.revision + 1
         assert (
             client.get(
                 f"/v1/estates/{estate_id}/documents/{document_id}/content",

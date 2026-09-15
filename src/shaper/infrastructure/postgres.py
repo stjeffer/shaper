@@ -257,9 +257,11 @@ class PostgresReviewStore:
         if not isinstance(decisions, list):
             raise ValueError("Stored output review decisions must be an array")
         return ReviewRecord(
-            unit=AnswerUnit.model_validate(payload.get("unit")),
+            unit=AnswerUnit.model_validate_json(json.dumps(payload.get("unit"))),
             revision=record[1],
-            decisions=tuple(ReviewDecision.model_validate(item) for item in decisions),
+            decisions=tuple(
+                ReviewDecision.model_validate_json(json.dumps(item)) for item in decisions
+            ),
         )
 
     def save(self, record: ReviewRecord, *, expected_revision: int) -> ReviewRecord:

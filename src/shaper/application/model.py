@@ -48,10 +48,15 @@ class DeterministicModelGateway:
         self.calls = 0
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
         """Return the next configured response."""
-        del system_prompt, prompt, schema
+        del system_prompt, prompt, schema, max_output_tokens
         self.calls += 1
         try:
             payload = next(self._payloads)
@@ -78,7 +83,13 @@ class AzureOpenAIModelGateway:
         deployment: str,
         use_managed_identity: bool = False,
         api_version: str = "2024-10-21",
+        request_timeout_seconds: float = 90,
+        default_max_output_tokens: int = 8_000,
     ) -> None:
+        if request_timeout_seconds <= 0:
+            raise ValueError("Azure OpenAI request timeout must be positive")
+        if default_max_output_tokens <= 0:
+            raise ValueError("Azure OpenAI output token limit must be positive")
         if use_managed_identity:
             token_provider = get_bearer_token_provider(
                 DefaultAzureCredential(),
@@ -88,19 +99,27 @@ class AzureOpenAIModelGateway:
                 azure_endpoint=endpoint,
                 azure_ad_token_provider=token_provider,
                 api_version=api_version,
+                timeout=request_timeout_seconds,
             )
         elif api_key is not None:
             self._client = AzureOpenAI(
                 azure_endpoint=endpoint,
                 api_key=api_key,
                 api_version=api_version,
+                timeout=request_timeout_seconds,
             )
         else:
             raise ValueError("Azure OpenAI requires an API key or managed identity")
         self._deployment = deployment
+        self._default_max_output_tokens = default_max_output_tokens
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
         """Request one schema-constrained model response."""
         try:
@@ -118,6 +137,11 @@ class AzureOpenAIModelGateway:
                         "schema": strict_response_schema(schema),
                     },
                 },
+                max_completion_tokens=(
+                    self._default_max_output_tokens
+                    if max_output_tokens is None
+                    else max_output_tokens
+                ),
             )
             content = response.choices[0].message.content
             if content is None:

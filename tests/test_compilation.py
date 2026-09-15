@@ -41,9 +41,14 @@ class GroundedModel:
     """Create a candidate grounded in the first prompt span."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del system_prompt, schema
+        del system_prompt, schema, max_output_tokens
         span = json.loads(prompt)["source"][0]
         return ModelResult(
             payload={

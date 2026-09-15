@@ -398,6 +398,7 @@ class TokenEstimate(DomainModel):
     estimate_id: Sha256
     model_deployment: str = Field(min_length=1, max_length=200)
     estimator_version: str = Field(min_length=1, max_length=50)
+    prompt_hash: Sha256 | None = None
     input_min: int = Field(ge=0)
     input_max: int = Field(ge=0)
     output_min: int = Field(ge=0)

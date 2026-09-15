@@ -137,6 +137,7 @@ def test_given_openai_transport_failure_when_generated_then_error_is_classified(
     gateway = object.__new__(AzureOpenAIModelGateway)
     monkeypatch.setattr(gateway, "_client", FailingClient(), raising=False)
     monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+    monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
 
     with pytest.raises(ModelProviderError) as captured:
         gateway.generate(
@@ -156,11 +157,13 @@ def test_given_caller_system_prompt_when_generated_then_azure_sends_it(
     client = CapturingClient()
     monkeypatch.setattr(gateway, "_client", client, raising=False)
     monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+    monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
 
     gateway.generate(
         system_prompt=EVALUATION_PROMPT,
         prompt="candidate and source",
         schema={"type": "object"},
+        max_output_tokens=1_234,
     )
 
     assert client.chat.completions.kwargs is not None
@@ -168,3 +171,21 @@ def test_given_caller_system_prompt_when_generated_then_azure_sends_it(
         {"role": "system", "content": EVALUATION_PROMPT},
         {"role": "user", "content": "candidate and source"},
     ]
+    assert client.chat.completions.kwargs["max_completion_tokens"] == 1_234
+
+
+def test_given_invalid_provider_limits_when_created_then_configuration_is_rejected() -> None:
+    with pytest.raises(ValueError, match="timeout"):
+        AzureOpenAIModelGateway(
+            endpoint="https://example.invalid",
+            api_key="test",
+            deployment="test",
+            request_timeout_seconds=0,
+        )
+    with pytest.raises(ValueError, match="output token"):
+        AzureOpenAIModelGateway(
+            endpoint="https://example.invalid",
+            api_key="test",
+            deployment="test",
+            default_max_output_tokens=0,
+        )

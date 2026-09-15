@@ -534,6 +534,15 @@ authenticated `GET /v1/assessment-checks` endpoint exposes the same 29-code
 catalogue used by the workspace to explain each check and its likely agent
 impact.
 
+Individual document removal is an authorized, optimistic-concurrency mutation
+on the immutable document record. The application marks the document as
+deleted rather than deleting its retained source bytes or extracted text.
+Current-document queries and future discovery and recommendation runs exclude
+that record. Existing artifacts remain immutable historical outputs. Archived
+estates reject the mutation, while estate-level purge remains the only operation
+that physically removes content-bearing records and replaces the estate with a
+tombstone.
+
 Each `DocumentFinding` separates four concerns:
 
 * `explanation` states the source condition that the check detected
@@ -560,13 +569,22 @@ flowchart TB
     review["`**Assess experience**
     Human reviews impact and source evidence`"]
     proposal["`**Recommendation workflow**
-    Selected findings inform proposed changes`"]
+    Selected findings inform bounded proposed changes`"]
+    approval["`**Exact approval**
+    Report, source, actions, estimate,
+    estimator, and prompt hash`"]
+    shaping["`**Transformation**
+    Findings are diagnostic evidence;
+    approved actions are change authority`"]
 
     source --> checks
     checks --> finding
     finding --> report
     report --> review
     review -->|"`human selects documents`"| proposal
+    proposal --> approval
+    report -->|"`exact pinned report`"| shaping
+    approval --> shaping
 ```
 
 This separation matters because one numeric score hides materially different
@@ -590,7 +608,8 @@ They do not reinstate a subjective readiness score in the Assess experience.
 
 A transformation can run only when its decision exactly matches the source
 version, recommendation version, estimate identity, estimator version, and model
-deployment. The approved estimate therefore forms part of the authorization
+deployment. The approved estimate also records the cryptographic hash of the
+shaping prompt. The approved estimate therefore forms part of the authorization
 boundary rather than serving as advisory UI text.
 
 ```mermaid
@@ -598,12 +617,13 @@ flowchart TB
     recommendation["`**Recommendation**
 Proposed changes for one immutable source version`"]
     estimate["`**Versioned estimate**
-Prompt, schema, context, output,
-three repairs, and safety margin`"]
+Prompt hash, schema, findings,
+output, one repair, and safety margin`"]
     approval["`**Exact human approval**
 Recommendation and estimate identities`"]
     preflight["`**Transformation preflight**
-Current source, approval, and estimator version`"]
+Current source, exact report, approval,
+estimator version, and prompt hash`"]
     shaping["`**Bounded shaping loop**
 Complete-document contract and
 provider-reported token accounting`"]
@@ -619,16 +639,16 @@ Preview before publication`"]
     preflight --> shaping
     shaping --> preservation
     preservation -->|"`pass`"| artifact
-    preservation -->|"`block with feedback;
-up to three bounded repairs`"| shaping
+    preservation -->|"`block with structured feedback;
+one targeted repair`"| shaping
 ```
 
-The estimator derives fixed request overhead from the active shaping prompt and
-structured-response schema. It adds the source, request-envelope, and expected
-output ranges, then reserves the initial response, up to three bounded repairs,
-and a safety margin. The shaping loop accounts for provider-reported input and
-output tokens after every response and stops when the approved maximum is
-exceeded.
+The estimator derives fixed request overhead from the active shaping prompt,
+structured-response schema, and assessment-finding payload. It adds the source,
+request-envelope, and expected output ranges, then reserves the initial response,
+one targeted repair, and a safety margin. The shaping loop accounts for
+provider-reported input and output tokens after every response and stops when the
+approved maximum is exceeded.
 
 Runtime system prompts are version-controlled Markdown resources in
 `src/shaper/prompts/`. Shaping and model-assisted evaluation use separate prompts
@@ -638,19 +658,36 @@ when a required prompt is missing or blank. Keeping prompts inside the Python
 package ensures source, wheel, and container deployments use the same reviewed
 instructions.
 
-The shaping request includes the exact approved transformation requirements and
-requires schema-constrained, answer-shaped content with exact source-span
-citations. After each candidate, the deterministic preservation gate checks
-lexical source coverage, exact retention of numeric and duration facts, and
-semantic overlap for operative clauses such as duties, prohibitions, and
-constrained permissions. A blocking finding is returned to the bounded loop for
-up to three repair attempts. If no candidate passes within the approved limit,
-transformation stops and no artifact is persisted.
+Before model use, transformation resolves the exact discovery report pinned by
+the proposal and verifies its source version and prompt hash. The shaping request
+includes that report's structured findings alongside the exact approved
+transformation requirements. Findings provide diagnostic context, including the
+detected condition, likely agent impact, and source evidence. They do not
+authorize edits. Only the approved requirements define what may change, so
+flag-only findings cannot trigger invented metadata, normalized terminology,
+reconstructed embedded content, or silently consolidated rules.
 
-An estimator-version change invalidates an earlier approval for execution.
-The service rejects the stale estimate before calling the model and tells the
-reviewer to request recommendations again and approve the revised maximum. It
-does not silently enlarge a previously approved budget.
+The prompt requires schema-constrained, source-preserving content with exact
+source-span citations. After each candidate, the deterministic preservation gate
+checks exact retention of numeric and duration facts and category-level retention
+of duties, advisory language, permissions, prohibitions, and exceptions. Low
+lexical coverage is review evidence rather than an automatic rejection because a
+faithful clearer rewrite need not copy 70 percent of the original vocabulary. A
+blocking finding returns the rejected candidate, structured rule details, and
+remedies for one targeted repair. The repair receives the same assessment
+evidence and approved requirements. Repeated findings stop immediately. If the
+repair fails, transformation reports the exact blocking rule and persists no
+artifact.
+
+Each Azure OpenAI request has a 90-second timeout and a provider-side output
+token cap derived from the approved estimate. These per-request limits complement
+the overall elapsed-time and token budgets rather than replacing them.
+
+An estimator-version or shaping-prompt change invalidates an earlier approval for
+execution. The service rejects the stale estimate or prompt hash before calling
+the model and tells the reviewer to request recommendations again and approve
+the revised plan. It does not silently enlarge a previously approved budget or
+execute instructions that were not reviewed.
 
 ## Current implementation boundary
 

@@ -91,7 +91,12 @@ class ModelGateway(Protocol):
     """Generate schema-constrained model output."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
         """Generate one structured result or raise an explicit provider error."""
 

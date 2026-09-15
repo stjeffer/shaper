@@ -19,6 +19,10 @@ from shaper.domain import (
     Claim,
     CollectionRole,
     DecisionOutcome,
+    DocumentFinding,
+    DocumentFindingEvidence,
+    DocumentReadinessReport,
+    EffortBand,
     EstateDocument,
     KnowledgeEstate,
     Principal,
@@ -26,9 +30,10 @@ from shaper.domain import (
     TransformationDecision,
     TransformationProposal,
 )
-from shaper.domain.models import Derivation
+from shaper.domain.models import Derivation, canonical_hash
 from shaper.infrastructure.compilation import SQLiteReviewStore
 from shaper.infrastructure.sqlite import SQLiteEstateRepository, SQLiteStore
+from shaper.prompts import SHAPING_PROMPT
 
 NOW = datetime(2026, 9, 10, tzinfo=UTC)
 ZERO_HASH = "0" * 64
@@ -39,13 +44,23 @@ class GroundedModel:
 
     def __init__(self) -> None:
         self.calls = 0
+        self.max_output_tokens: int | None = None
+        self.prompt: dict[str, object] = {}
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
         del system_prompt, schema
         self.calls += 1
-        span = json.loads(prompt)["source"][0]
+        self.max_output_tokens = max_output_tokens
+        parsed = json.loads(prompt)
+        self.prompt = parsed
+        span = parsed["source"][0]
         return ModelResult(
             payload={
                 "status": "candidate",
@@ -64,9 +79,14 @@ class SummaryModel:
     """Return a lossy summary instead of a complete reshaped document."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del system_prompt, prompt, schema
+        del system_prompt, prompt, schema, max_output_tokens
         return ModelResult(
             payload={
                 "status": "candidate",
@@ -86,13 +106,18 @@ class SummaryModel:
         )
 
 
-class ThirdAttemptModel(GroundedModel):
-    """Return two malformed responses before a grounded candidate."""
+class SecondAttemptModel(GroundedModel):
+    """Return one malformed response before a grounded candidate."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        if self.calls < 2:
+        if self.calls < 1:
             self.calls += 1
             return ModelResult(
                 payload={"status": "invalid"},
@@ -104,6 +129,7 @@ class ThirdAttemptModel(GroundedModel):
             system_prompt=system_prompt,
             prompt=prompt,
             schema=schema,
+            max_output_tokens=max_output_tokens,
         )
 
 
@@ -111,9 +137,14 @@ class ProviderFailureModel:
     """Raise a classified provider failure."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del system_prompt, prompt, schema
+        del system_prompt, prompt, schema, max_output_tokens
         raise ModelProviderError("Provider unavailable", retryable=True)
 
 
@@ -121,9 +152,14 @@ class InvalidPayloadModel:
     """Return schema-invalid responses until the model-call budget is exhausted."""
 
     def generate(
-        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
     ) -> ModelResult:
-        del system_prompt, prompt, schema
+        del system_prompt, prompt, schema, max_output_tokens
         return ModelResult(
             payload={"status": "invalid"},
             response_id="invalid",
@@ -152,6 +188,9 @@ def _setup(
     estimator_version: str = ESTIMATOR_VERSION,
     source_text: str = "Employees receive leave. <script>alert(1)</script>",
     enforced_maximum: int = 200,
+    include_report: bool = True,
+    proposal_report_id: str | None = None,
+    prompt_hash: str | None = None,
 ) -> tuple[SQLiteStore, SQLiteEstateRepository, TransformationProposal]:
     store = SQLiteStore(path)
     store.connect()
@@ -188,10 +227,50 @@ def _setup(
         ZERO_HASH,
         source_text,
     )
+    report_identity = {
+        "run_id": "discover-1",
+        "document_id": "document-1",
+        "source_version": ZERO_HASH,
+        "readiness_score": 50.0,
+        "effort_points": 50,
+    }
+    report = DocumentReadinessReport(
+        report_id=canonical_hash(report_identity),
+        run_id="discover-1",
+        estate_id="estate-1",
+        document_id="document-1",
+        source_version=ZERO_HASH,
+        readiness_score=50.0,
+        evidence_coverage=100,
+        effort_points=50,
+        effort_band=EffortBand.MEDIUM,
+        reasons=("Missing FAQ coverage may affect agent responses.",),
+        finding_codes=("faq_gap",),
+        findings=(
+            DocumentFinding(
+                code="faq_gap",
+                label="No question coverage",
+                explanation="No question-shaped content is detected.",
+                agent_impact="Reduces direct answer coverage.",
+                severity="warning",
+                evidence=(
+                    DocumentFindingEvidence(
+                        quote="Employees receive leave.",
+                        location="line 1",
+                    ),
+                ),
+            ),
+        ),
+        agent_roles=("Assessment Agent",),
+        assessed_at=NOW,
+    )
+    if include_report:
+        repository.append_report(report)
     estimate = TokenEstimate(
         estimate_id="1" * 64,
         model_deployment="gpt-5-mini",
         estimator_version=estimator_version,
+        prompt_hash=prompt_hash or canonical_hash(SHAPING_PROMPT),
         input_min=100,
         input_max=120,
         output_min=30,
@@ -209,12 +288,12 @@ def _setup(
         estate_id="estate-1",
         document_id="document-1",
         source_version=ZERO_HASH,
-        report_id="4" * 64,
+        report_id=proposal_report_id or report.report_id,
         proposed_changes=("Generate FAQ",),
         rationale="FAQ coverage is absent.",
         risk="Output requires review.",
         effort_points=30,
-        evidence_ids=("4" * 64,),
+        evidence_ids=(report.report_id,),
         expected_artifact="shaper_policy.html",
         token_estimate=estimate,
         created_at=NOW,
@@ -300,6 +379,79 @@ def test_given_outdated_estimate_when_transformation_starts_then_new_approval_is
         store.close()
 
 
+@pytest.mark.parametrize(
+    ("include_report", "proposal_report_id", "expected_detail"),
+    [
+        (False, None, "Approved transformation proposal is missing its discovery report"),
+        (
+            True,
+            "4" * 64,
+            "Approved transformation proposal does not match its discovery report",
+        ),
+    ],
+)
+def test_given_invalid_discovery_report_when_transformed_then_model_is_not_called(
+    tmp_path: Path,
+    include_report: bool,
+    proposal_report_id: str | None,
+    expected_detail: str,
+) -> None:
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        include_report=include_report,
+        proposal_report_id=proposal_report_id,
+    )
+    model = GroundedModel()
+    service = EstateTransformationService(
+        repository,
+        model=model,
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "failed"
+        assert run.value.error == f"document-1: {expected_detail}"
+        assert model.calls == 0
+    finally:
+        store.close()
+
+
+def test_given_changed_prompt_when_transformed_then_new_approval_is_required(
+    tmp_path: Path,
+) -> None:
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        prompt_hash="f" * 64,
+    )
+    model = GroundedModel()
+    service = EstateTransformationService(
+        repository,
+        model=model,
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start((proposal.recommendation_id,), principal=_principal())
+
+        assert run.value.status.value == "failed"
+        assert run.value.error is not None
+        assert "shaping instructions changed" in run.value.error
+        assert "approve the new estimate" in run.value.error
+        assert model.calls == 0
+    finally:
+        store.close()
+
+
 def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publish(
     tmp_path: Path,
 ) -> None:
@@ -352,9 +504,13 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
             event.get("check") for event in progress_events if event["type"] == "check_updated"
         } == {"reshape", "source_preservation", "grounding", "quality"}
         assert any(
-            event.get("detail") == "Generating reshaped content (model attempt 1 of 4)."
+            event.get("detail") == "Generating reshaped content (model attempt 1 of 2)."
             for event in progress_events
         )
+        assert model.max_output_tokens == proposal.token_estimate.output_max
+        assessment_findings = model.prompt["assessment_findings"]
+        assert isinstance(assessment_findings, list)
+        assert assessment_findings[0]["code"] == "faq_gap"
     finally:
         store.close()
 
@@ -367,7 +523,7 @@ def test_given_recoverable_model_responses_when_transformed_then_bounded_retry_s
         approved=True,
         enforced_maximum=10_000,
     )
-    model = ThirdAttemptModel()
+    model = SecondAttemptModel()
     service = EstateTransformationService(
         repository,
         model=model,
@@ -381,7 +537,7 @@ def test_given_recoverable_model_responses_when_transformed_then_bounded_retry_s
         run = service.start((proposal.recommendation_id,), principal=_principal())
 
         assert run.value.status.value == "completed"
-        assert model.calls == 3
+        assert model.calls == 2
         assert repository.list_artifacts("estate-1")
     finally:
         store.close()
@@ -521,13 +677,22 @@ def test_given_lossy_summary_when_transformed_then_no_artifact_is_created(
         clock=lambda: NOW,
         id_factory=lambda: "run",
     )
+    progress_events: list[dict[str, object]] = []
     try:
-        run = service.start((proposal.recommendation_id,), principal=_principal())
+        run = service.start(
+            (proposal.recommendation_id,),
+            principal=_principal(),
+            progress=progress_events.append,
+        )
 
         assert run.value.status.value == "failed"
         assert run.value.error is not None
-        assert "did not pass source-preservation checks after four bounded attempts" in (
-            run.value.error
+        assert (
+            "Targeted repair repeated the same blocking findings: content.material_fact"
+        ) in run.value.error
+        assert any(
+            event.get("status") == "failed" and "content.material_fact" in str(event.get("detail"))
+            for event in progress_events
         )
         assert not repository.list_artifacts("estate-1")
     finally:

@@ -16,9 +16,11 @@ from shaper.domain import (
     AnswerUnit,
     Applicability,
     Claim,
+    DocumentFinding,
     Principal,
     SourceDocument,
     SourceSpan,
+    ValidationFinding,
 )
 from shaper.domain.models import Derivation, FindingSeverity, canonical_hash
 from shaper.prompts import PROMPT_VERSION, SHAPING_PROMPT
@@ -60,11 +62,11 @@ class CandidatePayload(BaseModel):
 class ShapingBudget:
     """Independent hard limits for one shaping run."""
 
-    maximum_model_calls: int = 4
+    maximum_model_calls: int = 2
     maximum_tool_calls: int = 8
     maximum_tokens: int = 8_000
     maximum_seconds: float = 300
-    maximum_candidates: int = 4
+    maximum_candidates: int = 2
 
 
 @dataclass(frozen=True)
@@ -106,6 +108,10 @@ class ShapingCancelled(RuntimeError):
     """Raised when a caller cancels the shaping run."""
 
 
+class ShapingValidationError(ShapingBudgetExceeded):
+    """Raised when the initial candidate and targeted repair both fail validation."""
+
+
 class ShapingLoop:
     """Coordinate bounded context acquisition, candidate repair, and abstention."""
 
@@ -119,6 +125,10 @@ class ShapingLoop:
         budget: ShapingBudget | None = None,
         monotonic: Callable[[], float] = time.monotonic,
         on_model_attempt: Callable[[int, int], None] | None = None,
+        on_validation_failure: (
+            Callable[[int, int, Sequence[ValidationFinding]], None] | None
+        ) = None,
+        maximum_output_tokens: int | None = None,
     ) -> None:
         self._model = model
         self._tools = tools
@@ -127,6 +137,8 @@ class ShapingLoop:
         self._budget = budget or ShapingBudget()
         self._monotonic = monotonic
         self._on_model_attempt = on_model_attempt
+        self._on_validation_failure = on_validation_failure
+        self._maximum_output_tokens = maximum_output_tokens
 
     def run(
         self,
@@ -136,6 +148,7 @@ class ShapingLoop:
         spans: Sequence[SourceSpan],
         principal: Principal,
         transformation_requirements: Sequence[str] = (),
+        assessment_findings: Sequence[DocumentFinding] = (),
         cancelled: Callable[[], bool] = lambda: False,
     ) -> ShapingOutcome:
         """Run until one valid candidate, an abstention, cancellation, or hard limit."""
@@ -148,6 +161,9 @@ class ShapingLoop:
         context: list[object] = [span.model_dump(mode="json") for span in spans]
         evidence_spans = {span.span_id: span for span in spans}
         feedback: list[str] = []
+        validation_findings: list[dict[str, object]] = []
+        rejected_candidate: dict[str, object] | None = None
+        previous_rejection: tuple[tuple[str, str], ...] | None = None
 
         while True:
             self._guard(
@@ -162,7 +178,12 @@ class ShapingLoop:
                 {
                     "source": context,
                     "approved_transformation_requirements": list(transformation_requirements),
+                    "assessment_findings": [
+                        finding.model_dump(mode="json") for finding in assessment_findings
+                    ],
                     "validation_feedback": feedback,
+                    "validation_findings": validation_findings,
+                    "rejected_candidate": rejected_candidate,
                     "allowed_tools": sorted(self._tools.names),
                 },
                 sort_keys=True,
@@ -173,6 +194,7 @@ class ShapingLoop:
                 system_prompt=SHAPING_PROMPT,
                 prompt=prompt,
                 schema=CandidatePayload.model_json_schema(),
+                max_output_tokens=self._maximum_output_tokens,
             )
             model_calls += 1
             input_tokens += result.input_tokens
@@ -206,6 +228,8 @@ class ShapingLoop:
                 payload = CandidatePayload.model_validate_json(json.dumps(result.payload))
             except ValidationError as error:
                 feedback = [f"Response schema validation failed: {error.error_count()} errors"]
+                validation_findings = []
+                rejected_candidate = None
                 continue
             if payload.status == "abstain":
                 reason = payload.reason or "Model abstained without a reason"
@@ -222,6 +246,8 @@ class ShapingLoop:
             if payload.status == "tool":
                 if payload.tool is None:
                     feedback = ["Tool response requires a tool request"]
+                    validation_findings = []
+                    rejected_candidate = None
                     continue
                 tool_calls += 1
                 tool_result = self._tools.invoke(payload.tool, principal)
@@ -241,6 +267,8 @@ class ShapingLoop:
                 continue
             if payload.status != "candidate":
                 feedback = [f"Unsupported response status: {payload.status!r}"]
+                validation_findings = []
+                rejected_candidate = None
                 continue
             candidates += 1
             unit = AnswerUnit.create(
@@ -270,17 +298,60 @@ class ShapingLoop:
                 tuple(sorted(evidence_spans.values(), key=lambda span: span.ordinal)),
             )
             blocking = [
-                finding.message
-                for finding in findings
-                if finding.severity is FindingSeverity.BLOCKING
+                finding for finding in findings if finding.severity is FindingSeverity.BLOCKING
             ]
             if blocking:
-                feedback = blocking
+                feedback = [finding.message for finding in blocking]
+                validation_findings = [
+                    {
+                        "rule_id": finding.rule_id,
+                        "message": finding.message,
+                        "remedy": finding.remedy,
+                        "evidence_span_ids": list(finding.evidence_span_ids),
+                    }
+                    for finding in blocking
+                ]
+                rejected_candidate = payload.model_dump(mode="json")
+                rejection = tuple((finding.rule_id, finding.message) for finding in blocking)
                 self._checkpoints.save(
                     run_id,
                     "candidate_rejected",
-                    json.dumps({"unit_id": unit.unit_id, "findings": blocking}),
+                    json.dumps(
+                        {
+                            "unit_id": unit.unit_id,
+                            "findings": validation_findings,
+                            "candidate": rejected_candidate,
+                        },
+                        sort_keys=True,
+                    ),
                 )
+                if self._on_validation_failure is not None:
+                    self._on_validation_failure(
+                        candidates,
+                        self._budget.maximum_candidates,
+                        blocking,
+                    )
+                repeated = rejection == previous_rejection
+                previous_rejection = rejection
+                if (
+                    repeated
+                    or candidates >= self._budget.maximum_candidates
+                    or model_calls >= self._budget.maximum_model_calls
+                ):
+                    prefix = (
+                        "Targeted repair repeated the same blocking findings"
+                        if repeated
+                        else "Targeted repair did not pass source-preservation checks"
+                    )
+                    detail = "; ".join(
+                        f"{finding.rule_id}: {finding.message}" for finding in blocking
+                    )
+                    raise ShapingValidationError(
+                        f"{prefix}: {detail}",
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        model_calls=model_calls,
+                    )
                 continue
             self._checkpoints.save(
                 run_id,

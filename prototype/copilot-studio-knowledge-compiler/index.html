@@ -429,6 +429,7 @@
                   class="documents-grid"
                   role="table"
                   aria-label="Documents and assessment findings"
+                  tabindex="-1"
                 >
                   <div id="documentRowsHeader" class="grid-row grid-header" role="row">
                     <div class="grid-cell select-cell" role="columnheader">
@@ -854,6 +855,50 @@
           <button class="quiet" type="button" data-action="close-delete">Cancel</button>
           <button id="deleteConfirmButton" class="destructive" type="submit" disabled>
             Delete estate
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      id="removeDocumentDialog"
+      class="dialog confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      hidden
+      aria-labelledby="removeDocumentTitle"
+      aria-describedby="removeDocumentDescription"
+      tabindex="-1"
+    >
+      <form id="removeDocumentForm" class="dialog-surface">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Remove source</p>
+            <h2 id="removeDocumentTitle">Remove document?</h2>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-remove-document"
+            aria-label="Close document removal confirmation"
+          >
+            <svg class="fluent-icon" aria-hidden="true" focusable="false">
+              <use href="./vendor/fluent-system-icons.svg#dismiss-20"></use>
+            </svg>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <p id="removeDocumentDescription" class="destructive-warning">
+            <strong id="removeDocumentName"></strong> will no longer be assessed or included in
+            future improvement plans. Existing generated artifacts are unchanged, and source
+            provenance is retained for governance.
+          </p>
+          <p id="removeDocumentError" class="dialog-error" role="alert" hidden></p>
+        </div>
+        <div class="dialog-actions">
+          <button class="quiet" type="button" data-action="close-remove-document">Cancel</button>
+          <button id="removeDocumentConfirmButton" class="destructive" type="submit">
+            Remove document
           </button>
         </div>
       </form>

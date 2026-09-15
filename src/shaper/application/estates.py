@@ -748,6 +748,30 @@ class EstateInventoryService:
             expected_revision=document.revision,
         )
 
+    def remove(
+        self,
+        estate_id: str,
+        document_id: str,
+        *,
+        expected_revision: int,
+        principal: Principal,
+    ) -> VersionedRecord[EstateDocument]:
+        """Remove a document from active use while retaining its provenance."""
+        estate = self._repository.get_estate(estate_id)
+        if estate is None:
+            raise KeyError(f"Knowledge estate does not exist: {estate_id}")
+        EstateService._authorize(estate.value, principal, CollectionRole.COMPILE)
+        EstateService.require_active(estate.value)
+        document = self._repository.get_document(document_id)
+        if document is None or document.value.estate_id != estate_id:
+            raise KeyError(f"Estate document does not exist: {document_id}")
+        if document.value.deleted:
+            return document
+        return self._repository.save_document(
+            document.value.model_copy(update={"deleted": True}),
+            expected_revision=expected_revision,
+        )
+
     @staticmethod
     def document_id(source_id: str, logical_id: str) -> str:
         """Return a stable document identity for one logical source item."""
@@ -1119,7 +1143,11 @@ class EstateRecommendationService:
                     document.document_id,
                     document.source_version,
                 )
-                estimate = self._estimator.estimate(text, changes)
+                estimate = self._estimator.estimate(
+                    text,
+                    changes,
+                    assessment_findings=report.findings,
+                )
                 output_name = safe_artifact_name(
                     document.filename,
                     template=estate.value.artifact_name_template,

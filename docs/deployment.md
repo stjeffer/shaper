@@ -200,12 +200,25 @@ The `agent_impact` field is an additive, optional field in persisted
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
-The transformation estimator is version `1.3`. It reserves an initial candidate
-and up to three bounded repair attempts. Proposals created by estimator version
-`1.2` remain stored, but the new revision rejects them before model use because
-their approved token maximum covered only two calls. Run **Create improvement
-plan** again and obtain a new approval before transforming those documents. No
-database migration is required.
+The transformation estimator and shaping prompt are version `1.5`. The estimate
+includes the structured assessment-finding payload and reserves an initial
+candidate plus one targeted repair. It also stores a cryptographic hash of the
+exact shaping prompt. Proposals created before version `1.5` remain stored, but
+the new revision rejects them before model use because they do not bind the
+approved budget and actions to the current evidence and instructions. Run
+**Create improvement plan** again and obtain a new approval before transforming
+those documents. No database migration is required.
+
+The transformation preflight resolves the exact discovery report named by the
+proposal. It rejects a missing report, report identity mismatch, source-version
+mismatch, outdated estimator, or prompt-hash mismatch before any Azure OpenAI
+request. The model receives the verified report's structured findings as
+diagnostic evidence and the approved transformation requirements as its sole
+change authority.
+
+Azure OpenAI requests use a 90-second per-request timeout and the proposal's
+approved output maximum as the provider-side completion-token cap. A timeout is
+reported as a provider failure; it does not silently trigger an unbounded retry.
 
 The authenticated
 `POST /v1/estates/{estate_id}/transformation-runs/stream` endpoint returns
@@ -245,9 +258,15 @@ After the revision becomes ready:
 13. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-14. If the estate contains a proposal created with estimator version `1.2`,
+14. If the estate contains a proposal created before estimator version `1.5`,
    confirm transformation stops before model use and instructs the reviewer to
    create and approve a current improvement plan.
+15. Create and approve a version `1.5` plan, then confirm progress reports
+   **model attempt 1 of 2**. If preservation fails, confirm the exact validation
+   rule is reported and only one targeted repair can run.
+16. Confirm assessment findings remain visible as evidence while flag-only
+   actions preserve terminology, repeated variations, and unavailable embedded
+   content rather than inventing a resolution.
 
 Forward compatibility is automatic: the newer revision reads reports that do
 not contain `agent_impact`. The reverse direction is not automatic because
@@ -257,8 +276,8 @@ revision for report reads or restore the estate store to a compatible
 pre-deployment snapshot. Reports created by an older revision remain valid in
 the newer application.
 
-Rollback does not require a schema restore for this update. A revision using
-estimator version `1.2` rejects proposals created with version `1.3`; recreate
+Rollback does not require a schema restore for this update. A revision using a
+different estimator or shaping prompt rejects incompatible proposals; recreate
 and approve the improvement plan after rollback rather than attempting to reuse
 the newer token estimate.
 

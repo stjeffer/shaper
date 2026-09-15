@@ -227,6 +227,901 @@ def test_given_compound_duty_split_into_bullets_when_validated_then_clause_passe
     assert "content.operative_clause" not in {finding.rule_id for finding in findings}
 
 
+def test_given_advisory_permission_and_exception_omitted_when_validated_then_each_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees should notify their manager before travel. "
+        "They may work remotely except during security incidents. "
+        "Contractors can access systems unless their credentials expire. "
+        "Employees must not share badges. "
+        "The May 2026 training calendar is available."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When can employees work remotely?",),
+        answer="The May 2026 training calendar is available.",
+        claims=(
+            Claim(
+                text="The May 2026 training calendar is available.",
+                span_ids=("span-1",),
+            ),
+        ),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert {
+        "content.advisory_clause",
+        "content.permission_clause",
+        "content.prohibition_clause",
+        "content.exception_clause",
+        "content.operative_clause",
+    } <= rule_ids
+
+
+def test_given_advisory_permission_and_exception_restructured_when_validated_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees should notify their manager before travel. "
+        "They may work remotely except during security incidents. "
+        "Contractors can access systems unless their credentials expire. "
+        "Employees must not share badges. "
+        "The May 2026 training calendar is available."
+    )
+    answer = (
+        "# Travel and access\n"
+        "- Employees should notify their manager before travel.\n"
+        "- They may work remotely except during security incidents.\n"
+        "- Contractors can access systems unless their credentials expire.\n"
+        "- Employees must not share badges.\n"
+        "- The May 2026 training calendar is available."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What travel and access rules apply?",),
+        answer=answer,
+        claims=(Claim(text=source_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    findings = DeterministicValidator().validate(unit, [span])
+
+    assert not [finding for finding in findings if finding.rule_id.startswith("content.")]
+
+
+def test_given_restrictive_permission_qualifier_omitted_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees may access records only with manager approval."
+    candidate_text = "Employees may access records with manager approval."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When may employees access records?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.qualifier_clause" in rule_ids
+
+
+def test_given_modal_and_qualifier_moved_to_another_clause_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees may access records only with manager approval. "
+        "Contractors may access records with security approval."
+    )
+    candidate_text = (
+        "Employees access records with manager approval. "
+        "Contractors may access records only with security approval."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Who may access records?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.permission_clause" in rule_ids
+    assert "content.qualifier_clause" in rule_ids
+
+
+def test_given_reordered_similar_clauses_move_restrictions_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees may access records only with manager approval. "
+        "Employees can access archives with manager approval."
+    )
+    candidate_text = (
+        "Employees may access archives only with manager approval. "
+        "Employees can access records with manager approval."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What may employees access?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.permission_clause" in rule_ids
+    assert "content.qualifier_clause" in rule_ids
+
+
+def test_given_modal_attachment_swapped_between_subjects_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees may submit requests. Contractors can submit requests."
+    candidate_text = "Employees can submit requests. Contractors may submit requests."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Who may submit requests?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.permission_clause" in rule_ids
+
+
+def test_given_mandatory_duty_weakened_to_permission_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees must submit requests."
+    candidate_text = "Employees may submit requests."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Must employees submit requests?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.operative_clause" in rule_ids
+    assert "content.permission_clause" in rule_ids
+
+
+def test_given_mandatory_duty_reversed_to_prohibition_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees must submit requests."
+    candidate_text = "Employees must not submit requests."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Must employees submit requests?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.prohibition_clause" in rule_ids
+
+
+@pytest.mark.parametrize(
+    ("source_text", "candidate_text", "expected_rule"),
+    [
+        (
+            "Employees are required to submit timesheets.",
+            "Employees are not required to submit timesheets.",
+            "content.operative_clause",
+        ),
+        (
+            "Employees are prohibited from sharing badges.",
+            "Employees are not prohibited from sharing badges.",
+            "content.prohibition_clause",
+        ),
+    ],
+)
+def test_given_named_modality_negated_when_validated_then_blocks(
+    source_document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+    expected_rule: str,
+) -> None:
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What rule applies?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert expected_rule in rule_ids
+
+
+@pytest.mark.parametrize(
+    ("source_text", "candidate_text"),
+    [
+        (
+            "Employees are required to submit timesheets.",
+            "Employees are no longer required to submit timesheets.",
+        ),
+        (
+            "Employees are prohibited from sharing badges.",
+            "Employees are no longer prohibited from sharing badges.",
+        ),
+    ],
+)
+def test_given_named_modality_changed_to_no_longer_when_validated_then_blocks(
+    source_document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+) -> None:
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What rule applies?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.operative_clause" in rule_ids
+
+
+@pytest.mark.parametrize(
+    ("source_text", "candidate_text"),
+    [
+        (
+            "Employees will not disclose confidential records.",
+            "Employees will disclose confidential records.",
+        ),
+        (
+            "Employees will disclose approved records.",
+            "Employees will not disclose approved records.",
+        ),
+    ],
+)
+def test_given_will_not_polarity_reversed_when_validated_then_blocks(
+    source_document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+) -> None:
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("May employees disclose records?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.prohibition_clause" in rule_ids
+
+
+def test_given_temporal_attachment_swapped_between_conditions_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees submit requests before manager approval. "
+        "Employees submit reports after training."
+    )
+    candidate_text = (
+        "Employees submit requests after manager approval. "
+        "Employees submit reports before training."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When do employees submit requests and reports?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.qualifier_clause" in rule_ids
+
+
+def test_given_unchanged_temporal_clauses_reordered_when_validated_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees submit requests before manager approval. "
+        "Employees submit reports after training."
+    )
+    candidate_text = (
+        "Employees submit reports after training. "
+        "Employees submit requests before manager approval."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When do employees submit requests and reports?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.qualifier_clause" not in rule_ids
+
+
+def test_given_similar_control_only_clauses_reordered_when_validated_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees may submit requests. Employees can submit requests."
+    candidate_text = "Employees can submit requests. Employees may submit requests."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("How can employees submit requests?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.permission_clause" not in rule_ids
+
+
+def test_given_substantive_declarative_clause_omitted_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "The benefit applies to permanent employees in the United Kingdom. "
+        "New employees become eligible after completing probation. "
+        "Coverage ends when employment terminates."
+    )
+    candidate_text = "The benefit applies to permanent employees in the United Kingdom."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Who receives the benefit?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" in rule_ids
+
+
+def test_given_short_temporal_condition_omitted_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "The benefit applies to permanent employees during probation. "
+        "The benefit applies to permanent employees after probation."
+    )
+    candidate_text = (
+        "The benefit applies to permanent employees. "
+        "The benefit applies to permanent employees after probation."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When does the benefit apply?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.qualifier_clause" in rule_ids
+
+
+def test_given_repeated_vocabulary_hides_omitted_condition_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "The benefit applies to permanent employees in the United Kingdom. "
+        "The benefit applies to permanent employees after completing probation."
+    )
+    candidate_text = "The benefit applies to permanent employees in the United Kingdom."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Who receives the benefit?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" in rule_ids
+
+
+def test_given_one_candidate_clause_for_two_subjects_when_validated_then_omission_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees receive the benefit in the United Kingdom. "
+        "Contractors receive the benefit in the United Kingdom."
+    )
+    candidate_text = "Employees receive the benefit in the United Kingdom."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("Who receives the benefit?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" in rule_ids
+
+
+def test_given_one_source_list_expanded_to_exact_bullets_when_validated_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees receive health insurance, pension contributions, dental coverage, "
+        "and vision coverage."
+    )
+    candidate_text = (
+        "Employees receive:\n"
+        "- Health insurance.\n"
+        "- Pension contributions.\n"
+        "- Dental coverage.\n"
+        "- Vision coverage."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What benefits do employees receive?",),
+        answer=candidate_text,
+        claims=(Claim(text=source_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" not in rule_ids
+
+
+def test_given_list_fragments_mask_omitted_scope_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees receive health insurance, pension contributions, dental coverage, "
+        "and vision coverage. "
+        "Employees receive health insurance in the United Kingdom."
+    )
+    candidate_text = (
+        "Employees receive:\n"
+        "- Health insurance.\n"
+        "- Pension contributions.\n"
+        "- Dental coverage.\n"
+        "- Vision coverage."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What benefits do employees receive?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" in rule_ids
+
+
+def test_given_governing_modal_repeated_across_bullets_when_validated_then_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees must submit forms and receipts."
+    candidate_text = (
+        "Employees must submit:\n- Employees must submit forms.\n- Employees must submit receipts."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What must employees submit?",),
+        answer=candidate_text,
+        claims=(Claim(text=source_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.operative_clause" not in rule_ids
+
+
+def test_given_faithful_eligibility_paraphrase_when_validated_then_material_clause_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "New employees become eligible after completing probation."
+    candidate_text = "Eligibility begins once probation has been completed."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When does eligibility begin?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" not in rule_ids
+
+
+def test_given_regular_inflection_paraphrase_when_validated_then_material_clause_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit requests after manager approval."
+    candidate_text = "An employee submits a request once a manager approves it."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("When does an employee submit a request?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_clause" not in rule_ids
+    assert "content.qualifier_clause" not in rule_ids
+
+
 def test_given_shorter_number_omitted_when_validated_then_material_fact_blocks(
     source_document: SourceDocument,
 ) -> None:
@@ -258,6 +1153,39 @@ def test_given_shorter_number_omitted_when_validated_then_material_fact_blocks(
     findings = DeterministicValidator().validate(unit, [span])
 
     assert "content.material_fact" in {finding.rule_id for finding in findings}
+
+
+def test_given_material_facts_swapped_between_subjects_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees receive 25 days leave. Contractors receive 10 days leave."
+    candidate_text = "Employees receive 10 days leave. Contractors receive 25 days leave."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("How much leave is provided?",),
+        answer=candidate_text,
+        claims=(Claim(text=candidate_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.5",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    rule_ids = {finding.rule_id for finding in DeterministicValidator().validate(unit, [span])}
+
+    assert "content.material_fact" in rule_ids
 
 
 def test_given_valid_candidate_when_reviewed_then_only_human_approval_is_publishable(

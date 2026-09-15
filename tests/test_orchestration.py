@@ -90,7 +90,74 @@ def test_given_assessment_when_transformed_then_only_content_work_is_proposed() 
     assert analysis.transformation.proposal_only
     assert not analysis.transformation.execution_available
     assert all(item.approval_required for item in analysis.transformation.proposals)
-    assert legacy_actions == ("Create a canonical agent-ready HTML knowledge asset",)
+    assert legacy_actions == (
+        "Reformat source-supported content as a canonical agent-ready HTML knowledge asset",
+    )
+
+
+def test_given_missing_policy_information_when_recommended_then_invention_is_prohibited() -> None:
+    report = (
+        DocumentAssessmentService()
+        .report(
+            run_id="discover-1",
+            estate_id="estate-1",
+            source_version="0" * 64,
+            profile=profile("incomplete"),
+            assessed_at=ASSESSED_AT,
+        )
+        .model_copy(
+            update={
+                "finding_codes": (
+                    "undefined_term",
+                    "unclear_responsibility",
+                    "conflicting_numeric_value",
+                )
+            }
+        )
+    )
+
+    actions = TransformationAgent().recommend(report)
+
+    assert actions == (
+        "Flag undefined terms without inventing definitions",
+        "Flag unclear responsibility without inventing an owner or decision criteria",
+        "Preserve and flag conflicting values without selecting an approved rule",
+    )
+
+
+def test_given_unsafe_findings_when_recommended_then_actions_preserve_and_flag() -> None:
+    report = (
+        DocumentAssessmentService()
+        .report(
+            run_id="discover-1",
+            estate_id="estate-1",
+            source_version="0" * 64,
+            profile=profile("unsafe-actions"),
+            assessed_at=ASSESSED_AT,
+        )
+        .model_copy(
+            update={
+                "finding_codes": (
+                    "poor_metadata",
+                    "procedure_gap",
+                    "terminology_drift",
+                    "inaccessible_embedded_content",
+                    "repeated_variation",
+                )
+            }
+        )
+    )
+
+    assert TransformationAgent().recommend(report) == (
+        "Preserve existing metadata and flag missing metadata for human completion",
+        (
+            "Reformat source-supported actions into procedural steps without inferring "
+            "order, owners, or criteria"
+        ),
+        "Preserve terminology variations and flag possible equivalence without normalizing terms",
+        "Preserve references to embedded content and flag unavailable embedded content",
+        "Preserve repeated variations and flag their differences without consolidating them",
+    )
 
 
 def test_given_current_mvp_when_governance_agent_runs_then_schedule_is_not_claimed() -> None:

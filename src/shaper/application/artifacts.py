@@ -43,6 +43,7 @@ from shaper.domain import (
     WorkflowStatus,
 )
 from shaper.domain.models import ReviewOutcome, canonical_hash
+from shaper.prompts import SHAPING_PROMPT
 
 TransformationProgress = Callable[[dict[str, object]], None]
 
@@ -482,9 +483,31 @@ class EstateTransformationService:
         decision = self._repository.latest_decision(proposal.document_id)
         if decision is None or not decision.permits(proposal):
             raise PermissionError("Transformation requires a current exact approval")
+        reports = tuple(
+            report
+            for report in self._repository.list_reports(proposal.discovery_run_id)
+            if report.document_id == proposal.document_id
+        )
+        if not reports:
+            raise ValueError("Approved transformation proposal is missing its discovery report")
+        report = next(
+            (candidate for candidate in reports if candidate.report_id == proposal.report_id),
+            None,
+        )
+        if report is None:
+            raise ValueError("Approved transformation proposal does not match its discovery report")
+        if report.source_version != proposal.source_version:
+            raise ValueError(
+                "Approved transformation proposal does not match its discovery report version"
+            )
         if proposal.token_estimate.estimator_version != ESTIMATOR_VERSION:
             raise ValueError(
                 f"Token estimate v{proposal.token_estimate.estimator_version} is outdated; "
+                "request recommendations again and approve the new estimate"
+            )
+        if proposal.token_estimate.prompt_hash != canonical_hash(SHAPING_PROMPT):
+            raise ValueError(
+                "The shaping instructions changed after this estimate was approved; "
                 "request recommendations again and approve the new estimate"
             )
         document = self._repository.get_document(proposal.document_id)
@@ -536,6 +559,32 @@ class EstateTransformationService:
             },
         )
         started = self._monotonic()
+
+        def report_validation_failure(
+            attempt: int,
+            maximum: int,
+            findings: Sequence[ValidationFinding],
+        ) -> None:
+            finding = findings[0]
+            retrying = attempt < maximum
+            self._report_progress(
+                progress,
+                {
+                    "type": "check_updated",
+                    "document_id": proposal.document_id,
+                    "check": "reshape",
+                    "status": "running" if retrying else "failed",
+                    "detail": (
+                        f"Attempt {attempt} failed {finding.rule_id}: {finding.message}. "
+                        + (
+                            "Applying one targeted repair."
+                            if retrying
+                            else "No artifact was created."
+                        )
+                    ),
+                },
+            )
+
         try:
             outcome = ShapingLoop(
                 model=self._model,
@@ -562,12 +611,15 @@ class EstateTransformationService:
                         ),
                     },
                 ),
+                on_validation_failure=report_validation_failure,
+                maximum_output_tokens=proposal.token_estimate.output_max,
             ).run(
                 run_id=f"{run_id}:{document.value.document_id}",
                 document=source,
                 spans=(span,),
                 principal=principal,
                 transformation_requirements=proposal.proposed_changes,
+                assessment_findings=report.findings,
                 cancelled=cancelled,
             )
         except ShapingBudgetExceeded as error:
@@ -712,13 +764,7 @@ class EstateTransformationService:
 
     @staticmethod
     def _failure_detail(error: Exception) -> str:
-        message = str(error)
-        if isinstance(error, ShapingBudgetExceeded) and "candidates" in message:
-            return (
-                "The reshaped document did not pass source-preservation checks after four "
-                "bounded attempts. Review the source and improvement plan before retrying."
-            )
-        return message
+        return str(error)
 
     def fail_running(self, run_id: str, detail: str) -> VersionedRecord[WorkflowRun] | None:
         """Terminalize an unexpected streamed transformation failure."""

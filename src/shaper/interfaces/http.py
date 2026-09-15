@@ -548,6 +548,22 @@ def create_app(services: HttpServices) -> FastAPI:
                 payloads.append(payload)
             return {"items": payloads}
 
+        @app.delete("/v1/estates/{estate_id}/documents/{document_id}")
+        def remove_document(
+            estate_id: str,
+            document_id: str,
+            expected_revision: int,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            return _versioned_payload(
+                inventory_service.remove(
+                    estate_id,
+                    document_id,
+                    expected_revision=expected_revision,
+                    principal=actor,
+                )
+            )
+
         @app.get(
             "/v1/estates/{estate_id}/documents/{document_id}/content",
             response_class=PlainTextResponse,

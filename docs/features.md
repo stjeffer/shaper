@@ -22,6 +22,7 @@ estate governance, but it does not affect Findings or transformation actions.
 | Knowledge Estates | Implemented | Durable, collection-scoped workspaces |
 | URL and SharePoint registration | Implemented | Registration only until a connector synchronizes content |
 | File and ZIP upload | Implemented | Bounded uploads with scanning and inventory controls |
+| Individual document removal | Implemented | Excludes a document from future workflows while retaining source provenance |
 | Document assessment | Implemented | 29 deterministic, read-only checks per document |
 | Evidence-grounded Findings | Implemented | Content-quality findings with agent impact and quoted evidence |
 | Full-document review | Implemented | Exact original-file download plus an authorized, version-pinned extracted-text viewer |
@@ -77,11 +78,19 @@ Users can:
 * Register URL or SharePoint sources
 * Upload individual files or bounded ZIP bundles
 * Review the current document inventory
+* Remove an individual document from future assessment and improvement planning
 * Choose whether transformed artifacts include evaluation reports
 
 Document rows show only a concise format label such as **PDF**, **DOCX**,
 **Markdown**, or **Text**. Raw MIME types and modification timestamps remain
 available as source metadata but do not clutter the inventory.
+
+Each active document row includes a named **Remove** action with a confirmation
+dialog. Removal clears current browser selections and assessment evidence so
+stale findings cannot be reused. The document is excluded from future
+assessment and improvement planning, while its immutable source provenance and
+existing generated artifacts remain available for governance. Archived estates
+are read-only. Permanent content deletion remains an estate-level purge.
 
 Assessed document rows keep only the finding count, highest urgency, and review
 action visible. On wide screens, **Review findings** opens a dedicated inline
@@ -240,11 +249,12 @@ The recommendation stage:
 * Uses the enforced maximum as the shared chart scale and processing guardrail
 * States the estimate confidence and planned output filename
 * Derives overhead from the active shaping prompt and response schema, then reserves
-  an initial candidate and up to three bounded repair attempts rather than allowing
-  an unapproved overrun
+  an initial candidate and one targeted repair rather than allowing an unapproved
+  overrun
 * Loads shaping and model-assisted evaluation instructions from separate,
   version-controlled Markdown resources packaged with the application
-* Requires a fresh recommendation and approval when the estimator version changes
+* Binds approval to the shaping prompt hash and estimator version
+* Requires a fresh recommendation and approval when either contract changes
 * Enforces the configured maximum before model use
 * Records an append-only approve or decline decision
 
@@ -298,13 +308,32 @@ semantic HTML with an estate-owned name such as
 
 Transformation reshapes the complete source document; it does not replace the
 source with a summary. The approved recommendations are included in the shaping
-request, while the shaping contract requires preservation of rules, duties,
+request together with the exact proposal-pinned assessment findings. Findings
+explain the detected condition, likely agent impact, and supporting source
+evidence. They are diagnostic context, not permission to edit. Only the approved
+recommendations authorize transformations.
+
+Actions that require unavailable authority remain flag-only. Shaper preserves
+the source instead of inventing missing metadata or definitions, deciding that
+different terms are equivalent, recreating inaccessible embedded content, or
+consolidating subtly different repeated rules. Safe approved actions can
+restructure headings, sections, grounded questions and answers, and
+source-supported procedures.
+
+The shaping contract requires preservation of rules, duties, advisory language,
 permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
 definitions, procedure steps, escalation paths, and material examples.
-Deterministic gates reject outputs with insufficient source-word coverage,
-missing values or durations, or omitted operative clauses. A rejected candidate
-gets up to three bounded repair attempts. If preservation still fails, the run
-fails visibly and no artifact is saved.
+Deterministic gates reject outputs with missing values or durations and check
+each operative category independently. Low source-word coverage remains visible
+as review evidence but does not reject a faithful clearer rewrite by itself. The
+first rejected candidate, exact rule details, and remedies are supplied for one
+targeted repair with the same assessment evidence and approval boundary.
+Repeated findings stop immediately. If preservation still fails, the run shows
+the exact blocking reason and saves no artifact.
+
+The Azure OpenAI request is bounded by a 90-second timeout and an output-token
+limit from the approved estimate. The common path therefore uses one model call;
+a second call occurs only for a targeted preservation repair.
 
 When estate evaluations are enabled, each artifact receives versioned checks for
 citation coverage, structure, and validation. A second human review is required

@@ -17,10 +17,13 @@ from shaper.application.shaping import (
     ShapingBudgetExceeded,
     ShapingLoop,
     ShapingOutcome,
+    ShapingValidationError,
 )
 from shaper.domain import (
     AnswerUnit,
     CollectionRole,
+    DocumentFinding,
+    DocumentFindingEvidence,
     FindingSeverity,
     Principal,
     SourceDocument,
@@ -106,6 +109,7 @@ def run_loop(
     context_spans: Sequence[SourceSpan] | None = None,
     monotonic: Callable[[], float] | None = None,
     on_model_attempt: Callable[[int, int], None] | None = None,
+    on_validation_failure: (Callable[[int, int, Sequence[ValidationFinding]], None] | None) = None,
 ) -> tuple[ShapingOutcome, Checkpoints]:
     """Run the shaping loop with deterministic adapters."""
     checkpoints = Checkpoints()
@@ -121,6 +125,7 @@ def run_loop(
         budget=budget,
         monotonic=monotonic or time.monotonic,
         on_model_attempt=on_model_attempt,
+        on_validation_failure=on_validation_failure,
     )
     principal = Principal(
         principal_id="person-1",
@@ -214,43 +219,115 @@ def test_given_blocking_feedback_when_shaped_then_candidate_is_repaired(
     assert "candidate_rejected" in checkpoints.states
 
 
-def test_given_three_rejected_candidates_when_shaped_then_fourth_candidate_can_pass(
+def test_given_repeated_blocking_findings_when_repaired_then_loop_fails_early(
     source_document: SourceDocument,
     source_span: SourceSpan,
 ) -> None:
-    outcome, checkpoints = run_loop(
-        [candidate_payload() for _ in range(4)],
-        source_document,
-        source_span,
-        validator=Validator(rejections=3),
-    )
+    with pytest.raises(
+        ShapingValidationError,
+        match="Targeted repair repeated the same blocking findings.*grounding",
+    ) as captured:
+        run_loop(
+            [candidate_payload(), candidate_payload()],
+            source_document,
+            source_span,
+            validator=Validator(rejections=2),
+        )
 
-    assert outcome.model_calls == 4
-    assert checkpoints.states.count("candidate_rejected") == 3
-    assert checkpoints.states[-1] == "candidate_accepted"
+    assert captured.value.model_calls == 2
 
 
-def test_given_slow_repairs_when_within_attempt_budget_then_fourth_candidate_can_pass(
+def test_given_slow_targeted_repair_when_within_budget_then_second_candidate_can_pass(
     source_document: SourceDocument,
     source_span: SourceSpan,
 ) -> None:
     # Arrange
     attempts: list[tuple[int, int]] = []
-    monotonic = iter((0.0, 0.0, 45.0, 90.0, 135.0)).__next__
+    failures: list[tuple[int, int, tuple[str, ...]]] = []
+    monotonic = iter((0.0, 0.0, 45.0)).__next__
 
     # Act
     outcome, _ = run_loop(
-        [candidate_payload() for _ in range(4)],
+        [candidate_payload(), candidate_payload()],
         source_document,
         source_span,
-        validator=Validator(rejections=3),
+        validator=Validator(rejections=1),
         monotonic=monotonic,
         on_model_attempt=lambda attempt, maximum: attempts.append((attempt, maximum)),
+        on_validation_failure=lambda attempt, maximum, findings: failures.append(
+            (attempt, maximum, tuple(finding.rule_id for finding in findings))
+        ),
     )
 
     # Assert
-    assert outcome.model_calls == 4
-    assert attempts == [(1, 4), (2, 4), (3, 4), (4, 4)]
+    assert outcome.model_calls == 2
+    assert attempts == [(1, 2), (2, 2)]
+    assert failures == [(1, 2, ("grounding",))]
+
+
+def test_given_rejected_candidate_when_repaired_then_prompt_contains_structured_context(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    class CapturingModel:
+        def __init__(self) -> None:
+            self.prompts: list[dict[str, object]] = []
+
+        def generate(
+            self,
+            *,
+            system_prompt: str,
+            prompt: str,
+            schema: dict[str, object],
+            max_output_tokens: int | None = None,
+        ) -> ModelResult:
+            del system_prompt, schema, max_output_tokens
+            self.prompts.append(json.loads(prompt))
+            return DeterministicModelGateway([candidate_payload()]).generate(
+                system_prompt="test",
+                prompt=prompt,
+                schema={},
+            )
+
+    model = CapturingModel()
+    checkpoints = Checkpoints()
+    loop = ShapingLoop(
+        model=model,
+        tools=ReadOnlyToolRegistry(
+            Context([source_span]),
+            source_id=source_document.source_id,
+            collection_id=source_document.collection_id,
+        ),
+        validator=Validator(rejections=1),
+        checkpoints=checkpoints,
+    )
+    principal = Principal(
+        principal_id="person-1",
+        tenant_id=source_document.tenant_id,
+        collection_roles={source_document.collection_id: frozenset({CollectionRole.COMPILE})},
+    )
+
+    outcome = loop.run(
+        run_id="run-1",
+        document=source_document,
+        spans=[source_span],
+        principal=principal,
+    )
+
+    assert outcome.model_calls == 2
+    assert model.prompts[0]["rejected_candidate"] is None
+    assert model.prompts[0]["validation_findings"] == []
+    repair = model.prompts[1]
+    assert isinstance(repair["rejected_candidate"], dict)
+    assert repair["rejected_candidate"]["answer"] == "Employees receive leave."
+    assert repair["validation_findings"] == [
+        {
+            "evidence_span_ids": [],
+            "message": "Repair grounding",
+            "remedy": None,
+            "rule_id": "grounding",
+        }
+    ]
 
 
 def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(
@@ -263,9 +340,14 @@ def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(
             self.system_prompt = ""
 
         def generate(
-            self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+            self,
+            *,
+            system_prompt: str,
+            prompt: str,
+            schema: dict[str, object],
+            max_output_tokens: int | None = None,
         ) -> ModelResult:
-            del schema
+            del schema, max_output_tokens
             self.prompt = prompt
             self.system_prompt = system_prompt
             return DeterministicModelGateway([candidate_payload()]).generate(
@@ -305,6 +387,78 @@ def test_given_requirements_when_shaped_then_prompt_contains_approved_changes(
     ]
     assert "instructions" not in json.loads(model.prompt)
     assert model.system_prompt == SHAPING_PROMPT
+
+
+def test_given_assessment_findings_when_repaired_then_every_request_has_exact_evidence(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    class CapturingModel:
+        def __init__(self) -> None:
+            self.prompts: list[dict[str, object]] = []
+
+        def generate(
+            self,
+            *,
+            system_prompt: str,
+            prompt: str,
+            schema: dict[str, object],
+            max_output_tokens: int | None = None,
+        ) -> ModelResult:
+            del system_prompt, schema, max_output_tokens
+            self.prompts.append(json.loads(prompt))
+            return DeterministicModelGateway([candidate_payload()]).generate(
+                system_prompt="test",
+                prompt=prompt,
+                schema={},
+            )
+
+    finding = DocumentFinding(
+        code="procedure_gap",
+        label="Implicit procedure",
+        explanation="The source describes actions without explicit steps.",
+        agent_impact="Actions may be hard to follow.",
+        severity="warning",
+        evidence=(
+            DocumentFindingEvidence(
+                quote="Employees receive leave.",
+                location="line 1",
+            ),
+        ),
+    )
+    model = CapturingModel()
+    loop = ShapingLoop(
+        model=model,
+        tools=ReadOnlyToolRegistry(
+            Context([source_span]),
+            source_id=source_document.source_id,
+            collection_id=source_document.collection_id,
+        ),
+        validator=Validator(rejections=1),
+        checkpoints=Checkpoints(),
+    )
+    principal = Principal(
+        principal_id="person-1",
+        tenant_id=source_document.tenant_id,
+        collection_roles={source_document.collection_id: frozenset({CollectionRole.COMPILE})},
+    )
+
+    outcome = loop.run(
+        run_id="run-1",
+        document=source_document,
+        spans=[source_span],
+        principal=principal,
+        transformation_requirements=("Reformat source-supported actions into steps",),
+        assessment_findings=(finding,),
+    )
+
+    assert outcome.model_calls == 2
+    expected_findings = [finding.model_dump(mode="json")]
+    assert [prompt["assessment_findings"] for prompt in model.prompts] == [
+        expected_findings,
+        expected_findings,
+    ]
+    assert model.prompts[1]["validation_feedback"] == ["Repair grounding"]
 
 
 def test_given_abstention_when_shaped_then_no_candidate_is_returned(
