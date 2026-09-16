@@ -16,6 +16,7 @@ from shaper.domain.models import (
     DomainModel,
     Identifier,
     Sha256,
+    ValidationFinding,
     canonical_hash,
 )
 
@@ -557,7 +558,8 @@ class KnowledgeArtifact(DomainModel):
     content_locator: str = Field(min_length=1, max_length=2048)
     status: ArtifactStatus = ArtifactStatus.GENERATED
     approval_id: Identifier | None = None
-    evaluation: TransformationEvaluation | None = None
+    evaluation: TransformationEvaluation | None = Field(default=None, exclude=True)
+    validation_findings: tuple[ValidationFinding, ...] = ()
     created_at: datetime
 
     @field_validator("created_at")

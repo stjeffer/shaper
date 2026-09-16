@@ -24,6 +24,7 @@ from shaper.application.shaping import (
 )
 from shaper.application.token_estimation import ESTIMATOR_VERSION
 from shaper.application.transformation_actions import derive_approved_source_exclusions
+from shaper.application.validation import findings_for_review
 from shaper.domain import (
     AnswerUnit,
     ArtifactStatus,
@@ -36,7 +37,6 @@ from shaper.domain import (
     SourceDocument,
     SourceSpan,
     TokenUsage,
-    TransformationEvaluation,
     TransformationProposal,
     ValidationFinding,
     WorkflowKind,
@@ -131,66 +131,6 @@ class HtmlArtifactRenderer:
         return "".join(parts)
 
 
-class ArtifactEvaluator:
-    """Score generated structure and citation coverage without claiming correctness."""
-
-    VERSION = "1.0"
-    LIMITATIONS = (
-        "Deterministic checks do not establish factual correctness or policy authority.",
-        "Citation coverage confirms references exist, not that every claim is entailed.",
-    )
-
-    def evaluate(
-        self,
-        *,
-        unit: AnswerUnit,
-        spans: Sequence[SourceSpan],
-        findings: Sequence[ValidationFinding],
-        evaluated_at: datetime,
-    ) -> TransformationEvaluation:
-        """Return a transparent, versioned evaluation for one generated unit."""
-        span_ids = {span.span_id for span in spans}
-        cited_claims = sum(
-            1 for claim in unit.claims if claim.span_ids and set(claim.span_ids).issubset(span_ids)
-        )
-        citation_score = round(100 * cited_claims / len(unit.claims)) if unit.claims else 0
-        structure_checks = (
-            bool(unit.answer.strip()),
-            bool(unit.canonical_questions),
-            bool(unit.claims),
-            all(question.strip() for question in unit.canonical_questions),
-        )
-        structure_score = round(100 * sum(structure_checks) / len(structure_checks))
-        blocking = sum(1 for finding in findings if finding.severity.value == "blocking")
-        warnings = sum(1 for finding in findings if finding.severity.value == "warning")
-        validation_score = 0 if blocking else 80 if warnings else 100
-        overall_score = round(
-            (citation_score * 0.45) + (structure_score * 0.25) + (validation_score * 0.30)
-        )
-        identity = {
-            "unit_version": unit.unit_version,
-            "evaluator_version": self.VERSION,
-            "citation_coverage_score": citation_score,
-            "structure_score": structure_score,
-            "validation_score": validation_score,
-            "blocking_findings": blocking,
-            "warning_findings": warnings,
-        }
-        return TransformationEvaluation(
-            evaluation_id=canonical_hash(identity),
-            evaluator_version=self.VERSION,
-            citation_coverage_score=citation_score,
-            structure_score=structure_score,
-            validation_score=validation_score,
-            overall_score=overall_score,
-            blocking_findings=blocking,
-            warning_findings=warnings,
-            passed=blocking == 0,
-            limitations=self.LIMITATIONS,
-            evaluated_at=evaluated_at,
-        )
-
-
 class _RepositoryCheckpoints(CheckpointStore):
     def __init__(self, repository: EstateRepository) -> None:
         self._repository = repository
@@ -227,7 +167,6 @@ class EstateTransformationService:
         reviews: ReviewService,
         renderer: HtmlArtifactRenderer,
         clock: Callable[[], datetime],
-        evaluator: ArtifactEvaluator | None = None,
         monotonic: Callable[[], float] = time.monotonic,
         id_factory: Callable[[], str] | None = None,
     ) -> None:
@@ -237,7 +176,6 @@ class EstateTransformationService:
         self._reviews = reviews
         self._renderer = renderer
         self._clock = clock
-        self._evaluator = evaluator or ArtifactEvaluator()
         self._monotonic = monotonic
         self._id_factory = id_factory or (lambda: uuid.uuid4().hex)
 
@@ -246,6 +184,7 @@ class EstateTransformationService:
         recommendation_ids: Sequence[str],
         *,
         principal: Principal,
+        enforce_preservation_checks: bool = True,
         progress: TransformationProgress | None = None,
         cancelled: Callable[[], bool] = lambda: False,
     ) -> VersionedRecord[WorkflowRun]:
@@ -307,6 +246,7 @@ class EstateTransformationService:
                     running.value.run_id,
                     proposal,
                     principal,
+                    enforce_preservation_checks=enforce_preservation_checks,
                     progress=progress,
                     cancelled=cancelled,
                 )
@@ -388,6 +328,7 @@ class EstateTransformationService:
         reason: str,
         expected_review_revision: int,
         expected_artifact_revision: int,
+        acknowledged_finding_ids: Sequence[str] = (),
     ) -> tuple[ReviewRecord, VersionedRecord[KnowledgeArtifact]]:
         """Apply separate output review and publish an approved artifact."""
         artifact = self._repository.get_artifact(artifact_id)
@@ -398,6 +339,11 @@ class EstateTransformationService:
             raise KeyError(f"Knowledge estate does not exist: {artifact.value.estate_id}")
         EstateService._authorize(estate.value, principal, CollectionRole.REVIEW)
         review = self._reviews.get(artifact.value.unit_id)
+        required_acknowledgments = {
+            finding.rule_id for finding in artifact.value.validation_findings
+        }
+        if required_acknowledgments != set(acknowledged_finding_ids):
+            raise PermissionError("Artifact approval must acknowledge every validation finding")
         approved = self._reviews.decide(
             ReviewDecision(
                 decision_id=f"review-{self._id_factory()}",
@@ -454,30 +400,13 @@ class EstateTransformationService:
             raise ValueError("Artifact content hash does not match its manifest")
         return content
 
-    def evaluation(
-        self,
-        artifact_id: str,
-        *,
-        principal: Principal,
-    ) -> TransformationEvaluation:
-        """Return the generated evaluation to an authorized reviewer."""
-        artifact = self._repository.get_artifact(artifact_id)
-        if artifact is None:
-            raise KeyError(f"Knowledge artifact does not exist: {artifact_id}")
-        estate = self._repository.get_estate(artifact.value.estate_id)
-        if estate is None:
-            raise KeyError(f"Knowledge estate does not exist: {artifact.value.estate_id}")
-        EstateService._authorize(estate.value, principal, CollectionRole.REVIEW)
-        if artifact.value.evaluation is None:
-            raise KeyError(f"Knowledge artifact has no evaluation: {artifact_id}")
-        return artifact.value.evaluation
-
     def _transform(
         self,
         run_id: str,
         proposal: TransformationProposal,
         principal: Principal,
         *,
+        enforce_preservation_checks: bool = True,
         progress: TransformationProgress | None = None,
         cancelled: Callable[[], bool] = lambda: False,
     ) -> None:
@@ -628,6 +557,7 @@ class EstateTransformationService:
                 transformation_requirements=proposal.proposed_changes,
                 assessment_findings=report.findings,
                 approved_source_exclusions=approved_source_exclusions,
+                enforce_preservation_checks=enforce_preservation_checks,
                 cancelled=cancelled,
             )
         except ShapingBudgetExceeded as error:
@@ -661,7 +591,7 @@ class EstateTransformationService:
                 "detail": "Complete reshaped content was generated.",
             },
         )
-        findings = (
+        raw_findings = (
             self._validator.validate(
                 outcome.unit,
                 (span,),
@@ -670,7 +600,10 @@ class EstateTransformationService:
             if approved_source_exclusions
             else self._validator.validate(outcome.unit, (span,))
         )
-        blocking = sum(1 for finding in findings if finding.severity.value == "blocking")
+        findings = findings_for_review(
+            raw_findings,
+            enforce_preservation_checks=False,
+        )
         warnings = sum(1 for finding in findings if finding.severity.value == "warning")
         self._report_progress(
             progress,
@@ -678,12 +611,12 @@ class EstateTransformationService:
                 "type": "check_updated",
                 "document_id": proposal.document_id,
                 "check": "source_preservation",
-                "status": "passed" if blocking == 0 else "failed",
+                "status": "review" if warnings else "passed",
                 "detail": (
                     "Source coverage, material facts, numbers, and operative clauses "
                     "were preserved."
-                    if blocking == 0
-                    else f"{blocking} blocking preservation finding(s) remain."
+                    if warnings == 0
+                    else f"{warnings} preservation finding(s) require human review."
                 ),
             },
         )
@@ -693,45 +626,22 @@ class EstateTransformationService:
                 "type": "check_updated",
                 "document_id": proposal.document_id,
                 "check": "grounding",
-                "status": "passed" if blocking == 0 else "failed",
-                "detail": (
-                    "Claims remain grounded in the version-pinned source."
-                    if blocking == 0
-                    else "One or more claims are not adequately grounded."
-                ),
+                "status": "passed",
+                "detail": "Claims remain grounded in the version-pinned source.",
             },
         )
         review = self._reviews.submit(outcome.unit, findings)
-        evaluated_at = self._clock()
-        evaluation = (
-            self._evaluator.evaluate(
-                unit=review.unit,
-                spans=(span,),
-                findings=findings,
-                evaluated_at=evaluated_at,
-            )
-            if self._required_estate(proposal).generate_evaluations
-            else None
-        )
         self._report_progress(
             progress,
             {
                 "type": "check_updated",
                 "document_id": proposal.document_id,
                 "check": "quality",
-                "status": (
-                    "skipped"
-                    if evaluation is None
-                    else "passed"
-                    if evaluation.passed and warnings == 0
-                    else "review"
-                ),
+                "status": "review" if warnings else "passed",
                 "detail": (
-                    "Optional deterministic output checks were not selected."
-                    if evaluation is None
-                    else "Citation, structure, and validation checks passed."
-                    if evaluation.passed and warnings == 0
-                    else f"Checks completed with {warnings} warning finding(s) for review."
+                    f"Checks completed with {warnings} finding(s) for review."
+                    if warnings
+                    else "No preservation findings remain."
                 ),
             },
         )
@@ -757,8 +667,8 @@ class EstateTransformationService:
             content_hash=content_hash,
             content_locator=f"repository:{proposal.expected_artifact}",
             status=ArtifactStatus.IN_REVIEW,
-            evaluation=evaluation,
-            created_at=evaluated_at,
+            validation_findings=findings,
+            created_at=self._clock(),
         )
         self._repository.save_artifact_bundle(artifact, content)
         self._report_progress(

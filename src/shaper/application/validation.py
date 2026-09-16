@@ -190,6 +190,46 @@ _PRESERVATION_CATEGORIES = (
         "exceptions",
     ),
 )
+_NON_BYPASSABLE_RULE_IDS = frozenset(
+    {
+        "source.spans",
+        "source.version",
+        "grounding.span_exists",
+        "content.approved_exclusion_retained",
+        "content.approved_exclusion_note",
+    }
+)
+
+
+def blocking_findings(
+    findings: Sequence[ValidationFinding],
+    *,
+    enforce_preservation_checks: bool,
+) -> tuple[ValidationFinding, ...]:
+    """Return findings that must prevent candidate generation."""
+    return tuple(
+        finding
+        for finding in findings
+        if finding.severity is FindingSeverity.BLOCKING
+        and (enforce_preservation_checks or finding.rule_id in _NON_BYPASSABLE_RULE_IDS)
+    )
+
+
+def findings_for_review(
+    findings: Sequence[ValidationFinding],
+    *,
+    enforce_preservation_checks: bool,
+) -> tuple[ValidationFinding, ...]:
+    """Downgrade bypassed preservation blockers into visible review findings."""
+    if enforce_preservation_checks:
+        return tuple(findings)
+    return tuple(
+        finding.model_copy(update={"severity": FindingSeverity.WARNING})
+        if finding.severity is FindingSeverity.BLOCKING
+        and finding.rule_id not in _NON_BYPASSABLE_RULE_IDS
+        else finding
+        for finding in findings
+    )
 
 
 class DeterministicValidator:

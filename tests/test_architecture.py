@@ -259,7 +259,8 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert html.index('id="transformButton"') < html.index('id="approvalReviewTabs"')
     assert 'id="transformationProgress"' in html
     assert 'id="transformationProgressAnnouncement"' in html
-    assert "async function streamTransformation(estateId, ids, onEvent, signal)" in browser_app
+    assert "async function streamTransformation(" in browser_app
+    assert "enforce_preservation_checks: enforcePreservationChecks" in browser_app
     assert "function updateTransformationProgress(event)" in browser_app
     assert "function resetTransformationProgress()" in browser_app
     assert "state.transformationAbortController?.abort()" in browser_app

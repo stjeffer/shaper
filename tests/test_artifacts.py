@@ -26,6 +26,7 @@ from shaper.domain import (
     DocumentReadinessReport,
     EffortBand,
     EstateDocument,
+    FindingSeverity,
     KnowledgeEstate,
     Principal,
     SourceSpan,
@@ -577,9 +578,7 @@ def test_given_approved_proposal_when_reviewed_then_safe_artifact_and_usage_publ
         assert review.unit.state.value == "approved"
         assert published.value.status.value == "approved"
         assert repository.list_usage(run.value.run_id)[0].total_tokens == 20
-        assert artifact.evaluation is not None
-        assert artifact.evaluation.passed
-        assert artifact.evaluation.overall_score == 100
+        assert artifact.validation_findings == ()
         assert preview == content
         assert b"&lt;script&gt;" in content
         assert b"<script>" not in content
@@ -771,13 +770,11 @@ def test_given_evaluations_disabled_when_transformed_then_artifact_has_no_evalua
         artifact = repository.list_artifacts("estate-1")[0]
 
         assert artifact.evaluation is None
-        with pytest.raises(KeyError, match="no evaluation"):
-            service.evaluation(artifact.artifact_id, principal=_principal())
     finally:
         store.close()
 
 
-def test_given_lossy_summary_when_transformed_then_no_artifact_is_created(
+def test_given_lossy_summary_when_repair_still_has_findings_then_artifact_is_reviewable(
     tmp_path: Path,
 ) -> None:
     policy = (
@@ -810,16 +807,76 @@ def test_given_lossy_summary_when_transformed_then_no_artifact_is_created(
             progress=progress_events.append,
         )
 
-        assert run.value.status.value == "failed"
-        assert run.value.error is not None
-        assert (
-            "Targeted repair repeated the same blocking findings: content.material_fact"
-        ) in run.value.error
+        artifact = repository.list_artifacts("estate-1")[0]
+
+        assert run.value.status.value == "completed"
+        assert run.value.error is None
         assert any(
-            event.get("status") == "failed" and "content.material_fact" in str(event.get("detail"))
+            event.get("check") == "source_preservation" and event.get("status") == "review"
             for event in progress_events
         )
-        assert not repository.list_artifacts("estate-1")
+        assert artifact.status.value == "in_review"
+        assert artifact.validation_findings
+        with pytest.raises(PermissionError, match="acknowledge every validation finding"):
+            service.approve(
+                artifact.artifact_id,
+                principal=_principal(),
+                reason="Reviewed remaining preservation findings.",
+                expected_review_revision=1,
+                expected_artifact_revision=1,
+            )
+        _, published = service.approve(
+            artifact.artifact_id,
+            principal=_principal(),
+            reason="Reviewed remaining preservation findings.",
+            expected_review_revision=1,
+            expected_artifact_revision=1,
+            acknowledged_finding_ids=tuple(
+                finding.rule_id for finding in artifact.validation_findings
+            ),
+        )
+        assert published.value.status.value == "approved"
+    finally:
+        store.close()
+
+
+def test_given_preservation_repair_disabled_when_summary_is_lossy_then_artifact_is_reviewable(
+    tmp_path: Path,
+) -> None:
+    policy = (
+        "Employees must submit annual leave requests at least 20 working days in advance. "
+        "Managers must respond within 5 working days. Employees receive 25 days of annual "
+        "leave each year."
+    )
+    store, repository, proposal = _setup(
+        tmp_path / "state.db",
+        approved=True,
+        source_text=policy,
+        enforced_maximum=10_000,
+    )
+    service = EstateTransformationService(
+        repository,
+        model=SummaryModel(),
+        validator=DeterministicValidator(),
+        reviews=ReviewService(SQLiteReviewStore(store)),
+        renderer=HtmlArtifactRenderer(),
+        clock=lambda: NOW,
+        id_factory=lambda: "run",
+    )
+    try:
+        run = service.start(
+            (proposal.recommendation_id,),
+            principal=_principal(),
+            enforce_preservation_checks=False,
+        )
+        artifact = repository.list_artifacts("estate-1")[0]
+
+        assert run.value.status.value == "completed"
+        assert artifact.status.value == "in_review"
+        assert artifact.validation_findings
+        assert all(
+            finding.severity is FindingSeverity.WARNING for finding in artifact.validation_findings
+        )
     finally:
         store.close()
 

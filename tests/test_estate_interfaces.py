@@ -315,7 +315,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         artifact = artifacts_response.json()["items"][0]
         artifact_id = artifact["value"]["artifact_id"]
         assert artifact["value"]["filename"] == "shaper_leave-policy.html"
-        assert artifact["value"]["evaluation"]["passed"]
+        assert "evaluation" not in artifact["value"]
         preview_response = client.get(
             f"/v1/artifacts/{artifact_id}/preview",
             headers=headers,
@@ -336,12 +336,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             ).status_code
             == 403
         )
-        evaluation_response = client.get(
-            f"/v1/artifacts/{artifact_id}/evaluation",
-            headers=headers,
-        )
-        assert evaluation_response.status_code == 200
-        assert evaluation_response.json()["overall_score"] == 100
+        assert "evaluation" not in artifact["value"]
 
         approval_response = client.post(
             f"/v1/artifacts/{artifact_id}/approve",

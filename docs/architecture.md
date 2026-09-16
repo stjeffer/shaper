@@ -691,7 +691,7 @@ duplicating the complete answer. Machine-oriented source identifiers, evidence
 scores, confidence scores, and validation annotations stay outside the human-facing
 answer.
 
-After each candidate, the deterministic preservation gate checks exact retention
+After each candidate, deterministic preservation analysis checks exact retention
 of numeric and duration facts and category-level retention of duties, advisory
 language, permissions, prohibitions, and exceptions. Structural list, step, and
 question numbering is removed before material-fact comparison, while a value or
@@ -708,7 +708,8 @@ cannot manufacture value, duty, or qualifier failures from diagnostic text.
 Review-note structure, review-note policy wording, and generic lexical clause
 coverage remain visible as warnings. Exact values, identifiers, duties,
 permissions, prohibitions, and policy-bearing qualifiers introduced or changed
-before the heading remain blocking. Qualifier checks require policy context, so
+before the heading become explicit review findings. Qualifier checks require
+policy context, so
 rhetorical phrases such as "once you explore" do not become temporal restrictions.
 The sole preservation exception is an exact source fragment that an exact current
 discovery report identifies as a source-authored AI directive or unsupported
@@ -718,13 +719,19 @@ matching source version, excludes it from the preservation baseline, requires
 its canonical audit note, and still blocks it if retained as substantive policy.
 Model text and review notes never grant exclusion authority.
 
-Low lexical coverage and generic material-clause similarity are review evidence
-rather than automatic rejection because a faithful clearer rewrite need not copy
-the original vocabulary. A blocking semantic finding returns the rejected candidate, structured rule
-details, and a bounded source-clause excerpt for one targeted repair. The repair
-receives the same assessment evidence and approved requirements. Repeated
-findings stop immediately. If the repair fails, transformation reports the exact
-blocking rule and persists no artifact.
+Preservation findings are review evidence rather than automatic rejection because
+a faithful clearer rewrite need not copy the original representation. By default,
+Shaper retains an integrity-valid candidate with these findings for human review.
+The run-level **Try one automatic repair from preservation findings** option uses
+the first candidate's structured findings and bounded source-clause excerpts for
+one targeted repair with the same evidence and approval boundary. Remaining
+findings are persisted with the retained artifact.
+
+Source identity, source-version identity, cited-span existence, candidate schema,
+and approval-bound exclusion enforcement remain non-bypassable. These integrity
+failures stop transformation and persist no artifact. Publication approval must
+acknowledge every finding on the current artifact, which prevents stale or partial
+review without treating representation-sensitive heuristics as absolute truth.
 
 An approved artifact can be opened in the browser or exported as the exact stored
 HTML bytes. Export does not reconstruct content from the preview DOM. The

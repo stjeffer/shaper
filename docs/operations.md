@@ -51,8 +51,9 @@ az cognitiveservices account deployment show \
 
 Retry the failed transformation after the provider window resets. If a single
 transformation repeatedly reaches the limit, increase deployment capacity
-within the approved regional quota rather than disabling repair or
-source-preservation validation.
+within the approved regional quota. Review mode avoids the optional repair call;
+it does not bypass source identity, cited evidence, candidate schema, or
+approval-bound exclusion integrity controls.
 
 ## State and recovery
 
@@ -111,13 +112,14 @@ managed identity.
 6. Verify health, MCP initialization, authorization, current release, and logs.
 7. Run one Knowledge Estate discovery and verify that findings expose agent
    impact and evidence without a readiness score.
-8. Approve one current improvement plan and verify that transformation progress
-   reports complete-content, preservation, grounding, and optional quality-check
-   results before opening the generated output.
+8. Approve one current improvement plan and verify review mode retains an
+   integrity-valid artifact with preservation findings. Repeat with optional
+   repair enabled and verify at most one targeted repair occurs.
 9. Verify the Evaluation set contains up to 20 distinct, source-grounded
    questions balanced across documents, and fewer questions for sparse knowledge.
-10. Approve one generated artifact and verify **Export approved HTML** downloads
-    the exact reviewed artifact with its governed filename.
+10. Approve one generated artifact by acknowledging its complete current finding
+    set, then verify **Export approved HTML** downloads the exact reviewed artifact
+    with its governed filename.
 11. Retain the prior revision until the observation window completes.
 
 The regression gate permits no deterministic pass-rate decrease, at most a

@@ -566,7 +566,13 @@ async function apiText(path) {
   return response.text();
 }
 
-async function streamTransformation(estateId, ids, onEvent, signal) {
+async function streamTransformation(
+  estateId,
+  ids,
+  enforcePreservationChecks,
+  onEvent,
+  signal,
+) {
   const response = await fetch(
     `/v1/estates/${estateId}/transformation-runs/stream`,
     {
@@ -577,7 +583,10 @@ async function streamTransformation(estateId, ids, onEvent, signal) {
         Accept: "application/x-ndjson",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({
+        ids,
+        enforce_preservation_checks: enforcePreservationChecks,
+      }),
       signal,
     },
   );
@@ -1576,7 +1585,7 @@ function renderEstate() {
   const status = document.querySelector("#estateStatus");
   status.textContent = estate.status;
   status.className = `badge ${estate.status}`;
-  elements.generateEvaluations.checked = estate.generate_evaluations;
+  elements.generateEvaluations.checked = false;
   renderSources();
   renderDocuments();
   renderProposals();
@@ -2236,17 +2245,31 @@ function renderArtifacts() {
       );
       const actions = document.createElement("div");
       actions.className = "artifact-actions";
-      const evaluation = artifact.evaluation;
-      const evaluationGrid = document.createElement("div");
-      evaluationGrid.className = "token-grid";
-      if (evaluation) {
-        evaluationGrid.setAttribute("aria-label", "Transformation evaluation");
-        evaluationGrid.append(
-          tokenMetric("Overall evaluation", `${evaluation.overall_score}/100`),
-          tokenMetric("Citation coverage", `${evaluation.citation_coverage_score}/100`),
-          tokenMetric("Structure", `${evaluation.structure_score}/100`),
-          tokenMetric("Validation", `${evaluation.validation_score}/100`),
-        );
+      const validationFindings = artifact.validation_findings || [];
+      const findingsSection = document.createElement("section");
+      findingsSection.className = "artifact-validation-findings";
+      findingsSection.setAttribute("aria-label", "Preservation findings");
+      findingsSection.append(
+        text(
+          "h4",
+          validationFindings.length
+            ? `${validationFindings.length} preservation finding${
+                validationFindings.length === 1 ? "" : "s"
+              } to review`
+            : "No preservation findings",
+        ),
+      );
+      if (validationFindings.length) {
+        const findingsList = document.createElement("ul");
+        validationFindings.forEach((finding) => {
+          findingsList.append(
+            text(
+              "li",
+              `${finding.message}${finding.remedy ? ` ${finding.remedy}` : ""}`,
+            ),
+          );
+        });
+        findingsSection.append(findingsList);
       }
       if (artifact.status !== "approved") {
         const approve = fluentButton("Approve for publication", "accent", "primary");
@@ -2297,17 +2320,7 @@ function renderArtifacts() {
         heading,
         text("p", `Source version ${artifact.source_version.slice(0, 12)}…`),
         comparison,
-        ...(evaluation
-          ? [
-              evaluationGrid,
-              text(
-                "p",
-                evaluation.passed
-                  ? "Automated evaluation passed. Human review is still required."
-                  : `${evaluation.blocking_findings} blocking evaluation finding(s).`,
-              ),
-            ]
-          : []),
+        findingsSection,
         actions,
       );
       void loadArtifactComparison(artifact, sourceContent, outputPreview, outputStatus);
@@ -2950,27 +2963,10 @@ async function transformApproved() {
   elements.transformButton.disabled = true;
   elements.generateEvaluations.disabled = true;
   try {
-    const estateRecord = state.estate;
-    const estate = recordValue(estateRecord);
-    if (estate.generate_evaluations !== elements.generateEvaluations.checked) {
-      state.estate = await api(`/v1/estates/${estate.estate_id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          expected_revision: estateRecord.revision,
-          name: estate.name,
-          description: estate.description,
-          artifact_name_template: estate.artifact_name_template,
-          generate_evaluations: elements.generateEvaluations.checked,
-        }),
-      });
-      const estateIndex = state.estates.findIndex(
-        (item) => recordValue(item).estate_id === estate.estate_id,
-      );
-      if (estateIndex >= 0) state.estates[estateIndex] = state.estate;
-    }
     const result = await streamTransformation(
       estateId,
       approvedIds,
+      elements.generateEvaluations.checked,
       (event) => {
         if (isCurrentOperation()) updateTransformationProgress(event);
       },
@@ -3016,6 +3012,13 @@ async function approveArtifact(artifactId, revision) {
         reason: "Grounding and output reviewed in the Shaper estate workspace.",
         expected_review_revision: 1,
         expected_artifact_revision: Number(revision),
+        acknowledged_finding_ids: (
+          recordValue(
+            state.artifacts.find(
+              (item) => recordValue(item).artifact_id === artifactId,
+            ),
+          ).validation_findings || []
+        ).map((finding) => finding.rule_id),
       }),
     });
     state.artifacts = await api(

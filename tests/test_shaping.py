@@ -157,6 +157,7 @@ def run_loop(
     monotonic: Callable[[], float] | None = None,
     on_model_attempt: Callable[[int, int], None] | None = None,
     on_validation_failure: (Callable[[int, int, Sequence[ValidationFinding]], None] | None) = None,
+    enforce_preservation_checks: bool = True,
 ) -> tuple[ShapingOutcome, Checkpoints]:
     """Run the shaping loop with deterministic adapters."""
     checkpoints = Checkpoints()
@@ -185,9 +186,62 @@ def run_loop(
             document=document,
             spans=[span],
             principal=principal,
+            enforce_preservation_checks=enforce_preservation_checks,
         ),
         checkpoints,
     )
+
+
+def test_given_preservation_checks_disabled_when_candidate_has_reviewable_blocker_then_accepts(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    outcome, checkpoints = run_loop(
+        [candidate_payload()],
+        source_document,
+        source_span,
+        validator=Validator(rejections=1),
+        enforce_preservation_checks=False,
+    )
+
+    assert outcome.unit is not None
+    assert "candidate_accepted" in checkpoints.states
+    assert "candidate_rejected" not in checkpoints.states
+
+
+class IntegrityValidator(Validator):
+    """Return a non-bypassable source-integrity failure."""
+
+    def validate(
+        self,
+        unit: AnswerUnit,
+        spans: Sequence[SourceSpan],
+        *,
+        approved_source_exclusions: Sequence[str] = (),
+    ) -> Sequence[ValidationFinding]:
+        del spans, approved_source_exclusions
+        return (
+            ValidationFinding(
+                rule_id="source.version",
+                severity=FindingSeverity.BLOCKING,
+                subject_id=unit.unit_id,
+                message="Source version mismatch",
+            ),
+        )
+
+
+def test_given_preservation_checks_disabled_when_integrity_fails_then_still_blocks(
+    source_document: SourceDocument,
+    source_span: SourceSpan,
+) -> None:
+    with pytest.raises(ShapingValidationError, match="source.version"):
+        run_loop(
+            [candidate_payload(), candidate_payload()],
+            source_document,
+            source_span,
+            validator=IntegrityValidator(),
+            enforce_preservation_checks=False,
+        )
 
 
 @pytest.fixture
@@ -307,22 +361,19 @@ def test_given_blocking_feedback_when_shaped_then_candidate_is_repaired(
     assert "candidate_rejected" in checkpoints.states
 
 
-def test_given_repeated_blocking_findings_when_repaired_then_loop_fails_early(
+def test_given_repeated_preservation_findings_when_repaired_then_retains_candidate(
     source_document: SourceDocument,
     source_span: SourceSpan,
 ) -> None:
-    with pytest.raises(
-        ShapingValidationError,
-        match="Targeted repair repeated the same blocking findings.*grounding",
-    ) as captured:
-        run_loop(
-            [candidate_payload(), candidate_payload()],
-            source_document,
-            source_span,
-            validator=Validator(rejections=2),
-        )
+    outcome, checkpoints = run_loop(
+        [candidate_payload(), candidate_payload()],
+        source_document,
+        source_span,
+        validator=Validator(rejections=2),
+    )
 
-    assert captured.value.model_calls == 2
+    assert outcome.model_calls == 2
+    assert checkpoints.states[-1] == "candidate_accepted"
 
 
 def test_given_slow_targeted_repair_when_within_budget_then_second_candidate_can_pass(

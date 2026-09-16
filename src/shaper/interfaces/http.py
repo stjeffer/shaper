@@ -184,6 +184,12 @@ class SelectionRequest(BaseModel):
     ids: tuple[str, ...] = Field(min_length=1, max_length=100)
 
 
+class TransformationRunRequest(SelectionRequest):
+    """Select approved recommendations and the optional preservation-repair gate."""
+
+    enforce_preservation_checks: bool = False
+
+
 class RecommendationRequest(SelectionRequest):
     """Select discovered documents for recommendation."""
 
@@ -208,6 +214,7 @@ class ArtifactApprovalRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=1000)
     expected_review_revision: int = Field(ge=1)
     expected_artifact_revision: int = Field(ge=1)
+    acknowledged_finding_ids: tuple[str, ...] = ()
 
 
 class PurgeRequest(BaseModel):
@@ -796,13 +803,17 @@ def create_app(services: HttpServices) -> FastAPI:
         @app.post("/v1/estates/{estate_id}/transformation-runs")
         def start_transformations(
             estate_id: str,
-            request: SelectionRequest,
+            request: TransformationRunRequest,
             actor: Principal = Depends(principal),
         ) -> dict[str, object]:
             proposals = tuple(estate_repository.get_proposal(item) for item in request.ids)
             if any(proposal is None or proposal.estate_id != estate_id for proposal in proposals):
                 raise KeyError("A recommendation does not belong to this estate")
-            run = transformation_service.start(request.ids, principal=actor)
+            run = transformation_service.start(
+                request.ids,
+                principal=actor,
+                enforce_preservation_checks=request.enforce_preservation_checks,
+            )
             return {
                 "run": _versioned_payload(run),
                 "artifacts": [
@@ -818,7 +829,7 @@ def create_app(services: HttpServices) -> FastAPI:
         @app.post("/v1/estates/{estate_id}/transformation-runs/stream")
         def stream_transformations(
             estate_id: str,
-            request: SelectionRequest,
+            request: TransformationRunRequest,
             actor: Principal = Depends(principal),
         ) -> StreamingResponse:
             proposals = tuple(estate_repository.get_proposal(item) for item in request.ids)
@@ -843,6 +854,7 @@ def create_app(services: HttpServices) -> FastAPI:
                         transformation_service.start(
                             request.ids,
                             principal=actor,
+                            enforce_preservation_checks=request.enforce_preservation_checks,
                             progress=report,
                             cancelled=cancel_event.is_set,
                         )
@@ -914,23 +926,12 @@ def create_app(services: HttpServices) -> FastAPI:
                 reason=request.reason,
                 expected_review_revision=request.expected_review_revision,
                 expected_artifact_revision=request.expected_artifact_revision,
+                acknowledged_finding_ids=request.acknowledged_finding_ids,
             )
             return {
                 "review": jsonable_encoder(review),
                 "artifact": _versioned_payload(artifact),
             }
-
-        @app.get("/v1/artifacts/{artifact_id}/evaluation")
-        def get_artifact_evaluation(
-            artifact_id: str,
-            actor: Principal = Depends(principal),
-        ) -> dict[str, object]:
-            evaluation = transformation_service.evaluation(
-                artifact_id,
-                principal=actor,
-            )
-            payload: dict[str, object] = evaluation.model_dump(mode="json")
-            return payload
 
         @app.get("/v1/artifacts/{artifact_id}/preview")
         def get_artifact_preview(

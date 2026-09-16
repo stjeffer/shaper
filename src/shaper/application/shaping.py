@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from shaper.application.agent_tools import ReadOnlyToolRegistry, ToolRequest
 from shaper.application.ports import ModelGateway, Validator
+from shaper.application.validation import blocking_findings
 from shaper.domain import (
     AnswerUnit,
     Applicability,
@@ -22,7 +23,7 @@ from shaper.domain import (
     SourceSpan,
     ValidationFinding,
 )
-from shaper.domain.models import Derivation, FindingSeverity, canonical_hash
+from shaper.domain.models import Derivation, canonical_hash
 from shaper.prompts import PROMPT_VERSION, SHAPING_PROMPT
 
 
@@ -169,6 +170,7 @@ class ShapingLoop:
         transformation_requirements: Sequence[str] = (),
         assessment_findings: Sequence[DocumentFinding] = (),
         approved_source_exclusions: Sequence[str] = (),
+        enforce_preservation_checks: bool = True,
         cancelled: Callable[[], bool] = lambda: False,
     ) -> ShapingOutcome:
         """Run until one valid candidate, an abstention, cancellation, or hard limit."""
@@ -324,9 +326,14 @@ class ShapingLoop:
                 if approved_source_exclusions
                 else self._validator.validate(unit, validation_spans)
             )
-            blocking = [
-                finding for finding in findings if finding.severity is FindingSeverity.BLOCKING
-            ]
+            blocking = list(
+                blocking_findings(
+                    findings,
+                    enforce_preservation_checks=(
+                        enforce_preservation_checks and candidates < self._budget.maximum_candidates
+                    ),
+                )
+            )
             if blocking:
                 feedback = [finding.message for finding in blocking]
                 validation_findings = [

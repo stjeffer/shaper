@@ -301,7 +301,8 @@ The authenticated
 `POST /v1/estates/{estate_id}/transformation-runs/stream` endpoint returns
 newline-delimited JSON events for actual document and validation stages. The
 browser uses this stream to report complete-content, source-preservation,
-grounding, and optional deterministic quality-check results. Processing remains
+grounding, and optional repair results. The request accepts
+`enforce_preservation_checks`; its default is `false`. Processing remains
 inside the application process. A client disconnect requests cancellation before
 the next model action or document; an in-flight provider request may finish
 first. This endpoint is not a durable background queue.
@@ -329,25 +330,25 @@ After the revision becomes ready:
    content findings without a score out of 100.
 12. Approve the new proposal and confirm the transformation controls appear above
    the **Assessment results** and **Evaluation set** tabs.
-13. Start transformation and confirm the live progress surface names each check,
-   updates results as stages complete, and opens the generated output when the run
-   completes.
+13. Start transformation with **Try one automatic repair from preservation
+   findings** cleared. Confirm preservation findings do not fail the run, the
+   output opens, and findings appear on its card.
 14. Open the **Evaluation set** tab and confirm the estate offers up to 20
     distinct, source-grounded questions balanced across documents. Confirm a
     sparse source returns fewer questions without filler.
 15. If the estate contains a proposal created before estimator version `1.6` or
     shaping prompt version `2.2`, confirm transformation stops before model use
     and instructs the reviewer to create and approve a current improvement plan.
-16. Create and approve a plan using estimator `1.6` and prompt `2.2`, then
-    confirm progress reports **model attempt 1 of 2**. If preservation fails,
-    confirm only blocking semantic validation rules are supplied for one targeted
-    repair. Confirm review-note structure, review-note policy wording, and generic
-    lexical material-clause diagnostics remain warnings and do not terminate the
-    transformation.
+16. Create and approve a plan using estimator `1.6` and prompt `2.2`, then select
+    **Try one automatic repair from preservation findings** and confirm progress
+    reports **model attempt 1 of 2**. If preservation findings occur, confirm they
+    guide one targeted repair. Confirm remaining findings stay visible on the
+    retained artifact and do not terminate transformation.
 17. Confirm assessment findings remain visible as evidence while flag-only
    actions preserve terminology, repeated variations, and unavailable embedded
    content rather than inventing a resolution.
-18. Approve one generated artifact, select **Export approved HTML**, and confirm
+18. Approve one generated artifact after acknowledging its current findings,
+    select **Export approved HTML**, and confirm
    the downloaded filename matches the artifact name. Confirm an unapproved
    artifact download receives HTTP 403.
 19. Transform a document with missing-information notes and confirm they appear

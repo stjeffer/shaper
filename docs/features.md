@@ -285,7 +285,7 @@ adding length above every assessment result.
 Transformation controls appear above both review tabs so reviewers receive
 immediate feedback after activation. While approved content is transformed, a
 live progress surface names the complete-content, source-preservation,
-grounding, and optional deterministic quality checks and reports their actual
+grounding, and optional repair stages and reports their actual
 results as the service completes each stage.
 
 After approval, the proposal card changes to an explicit **Transformation
@@ -314,7 +314,8 @@ recommendations authorize transformations. For the two unsafe-source findings,
 an approved recommendation can authorize omission only of the exact
 fragment-level finding evidence from the exact report and current source version.
 The candidate must add the canonical intentional-exclusion review note, and may
-not retain that text as substantive policy. Any other omission remains blocking.
+not retain that text as substantive policy. Any other omission remains a
+preservation finding for human review.
 
 Actions that require unavailable authority remain flag-only. Shaper preserves
 the source instead of inventing missing metadata or definitions, deciding that
@@ -328,37 +329,39 @@ final **Missing information and review notes** section. Source identifiers,
 evidence scores, confidence scores, validation scores, and machine status
 annotations do not appear in the human-facing answer. Preservation checks treat
 that final section as review context rather than policy even when its formatting
-is imperfect. Review-note structure and policy wording remain visible as
-diagnostic warnings without cascading into unrelated policy findings. Shaper
-continues to block invented values, identifiers, duties, permissions,
-prohibitions, and policy-bearing temporal restrictions in the substantive
-document.
+is imperfect. Review-note structure and policy wording remain visible as diagnostic warnings
+without cascading into unrelated policy findings. Invented values, identifiers,
+duties, permissions, prohibitions, and policy-bearing temporal restrictions in
+the substantive document become clear preservation findings with source evidence.
 
 The shaping contract requires preservation of rules, duties, advisory language,
 permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
 definitions, procedure steps, escalation paths, and material examples.
-Deterministic gates reject outputs with missing values or durations and check
+Deterministic analysis detects outputs with missing values or durations and checks
 each operative category independently. Structural list, step, and question
 numbers are not treated as policy facts. Clause matching follows source-specific
 identity words, values, controls, and qualifiers instead of relying on original
 clause position. This permits faithful Q&A, list, and procedure restructuring
-while continuing to block values, modal strength, polarity, or qualifiers moved
-between subjects. Low source-word coverage remains visible as review evidence but
+while reporting values, modal strength, polarity, or qualifiers moved between
+subjects. Low source-word coverage remains visible as review evidence and
 does not reject a faithful clearer rewrite by itself. Generic lexical
-material-clause similarity is also advisory; exact semantic controls remain
-blocking. Qualifier preservation requires policy context, so rhetorical uses of
-words such as "once" or "within" do not block transformation. The first rejected
-candidate, exact rule details, source-clause excerpt, and remedies are supplied
-for one targeted repair with the same assessment evidence and approval boundary.
-Repeated findings stop immediately. If preservation still fails, the run shows
-the exact blocking reason and saves no artifact.
+material-clause similarity is also advisory. Qualifier preservation requires
+policy context, so rhetorical uses of
+words such as "once" or "within" do not create false temporal findings.
+
+The default run retains an integrity-valid artifact for review even when
+preservation findings remain. Selecting **Try one automatic repair from
+preservation findings** makes one bounded repair attempt for that run. Source
+identity, source version, cited evidence, candidate schema, and approval-bound
+exclusions remain non-bypassable. Publication requires acknowledgment of every
+finding stored on the current artifact.
 
 The Azure OpenAI request is bounded by a 90-second timeout and an output-token
 limit from the approved estimate. The common path therefore uses one model call;
 a second call occurs only for a targeted preservation repair.
 
-When estate evaluations are enabled, each artifact receives versioned checks for
-citation coverage, structure, and validation. A second human review is required
+The output card presents findings in clear language beside the before-and-after
+comparison. It does not present a score out of 100. Human review remains required
 before publication approval.
 
 The Outputs view places the complete extracted text from the exact retained
