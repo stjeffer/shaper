@@ -68,7 +68,7 @@ The finished page should make a first-time visitor able to say, without guesswor
 1. what Shaper is
 2. who it is for
 3. why source quality affects agent answers
-4. what the 29 deterministic checks do
+4. what the 31 deterministic checks do
 5. how the governed workflow works end to end
 6. what is available now versus planned
 7. where a CTA would send them next
@@ -90,7 +90,7 @@ Keep these statements explicit in copy and visuals:
 - Current transformation output is **approved-only semantic HTML**.
 - Review includes **before / after panels**.
 - Publication approval is **separate** from proposal approval.
-- Estates can include **evaluation reports**.
+- Estates can include **evaluation sets with up to 20 grounded questions**.
 - The platform supports **archive and purge** with governance controls.
 - The current deployed shape is an **authenticated Azure deployment**.
 - SharePoint is **registration only today**.
@@ -118,7 +118,7 @@ Use this nav order exactly:
 1. `Overview` → `#overview`
 2. `Why source quality matters` → `#why-source-quality-matters`
 3. `How defects become agent failures` → `#defect-to-agent-impact`
-4. `29 deterministic checks` → `#checks`
+4. `31 deterministic checks` → `#checks`
 5. `How Shaper works` → `#workflow`
 6. `Platform features` → `#features`
 7. `Before and after` → `#before-after`
@@ -168,7 +168,7 @@ Use this message shape:
 
 Use 3 to 4 concise bullets such as:
 
-- 29 deterministic checks with evidence and likely agent impact
+- 31 deterministic checks with evidence and likely agent impact
 - version-pinned recommendations and approvals
 - approved-only semantic HTML transformation
 - separate output review before publication
@@ -248,7 +248,7 @@ Create four linked cards or steps:
 
 Repeat that findings are **review candidates**, not autonomous verdicts.
 
-## `#checks` 29 deterministic checks catalog
+## `#checks` 31 deterministic checks catalog
 
 ### Purpose
 
@@ -256,8 +256,8 @@ Present Shaper's assessment model clearly and accurately. This section must feel
 
 ### Presentation rules
 
-- Present **29 deterministic checks** as **7 baseline checks + 22 content-integrity checks**.
-- Group the 22 content-integrity checks under clear risk families.
+- Present **31 deterministic checks** as **7 baseline checks + 24 content-integrity checks**.
+- Group the 24 content-integrity checks under clear risk families.
 - Do **not** collapse them into a numeric score.
 - For every check, show:
   - plain-English label
@@ -403,7 +403,7 @@ Show concrete features using product-style cards, not vague benefits.
 
 #### Assessment and evidence
 
-- 29 deterministic checks
+- 31 deterministic checks
 - evidence and source locations
 - full-document review
 - score-free findings view
@@ -421,7 +421,7 @@ Show concrete features using product-style cards, not vague benefits.
 - approved-only semantic HTML transformation
 - before / after review panels
 - separate publication approval
-- evaluation reports
+- evaluation sets with up to 20 grounded questions
 
 #### Lifecycle and deployment
 
@@ -526,7 +526,7 @@ Must include:
 - SharePoint registration only
 - individual file upload
 - bounded ZIP upload with scanning
-- 29 deterministic checks
+- 31 deterministic checks
 - evidence-backed findings
 - full-document review
 - selected-document recommendations
@@ -534,7 +534,7 @@ Must include:
 - approved-only semantic HTML transformation
 - before / after review
 - separate publication approval
-- evaluation reports
+- evaluation sets with up to 20 grounded questions
 - archive and purge
 - authenticated Azure deployment
 
@@ -623,7 +623,7 @@ Keep this order on mobile:
 1. Hero
 2. Why source quality matters
 3. Source-defect-to-agent-impact chain
-4. 29 deterministic checks
+4. 31 deterministic checks
 5. Workflow
 6. Features
 7. Before / after
@@ -773,7 +773,7 @@ Before considering the page done, ensure:
 
 - every nav anchor resolves
 - every section appears in the required order
-- 29 checks are present as 7 baseline + 22 grouped content-integrity checks
+- 31 checks are present as 7 baseline + 24 grouped content-integrity checks
 - no score out of 100 appears anywhere
 - SharePoint is described as registration only today
 - Graph crawling / synchronization is labelled planned only
@@ -797,7 +797,7 @@ Use or adapt this copy. Keep the substance intact.
 
 - `Why source quality matters to agent answers`
 - `How source defects become retrieval and grounding failures`
-- `29 deterministic checks, shown as findings rather than a score`
+- `31 deterministic checks, shown as findings rather than a score`
 - `A governed workflow from intake to approved output`
 - `Concrete platform features for Knowledge Estates`
 - `Review the change before anything is published`
@@ -818,13 +818,13 @@ The generated page is acceptable only if all of these are true:
 1. It is a single responsive landing page with anchored navigation.
 2. It presents Shaper as a **governed platform coordinating bounded specialist roles**, not an autonomous agent.
 3. It explains the source-quality chain across extraction, chunking, metadata, retrieval, grounding, and answers.
-4. It presents **29 deterministic checks** accurately as **7 baseline + 22 content-integrity checks**.
+4. It presents **31 deterministic checks** accurately as **7 baseline + 24 content-integrity checks**.
 5. Every check group includes purpose and likely agent impact.
 6. It states that findings are **review candidates** and not a score out of 100.
 7. It states that recommendations are selection-scoped and approvals are exact and version-pinned.
 8. It states that only approved proposals enter semantic HTML transformation.
 9. It states that publication approval is separate and human-controlled.
-10. It includes current features: Knowledge Estates; URL and SharePoint registration; individual file upload; bounded malware-scanned ZIP upload; current document inventory; immutable source versions; evidence and source locations; full-document review; selected-document recommendations; accessible stacked input/output/repair-and-safety token-budget infographic; exact version-pinned approval; approved-only semantic HTML transformation; before/after review panels; separate publication approval; evaluation reports; archive and purge; authenticated Azure deployment.
+10. It includes current features: Knowledge Estates; URL and SharePoint registration; individual file upload; bounded malware-scanned ZIP upload; current document inventory; immutable source versions; evidence and source locations; full-document review; selected-document recommendations; accessible stacked input/output/repair-and-safety token-budget infographic; exact version-pinned approval; approved-only semantic HTML transformation; before/after review panels; separate publication approval; evaluation sets with up to 20 grounded questions; archive and purge; authenticated Azure deployment.
 11. It states explicitly that SharePoint is registration only today and Graph crawling / synchronization is planned.
 12. It makes clear that registered URL, wiki, Confluence, or intranet locations do not imply arbitrary crawling.
 13. It makes no claim of autonomous rewriting, estate-wide modification, recurring governance schedules, distributed workers, guaranteed accuracy, legal/compliance correctness, quantified ROI/performance uplift, or quantitative readiness scoring.

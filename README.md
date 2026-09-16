@@ -43,16 +43,14 @@ guidance. Recommendations create value before any transformation runs.
 
 ### Transform
 
-Prepare approved work through one of three modes:
+Prepare approved work as source-grounded semantic HTML while leaving the
+original immutable source untouched. By default, deterministic preservation
+findings remain visible for human review instead of blocking artifact generation.
+Reviewers can request one bounded automatic repair for the current run.
 
-* Safe mode creates derivative summaries, FAQs, metadata, knowledge cards, and
-  topic summaries while leaving originals untouched
-* Guided rewrite proposes document improvements for human review
-* Knowledge consolidation prepares a canonical source, supporting FAQ,
-  knowledge graph, and agent-ready knowledge package
-
-All modes stop at an approval boundary. Publication remains a human-governed
-action.
+Source identity, source version, cited evidence, candidate schema, and
+approval-bound exclusions remain non-bypassable. Publication remains a separate
+human-governed action that requires acknowledgment of the current findings.
 
 ### Govern
 
@@ -83,17 +81,18 @@ The implemented vertical slice includes:
 * Estate-list document counts and current-version assessment coverage, with
   explicit no-documents, not-assessed, partially-assessed, and assessed states
 * Immutable source versions with per-document findings and evidence coverage
-* A transparent catalogue explaining all 29 deterministic checks, what each
+* A transparent catalogue explaining all 31 deterministic checks, what each
   checks, and its likely impact on retrieval or agent answers
 * Selection-scoped recommendations with input/output token ranges, an expected
   total, and an enforced maximum before model use
-* An estate-level option to generate versioned citation-coverage, structure,
-  and validation evaluations with each reshaped artifact
+* A run-level option to try one automatic repair from preservation findings
 * Append-only approve or decline decisions pinned to the exact source,
   recommendation, estimate, estimator, and model deployment
 * Approved-only transformation into escaped semantic HTML using estate-owned
   names such as `shaper_{source_stem}.html`
-* Separate human output review before an artifact can be retrieved
+* Findings-led output review with before-and-after comparison and no score out
+  of 100
+* Separate human publication approval before an artifact can be exported
 * PostgreSQL-backed Azure workflow state and local SQLite development state
 * A live authenticated estate workspace at `/concept/`
 

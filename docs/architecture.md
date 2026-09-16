@@ -695,7 +695,7 @@ After each candidate, deterministic preservation analysis checks exact retention
 of numeric and duration facts and category-level retention of duties, advisory
 language, permissions, prohibitions, and exceptions. Structural list, step, and
 question numbering is removed before material-fact comparison, while a value or
-duration absent from the source remains blocking. Clause association uses
+duration absent from the source becomes an explicit preservation finding. Clause association uses
 source-specific identity words rather than source position. Joined
 subject-and-predicate clauses are segmented before checking values, modal
 strength, polarity, and restrictive qualifiers, so Q&A and procedure reordering

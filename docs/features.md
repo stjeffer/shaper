@@ -79,7 +79,8 @@ Users can:
 * Upload individual files or bounded ZIP bundles
 * Review the current document inventory
 * Remove an individual document from future assessment and improvement planning
-* Choose whether transformed artifacts include evaluation reports
+* Choose whether the current transformation run tries one automatic repair from
+  preservation findings
 
 Document rows show only a concise format label such as **PDF**, **DOCX**,
 **Markdown**, or **Text**. Raw MIME types and modification timestamps remain
