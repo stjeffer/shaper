@@ -1,9 +1,3 @@
-import {
-  EVALUATION_QUESTION_TARGET,
-  selectEstateEvaluations,
-  suggestedEvaluations,
-} from "./evaluation-suggestions.mjs?v=20260915-evaluation-20-v1";
-
 const state = {
   session: null,
   collectionId: null,
@@ -144,6 +138,10 @@ const elements = {
   uploadForm: document.querySelector("#uploadForm"),
   files: document.querySelector("#files"),
   fileSummary: document.querySelector("#fileSummary"),
+  fileSelection: document.querySelector("#fileSelection"),
+  fileList: document.querySelector("#fileList"),
+  fileDropZone: document.querySelector("#fileDropZone"),
+  clearFilesButton: document.querySelector("#clearFilesButton"),
   sourceList: document.querySelector("#sourceList"),
   sourceCount: document.querySelector("#sourceCount"),
   documentRows: document.querySelector("#documentRows"),
@@ -258,6 +256,83 @@ function announce(message) {
   });
 }
 
+function evaluationPassages(sourceText) {
+  const passages = [];
+  let heading = "";
+  sourceText
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      const headingMatch = part.match(/^#{1,6}\s+([^\n]+)(?:\n+([\s\S]+))?$/);
+      let content = part;
+      if (headingMatch) {
+        heading = headingMatch[1].trim();
+        content = (headingMatch[2] ?? "").trim();
+        if (!content) return;
+      }
+      const candidates =
+        content.length > 1200
+          ? content.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()) ??
+            []
+          : [content];
+      candidates
+        .filter((candidate) => candidate.length >= 40)
+        .forEach((candidate) => passages.push({ heading, text: candidate.slice(0, 1000) }));
+    });
+  const seen = new Set();
+  return passages.filter((passage) => {
+    const key = `${passage.heading}\n${passage.text}`.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function evaluationKeywords(passage) {
+  const excluded = new Set([
+    "about",
+    "after",
+    "before",
+    "from",
+    "have",
+    "must",
+    "shall",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "with",
+  ]);
+  return [...new Set(passage.toLocaleLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])]
+    .filter((word) => !excluded.has(word))
+    .slice(0, 5);
+}
+
+function suggestedEvaluations(proposal, documentValue, sourceText) {
+  return evaluationPassages(sourceText)
+    .slice(0, 5)
+    .map((passage, index) => {
+      const focus = passage.heading || passage.text.split(/\s+/).slice(0, 7).join(" ");
+      return {
+        id: `${proposal.recommendation_id}-evaluation-${index + 1}`,
+        document_id: documentValue.document_id,
+        source_version: documentValue.source_version,
+        source_reference: `${documentValue.document_id}@${documentValue.source_version}`,
+        query: passage.heading
+          ? `According to ${documentValue.title}, what guidance is provided under "${focus}"?`
+          : `According to ${documentValue.title}, what does the source say about "${focus}…"?`,
+        ground_truth: passage.text,
+        context: passage.text,
+        keywords: evaluationKeywords(`${passage.heading} ${passage.text}`),
+        foundry_evaluators: ["groundedness", "relevance", "completeness"],
+        copilot_studio_methods: ["General quality", "Compare meaning", "Keyword match"],
+        needs_sme_review: true,
+      };
+    });
+}
+
 async function loadEvaluationSuggestions() {
   state.evaluationSuggestions = [];
   state.selectedEvaluationSuggestions.clear();
@@ -289,7 +364,6 @@ async function loadEvaluationSuggestions() {
       );
     }
   }
-  state.evaluationSuggestions = selectEstateEvaluations(state.evaluationSuggestions);
   state.evaluationSuggestions.forEach((suggestion) => {
     state.selectedEvaluationSuggestions.add(suggestion.id);
   });
@@ -362,7 +436,7 @@ function renderEvaluationOptions() {
   const selected = state.selectedEvaluationSuggestions.size;
   elements.evaluationSelectionSummary.textContent = `${selected} suggested evaluation${
     selected === 1 ? "" : "s"
-  } selected (up to ${EVALUATION_QUESTION_TARGET} per estate)`;
+  } selected`;
   elements.downloadEvaluations.disabled = selected === 0;
 }
 
@@ -566,6 +640,13 @@ function text(tag, value, className) {
   node.textContent = value;
   if (className) node.className = className;
   return node;
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return "0 B";
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
 }
 
 function fluentIcon(name, className = "") {
@@ -2506,6 +2587,40 @@ async function addSource(event) {
   }
 }
 
+function renderSelectedFiles() {
+  const files = elements.files.files;
+  const count = files.length;
+
+  if (count === 0) {
+    elements.fileSelection.hidden = true;
+    elements.fileSummary.textContent = "No files selected";
+    elements.fileList.replaceChildren();
+    return;
+  }
+
+  elements.fileSummary.textContent = `${count} file${count === 1 ? "" : "s"} ready to upload`;
+  elements.fileSelection.hidden = false;
+  elements.fileList.replaceChildren(
+    ...[...files].map((file, index) => {
+      const item = document.createElement("li");
+      item.className = "file-list-item";
+      item.dataset.fileIndex = String(index);
+
+      const icon = fluentIcon("document-20", "file-list-icon");
+      const name = text("span", file.name, "file-list-name");
+      name.title = file.name;
+      const meta = text("span", formatBytes(file.size), "file-list-meta");
+      const remove = text("button", "Remove", "file-list-remove");
+      remove.type = "button";
+      remove.setAttribute("aria-label", `Remove ${file.name}`);
+      remove.dataset.removeFile = String(index);
+
+      item.append(icon, name, meta, remove);
+      return item;
+    }),
+  );
+}
+
 async function uploadFiles(event) {
   event.preventDefault();
   clearAlert();
@@ -2522,7 +2637,7 @@ async function uploadFiles(event) {
     state.sources.push(...result.sources);
     state.documents.push(...result.documents);
     elements.uploadForm.reset();
-    elements.fileSummary.textContent = "No files selected";
+    renderSelectedFiles();
     renderSources();
     invalidateAssessmentEvidence();
     announce(
@@ -3243,10 +3358,26 @@ elements.evaluationSuggestionList.addEventListener("change", (event) => {
   }
   renderEvaluationOptions();
 });
-elements.files.addEventListener("change", () => {
-  const count = elements.files.files.length;
-  elements.fileSummary.textContent =
-    count === 0 ? "No files selected" : `${count} file${count === 1 ? "" : "s"} selected`;
+elements.files.addEventListener("change", renderSelectedFiles);
+elements.fileList.addEventListener("click", (event) => {
+  const remove = event.target.closest("[data-remove-file]");
+  if (!remove) return;
+  const index = Number(remove.dataset.removeFile);
+  const files = [...elements.files.files];
+  if (index < 0 || index >= files.length) return;
+  files.splice(index, 1);
+  const dataTransfer = new DataTransfer();
+  files.forEach((file) => dataTransfer.items.add(file));
+  elements.files.files = dataTransfer.files;
+  renderSelectedFiles();
+});
+elements.fileDropZone.addEventListener("click", (event) => {
+  if (event.target.closest("#chooseFilesButton")) return;
+  elements.files.click();
+});
+elements.clearFilesButton.addEventListener("click", () => {
+  elements.uploadForm.reset();
+  renderSelectedFiles();
 });
 elements.documentRows.addEventListener("change", (event) => {
   const checkbox = event.target.closest("input[data-document-id]");
