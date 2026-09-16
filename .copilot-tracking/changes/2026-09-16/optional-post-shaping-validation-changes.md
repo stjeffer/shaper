@@ -10,11 +10,11 @@
 
 ## Execution Status
 
-* Status: Partial
+* Status: Complete
 * Declared invocation scope: Full plan
 * Completed scope markers: P01, P01-T01, P01-T02, P02, P02-T01, P02-T02, P03-T01, P03-T02
-* All remaining active-plan markers: P03-T03
-* Status basis: Implementation, documentation, and validation are complete; production release remains.
+* All remaining active-plan markers: None
+* Status basis: Implementation, documentation, validation, and production release are complete.
 
 ## Execution Summary
 
@@ -57,6 +57,14 @@ to reviewers, and acknowledged during publication approval.
 * Completion evidence: Artifact payloads omit legacy evaluations and all affected documents describe the same lifecycle.
 * Validation: Full repository gates passed.
 
+### Released the advisory-first workflow
+
+* Related phase or task: P03-T03
+* Files: Production image and Azure Container Apps revision
+* What changed and why: Published the immutable application image and routed production traffic to the matching healthy revision.
+* Completion evidence: Revision ca-shaper-dev--4626fa5 ran one healthy replica at 100 percent traffic using digest sha256:b89944c227659a1941bcca863aa27d821effbb2feac2709f831e0c943da93725.
+* Validation: Live and ready endpoints passed; readiness confirmed state, estate, malware-scanner, and compile-worker dependencies.
+
 ## Implementation-Time Plan and Detail Updates
 
 ### Recorded the approved advisory-first lifecycle
@@ -85,10 +93,10 @@ to reviewers, and acknowledged during publication approval.
 
 ## Pre-Review Reconciliation
 
-* Plan markers and phase details: Current through P03-T02 and P03-T03 validation.
+* Plan markers and phase details: Complete.
 * Completed-work evidence and handoff prose: Current.
-* Validation, blockers, remaining work, and follow-up items: Deployment remains.
-* Review readiness: Not ready until P03 completes.
+* Validation, blockers, remaining work, and follow-up items: Current; no remaining work.
+* Review readiness: Ready.
 
 ## Blockers
 
@@ -96,7 +104,7 @@ to reviewers, and acknowledged during publication approval.
 
 ## Remaining Work
 
-* P03-T03: Commit, push, deploy, and verify production.
+* None.
 
 ## Follow-Up Items
 
@@ -105,12 +113,12 @@ to reviewers, and acknowledged during publication approval.
 
 ## Return-to-Caller State
 
-* Implementation execution status: Partial
-* Declared scope and markers: Full plan; P01, P02, P03-T01, and P03-T02 complete.
+* Implementation execution status: Complete
+* Declared scope and markers: Full plan; all P01, P02, and P03 markers complete.
 * Validation coverage: All repository gates passed.
 * Blockers: None.
 * Current plan and detail updates: Advisory-first lifecycle recorded.
 * Planning and critique state: Ready to continue implementation.
 * Follow-up items: None.
-* Review readiness or no-handoff reason: Not ready until validation and deployment complete.
+* Review readiness or no-handoff reason: Ready for review.
 * Continuation owner: Current implementation agent.
