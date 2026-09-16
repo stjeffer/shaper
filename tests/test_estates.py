@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
+from shaper.application.document_findings import BASELINE_CHECK_CODES, DOCUMENT_CHECK_CODES
 from shaper.application.estates import (
     EstateArchivedError,
     EstateDiscoveryService,
@@ -737,6 +738,62 @@ def test_given_all_selected_documents_changed_when_recommended_then_run_fails_cl
         # Assert
         assert run.value.status.value == "failed"
         assert run.value.completed_document_ids == ()
+        assert run.value.failed_document_ids == (documents[0].value.document_id,)
+        assert run.value.error is not None
+        assert "Run discovery again" in run.value.error
+        assert recommendations.proposals(run.value.run_id, principal=caller) == ()
+    finally:
+        store.close()
+
+
+def test_given_discovery_without_current_checks_when_recommended_then_run_requires_rediscovery(
+    tmp_path: Path,
+) -> None:
+    store, estates, sources, inventory = _persistent_services(tmp_path / "state.db")
+    caller = _principal(CollectionRole.COMPILE, CollectionRole.QUERY)
+    estate = estates.create(
+        principal=caller,
+        collection_id="collection-1",
+        name="Policy estate",
+    )
+    source = sources.register(
+        estate.value.estate_id,
+        principal=caller,
+        kind=EstateSourceKind.UPLOAD,
+        display_name="Travel policy",
+        locator="asset:travel",
+    )
+    documents = inventory.ingest(
+        source.value.source_id,
+        (InventoryInput("travel.md", "text/markdown", b"Employees must book centrally.", NOW),),
+        principal=caller,
+    )
+    discovery = _discovery(store).start(estate.value.estate_id, principal=caller)
+    repository = SQLiteEstateRepository(store)
+    report = repository.list_reports(discovery.value.run_id)[0]
+    stale_report = report.model_copy(update={"checks_completed": BASELINE_CHECK_CODES})
+    store.save_record(
+        category="readiness_report",
+        record_id=stale_report.report_id,
+        payload=stale_report.model_dump_json(),
+        expected_revision=1,
+    )
+    recommendations = EstateRecommendationService(
+        repository,
+        transformation_agent=TransformationAgent(),
+        estimator=TokenEstimator(model_deployment="gpt-5-mini"),
+        clock=lambda: NOW,
+        id_factory=lambda: "stale-checks",
+    )
+    try:
+        run = recommendations.start(
+            discovery.value.run_id,
+            (documents[0].value.document_id,),
+            principal=caller,
+        )
+
+        assert stale_report.checks_completed != (*BASELINE_CHECK_CODES, *DOCUMENT_CHECK_CODES)
+        assert run.value.status.value == "failed"
         assert run.value.failed_document_ids == (documents[0].value.document_id,)
         assert run.value.error is not None
         assert "Run discovery again" in run.value.error

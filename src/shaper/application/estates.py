@@ -11,6 +11,7 @@ from typing import Generic, Protocol, TypeVar
 from uuid import uuid4
 
 from shaper.application.assessment import DocumentAssessmentService
+from shaper.application.document_findings import BASELINE_CHECK_CODES, DOCUMENT_CHECK_CODES
 from shaper.application.ingestion import ingest_content
 from shaper.application.orchestration import (
     KnowledgeTransformationOrchestrator,
@@ -1137,6 +1138,11 @@ class EstateRecommendationService:
                 if document.deleted or report.source_version != document.source_version:
                     raise ValueError(
                         "Selected document is withdrawn or has changed since discovery"
+                    )
+                if report.checks_completed != (*BASELINE_CHECK_CODES, *DOCUMENT_CHECK_CODES):
+                    raise ValueError(
+                        "Discovery report is stale; run discovery again before requesting "
+                        "recommendations"
                     )
                 changes = self._transformation_agent.recommend(report)
                 text = self._repository.load_document_content(

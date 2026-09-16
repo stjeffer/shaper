@@ -6,11 +6,13 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 
+from shaper.application.document_findings import unsafe_source_content_matches
 from shaper.domain import AnswerUnit, FindingSeverity, SourceSpan, ValidationFinding
 
 _WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
 _MATERIAL_FACT = re.compile(
-    r"(?:[$£€]\s?\d[\d,.]*|\b\d[\d,.]*\s?(?:%|percent|days?|weeks?|months?|years?|hours?)?\b)",
+    r"(?:[$£€]\s?\d[\d,.]*|\b\d[\d,.]*(?!\s*\(\s*[a-z]\s*\))\s?"
+    r"(?:%|percent|days?|weeks?|months?|years?|hours?)?\b)",
     re.IGNORECASE,
 )
 _LEADING_ENUMERATOR = re.compile(r"(?im)^\s*(?:#{1,6}\s*)?(?:(?:step|question)\s+)?\d+[.):]\s+")
@@ -19,6 +21,16 @@ _REVIEW_NOTE_ITEM = re.compile(
     r"^\s*[-*]\s+(?:missing|ambiguity|conflict|unresolved reference|review required):\s+\S",
     re.IGNORECASE,
 )
+_INTENTIONAL_EXCLUSION_NOTE = "Review required: Intentional exclusion: "
+_POLICY_DECLARATION = re.compile(
+    r"\b(?:employees?|managers?|supervisors?|contractors?|hr|human resources|"
+    r"(?:the\s+)?(?:company|organization|employer|department|team))\b"
+    r"(?:\s+[\w'-]+){0,3}\s+"
+    r"(?:approve|submit|receive|retain|provide|enroll|access|complete|follow|"
+    r"notify|request|review|pay|reimburse|apply|use|work)\b",
+    re.IGNORECASE,
+)
+_IDENTIFIER = re.compile(r"\b\d{3,5}\s*\(\s*[a-z]\s*\)", re.IGNORECASE)
 _OPERATIVE_CLAUSE = re.compile(
     r"\b(?:must(?:\s+not)?|shall(?:\s+not)?|should(?:\s+not)?|required|prohibited|"
     r"may(?!\s+(?:\d{1,2}\b|(?:19|20)\d{2}\b))(?:\s+(?:only|not))?|"
@@ -162,6 +174,8 @@ class DeterministicValidator:
         self,
         unit: AnswerUnit,
         spans: Sequence[SourceSpan],
+        *,
+        approved_source_exclusions: Sequence[str] = (),
     ) -> Sequence[ValidationFinding]:
         """Return source, grounding, qualifier, and conflict findings."""
         findings: list[ValidationFinding] = []
@@ -195,7 +209,15 @@ class DeterministicValidator:
                     )
                 )
         source_text = "\n".join(span.text for span in spans)
-        findings.extend(self._preservation_findings(unit, source_text))
+        findings.extend(self._exclusion_findings(unit, approved_source_exclusions))
+        preservation_source = _without_excluded_slices(source_text, approved_source_exclusions)
+        findings.extend(
+            self._preservation_findings(
+                unit,
+                preservation_source,
+                approved_source_exclusions=approved_source_exclusions,
+            )
+        )
         if len(set(unit.canonical_questions)) != len(unit.canonical_questions):
             findings.append(
                 self._blocking(
@@ -216,10 +238,56 @@ class DeterministicValidator:
             )
         return tuple(findings)
 
+    def _exclusion_findings(
+        self,
+        unit: AnswerUnit,
+        approved_source_exclusions: Sequence[str],
+    ) -> Sequence[ValidationFinding]:
+        """Require every authorized source exclusion to be audited and absent from policy."""
+        if not approved_source_exclusions:
+            return ()
+        findings: list[ValidationFinding] = []
+        substantive = _normalized_prose(_substantive_answer(unit.answer))
+        review_notes = _review_notes(unit.answer)
+        for exclusion in approved_source_exclusions:
+            if _normalized_prose(exclusion) in substantive:
+                findings.append(
+                    self._blocking(
+                        unit,
+                        "content.approved_exclusion_retained",
+                        "The reshaped document retains an approved exclusion in substantive "
+                        f"policy: {exclusion[:120]}",
+                    )
+                )
+            expected_note = f"{_INTENTIONAL_EXCLUSION_NOTE}{exclusion}"
+            if not any(line.strip() == f"- {expected_note}" for line in review_notes.splitlines()):
+                findings.append(
+                    self._blocking(
+                        unit,
+                        "content.approved_exclusion_note",
+                        "The reshaped document omits the required intentional-exclusion "
+                        f"review note: {exclusion[:120]}",
+                    )
+                )
+        unsafe_retention = unsafe_source_content_matches(_substantive_answer(unit.answer))
+        if unsafe_retention:
+            _, retained, _ = unsafe_retention[0]
+            findings.append(
+                self._blocking(
+                    unit,
+                    "content.approved_exclusion_retained",
+                    "The reshaped document retains or rewrites unsafe excluded content in "
+                    f"substantive policy: {retained[:120]}",
+                )
+            )
+        return tuple(findings)
+
     def _preservation_findings(
         self,
         unit: AnswerUnit,
         source_text: str,
+        *,
+        approved_source_exclusions: Sequence[str] = (),
     ) -> Sequence[ValidationFinding]:
         """Block candidates that compress or omit material source content."""
         findings: list[ValidationFinding] = []
@@ -230,6 +298,18 @@ class DeterministicValidator:
                     unit,
                     "content.review_notes_structure",
                     review_notes_issue,
+                )
+            )
+        review_notes_policy_issue = _review_notes_policy_issue(
+            unit.answer,
+            approved_source_exclusions=approved_source_exclusions,
+        )
+        if review_notes_policy_issue is not None:
+            findings.append(
+                self._blocking(
+                    unit,
+                    "content.review_notes_policy",
+                    review_notes_policy_issue,
                 )
             )
         answer_text = (
@@ -279,6 +359,24 @@ class DeterministicValidator:
                     "content.material_fact",
                     "The reshaped document introduces source-unsupported values or durations: "
                     f"{', '.join(introduced_facts[:8])}",
+                )
+            )
+        source_identifiers = _identifiers(source_text)
+        answer_identifiers = _identifiers(answer_text)
+        missing_identifiers = sorted(source_identifiers - answer_identifiers)
+        introduced_identifiers = sorted(answer_identifiers - source_identifiers)
+        if missing_identifiers or introduced_identifiers:
+            detail = (
+                f"omits source identifiers: {', '.join(missing_identifiers[:8])}"
+                if missing_identifiers
+                else "introduces source-unsupported identifiers: "
+                f"{', '.join(introduced_identifiers[:8])}"
+            )
+            findings.append(
+                self._blocking(
+                    unit,
+                    "content.identifier",
+                    f"The reshaped document {detail}",
                 )
             )
 
@@ -543,6 +641,17 @@ def _substantive_answer(answer: str) -> str:
     return answer[: review_notes.start()].rstrip()
 
 
+def _review_notes(answer: str) -> str:
+    review_notes = _REVIEW_NOTES_HEADING.search(answer)
+    return "" if review_notes is None else answer[review_notes.end() :]
+
+
+def _without_excluded_slices(source_text: str, exclusions: Sequence[str]) -> str:
+    for exclusion in exclusions:
+        source_text = source_text.replace(exclusion, "")
+    return source_text
+
+
 def _review_notes_structure_issue(answer: str) -> str | None:
     headings = tuple(_REVIEW_NOTES_HEADING.finditer(answer))
     if not headings:
@@ -565,12 +674,47 @@ def _review_notes_structure_issue(answer: str) -> str | None:
     return None
 
 
+def _review_notes_policy_issue(
+    answer: str,
+    *,
+    approved_source_exclusions: Sequence[str],
+) -> str | None:
+    approved_audit_notes = {
+        _normalized_prose(f"- {_INTENTIONAL_EXCLUSION_NOTE}{exclusion}")
+        for exclusion in approved_source_exclusions
+    }
+    for line in _review_notes(answer).splitlines():
+        stripped = line.strip()
+        if not stripped or _normalized_prose(stripped) in approved_audit_notes:
+            continue
+        note = re.sub(r"^[-*]\s+[^:]+:\s*", "", stripped)
+        if (
+            _MATERIAL_FACT.search(note)
+            or _OPERATIVE_CLAUSE.search(note)
+            or _POLICY_DECLARATION.search(note)
+            or any(pattern.search(note) for _, pattern in _RESTRICTIVE_QUALIFIERS)
+        ):
+            return (
+                "Review notes cannot introduce or restate policy values, duties, permissions, "
+                "prohibitions, or restrictive qualifiers"
+            )
+    return None
+
+
 def _material_facts(text: str) -> set[str]:
     without_enumerators = _LEADING_ENUMERATOR.sub("", text)
     return {
         re.sub(r"[\s,]+", "", fact.casefold())
         for fact in _MATERIAL_FACT.findall(without_enumerators)
     }
+
+
+def _identifiers(text: str) -> set[str]:
+    return {re.sub(r"\s+", "", identifier.casefold()) for identifier in _IDENTIFIER.findall(text)}
+
+
+def _normalized_prose(text: str) -> str:
+    return " ".join(text.casefold().split())
 
 
 def _meaningful_words(text: str) -> set[str]:

@@ -682,7 +682,7 @@ authorize edits. Only the approved requirements define what may change, so
 flag-only findings cannot trigger invented metadata, normalized terminology,
 reconstructed embedded content, or silently consolidated rules.
 
-Shaping prompt version `1.8` requires schema-constrained, source-preserving
+Shaping prompt version `1.9` requires schema-constrained, source-preserving
 content with exact source-span citations. It explicitly retains source-backed
 organization and document identity and tells a targeted repair to restore each
 identified source clause with its original subject, control language, qualifiers,
@@ -705,6 +705,13 @@ findings. Missing information and review notes use one canonical final heading.
 The preservation gate validates only the substantive document before that heading,
 so machine values and diagnostic wording cannot become policy facts or controls.
 Values, duties, and qualifiers introduced before the heading remain blocking.
+The sole preservation exception is a source sentence that an exact current
+discovery report identifies as a source-authored AI directive or unsupported
+comparative claim and whose exact exclusion action is in the approved proposal.
+The transformation service derives that sentence-level exception from the
+matching source version, excludes it from the preservation baseline, requires
+its canonical audit note, and still blocks it if retained as substantive policy.
+Model text and review notes never grant exclusion authority.
 
 Low lexical coverage is review evidence rather than an automatic rejection
 because a faithful clearer rewrite need not copy 70 percent of the original

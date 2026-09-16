@@ -119,6 +119,8 @@ class Validator(Protocol):
         self,
         unit: AnswerUnit,
         spans: Sequence[SourceSpan],
+        *,
+        approved_source_exclusions: Sequence[str] = (),
     ) -> Sequence[ValidationFinding]:
         """Return typed findings."""
 

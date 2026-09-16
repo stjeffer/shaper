@@ -38,6 +38,8 @@ DOCUMENT_CHECK_CODES = (
     "inaccessible_embedded_content",
     "repeated_variation",
     "noncanonical_duplicate",
+    "source_authored_ai_directive",
+    "unsupported_comparative_claim",
 )
 
 BASELINE_CHECK_CODES = (
@@ -138,6 +140,14 @@ _AGENT_IMPACTS = {
     "noncanonical_duplicate": (
         "The agent may retrieve an outdated duplicate because no authoritative source "
         "is identified."
+    ),
+    "source_authored_ai_directive": (
+        "An instruction addressed to an AI assistant or summarizer may be followed or "
+        "repeated as though it were policy."
+    ),
+    "unsupported_comparative_claim": (
+        "Without traceable support, an agent may repeat a comparative, benchmarking, or "
+        "research assertion as fact."
     ),
 }
 
@@ -344,6 +354,18 @@ ASSESSMENT_CHECKS = (
         "Formatting and retrieval hygiene",
         "Checks for duplicate content without a clearly identified canonical source.",
     ),
+    _check(
+        "source_authored_ai_directive",
+        "Source-authored AI directive",
+        "Unsafe source instruction",
+        "Checks for source instructions aimed at an AI assistant or summarizer.",
+    ),
+    _check(
+        "unsupported_comparative_claim",
+        "Unsupported comparative claim",
+        "Unsupported assertion",
+        "Checks for comparative, benchmarking, or research claims without traceable support.",
+    ),
 )
 
 _REFERENCE = re.compile(
@@ -411,6 +433,27 @@ _RESTRICTED = re.compile(
 _EMBEDDED = re.compile(
     r"!\[\s*\]\([^)]+\)|\b(?:see|shown in)\s+(?:the\s+)?"
     r"(?:image|diagram|chart|table)\s+(?:below|above)\b",
+    re.IGNORECASE,
+)
+_AI_DIRECTIVE = re.compile(
+    r"\b(?:ai\s+(?:assistants?|agents?|systems?)|language model|chatbot|"
+    r"automated\s+(?:assistant|agent|system))\b"
+    r"[^.!?\n]{0,220}\b(?:must|should|always|never|ignore|follow|summari[sz]e|"
+    r"answer|respond|repeat|instruct)\b"
+    r"|\b(?:must|should|always|never|ignore|follow|summari[sz]e|answer|respond|"
+    r"repeat|instruct)\b[^.!?\n]{0,220}"
+    r"\b(?:ai\s+(?:assistants?|agents?|systems?)|language model|chatbot|"
+    r"automated\s+(?:assistant|agent|system))\b",
+    re.IGNORECASE,
+)
+_UNSUPPORTED_COMPARATIVE = re.compile(
+    r"\b(?:stud(?:y|ies)|research|benchmark(?:ing)?|survey|report)\s+"
+    r"(?:shows?|found|demonstrates?|proves?)\b|"
+    r"\b(?:best[- ]in[- ]class|industry[- ]leading|outperform\w*|proven superior)\b",
+    re.IGNORECASE,
+)
+_TRACEABLE_SUPPORT = re.compile(
+    r"https?://|doi:\s*\S+|\[[^\]]+\]|\b(?:source|according to)\s*:\s*\S+",
     re.IGNORECASE,
 )
 _DEFINED_TERM = re.compile(
@@ -695,6 +738,40 @@ def assess_document_findings(
                 severity="high",
             )
         )
+    unsafe_matches = unsafe_source_content_matches(text)
+    source_authored_directives = tuple(
+        (sentence, offset)
+        for code, sentence, offset in unsafe_matches
+        if code == "source_authored_ai_directive"
+    )
+    if source_authored_directives:
+        findings.append(
+            _from_evidence(
+                "source_authored_ai_directive",
+                "Source-authored AI directive",
+                "The supplied source contains an instruction aimed at an AI assistant or "
+                "summarizer. It is not treated as policy evidence because an agent may "
+                "follow or repeat it as policy.",
+                _sentence_evidence(text, source_authored_directives),
+                severity="high",
+            )
+        )
+    unsupported_comparatives = tuple(
+        (sentence, offset)
+        for code, sentence, offset in unsafe_matches
+        if code == "unsupported_comparative_claim"
+    )
+    if unsupported_comparatives:
+        findings.append(
+            _from_evidence(
+                "unsupported_comparative_claim",
+                "Unsupported comparative claim",
+                "The supplied evidence cannot verify this comparative, benchmarking, or "
+                "research assertion, and an agent may repeat it as fact.",
+                _sentence_evidence(text, unsupported_comparatives),
+                severity="high",
+            )
+        )
     return tuple(findings)
 
 
@@ -871,6 +948,81 @@ def _evidence(text: str, match: re.Match[str]) -> DocumentFindingEvidence:
     )
 
 
+def _sentences_matching(
+    text: str,
+    pattern: re.Pattern[str],
+) -> tuple[tuple[str, int], ...]:
+    matches: list[tuple[str, int]] = []
+    for sentence, offset in _sentence_matches(text):
+        if not pattern.search(sentence):
+            continue
+        fragments = tuple(
+            fragment
+            for fragment in re.finditer(
+                r"(?:^|(?<=[,;])\s+(?:and|but|while|whereas)\s+|"
+                r"\s+(?:but|while|whereas)\s+|(?<=[\u2013\u2014])\s*)"
+                r"(?P<text>.*?)(?=(?:[,;]\s+(?:and|but|while|whereas)\s+|"
+                r"\s+(?:but|while|whereas)\s+|[\u2013\u2014]\s*)|$)",
+                sentence,
+                re.IGNORECASE,
+            )
+            if fragment.group("text").strip()
+        )
+        matching_fragments = tuple(
+            (
+                fragment.group("text").strip(),
+                offset
+                + fragment.start("text")
+                + len(fragment.group("text"))
+                - len(fragment.group("text").lstrip()),
+            )
+            for fragment in fragments
+            if pattern.search(fragment.group("text"))
+        )
+        matches.extend(matching_fragments or ((sentence, offset),))
+    return tuple(matches)
+
+
+def _sentence_evidence(
+    text: str,
+    sentences: Sequence[tuple[str, int]],
+) -> tuple[DocumentFindingEvidence, ...]:
+    return tuple(
+        DocumentFindingEvidence(
+            quote=sentence,
+            location=_location(text.count("\n", 0, offset) + 1, None),
+        )
+        for sentence, offset in sentences[:4]
+    )
+
+
+def _has_traceable_support(text: str, sentence: str, offset: int) -> bool:
+    if _TRACEABLE_SUPPORT.search(sentence):
+        return True
+    following = text[offset + len(sentence) :].lstrip()
+    return bool(
+        re.match(
+            r"(?:source|reference)\s*:\s*(?:https?://|doi:\s*\S+|\[[^\]]+\])",
+            following,
+            re.I,
+        )
+    )
+
+
+def unsafe_source_content_matches(text: str) -> tuple[tuple[str, str, int], ...]:
+    """Classify source-like unsafe content for discovery and candidate validation."""
+    directives = (
+        ("source_authored_ai_directive", sentence, offset)
+        for sentence, offset in _sentences_matching(text, _AI_DIRECTIVE)
+    )
+    unsupported_comparatives = (
+        ("unsupported_comparative_claim", sentence, offset)
+        for sentence, offset in _sentences_matching(text, _UNSUPPORTED_COMPARATIVE)
+        if not _has_traceable_support(text, sentence, offset)
+    )
+    return tuple((*directives, *unsupported_comparatives))
+
+
 def _blocks(text: str) -> tuple[_TextBlock, ...]:
     blocks: list[_TextBlock] = []
     heading: str | None = None
@@ -1013,11 +1165,15 @@ def _heading_levels(text: str) -> tuple[int, ...]:
 
 
 def _sentence_matches(text: str) -> tuple[tuple[str, int], ...]:
-    return tuple(
-        (match.group(0).strip(), match.start())
-        for match in re.finditer(r"[^.!?\n]+[.!?]?", text)
-        if match.group(0).strip()
-    )
+    matches = []
+    for match in re.finditer(r"[^.!?\n]+[.!?]?", text):
+        raw_sentence = match.group(0)
+        sentence = raw_sentence.strip()
+        if sentence:
+            matches.append(
+                (sentence, match.start() + len(raw_sentence) - len(raw_sentence.lstrip()))
+            )
+    return tuple(matches)
 
 
 def _comparison_key(sentence: str) -> set[str]:

@@ -23,6 +23,7 @@ from shaper.application.shaping import (
     ShapingLoop,
 )
 from shaper.application.token_estimation import ESTIMATOR_VERSION
+from shaper.application.transformation_actions import derive_approved_source_exclusions
 from shaper.domain import (
     AnswerUnit,
     ArtifactStatus,
@@ -548,6 +549,12 @@ class EstateTransformationService:
             text=text,
             text_hash=hashlib.sha256(text.encode()).hexdigest(),
         )
+        approved_source_exclusions = derive_approved_source_exclusions(
+            report,
+            source_version=source.source_version,
+            source_text=text,
+            approved_actions=proposal.proposed_changes,
+        )
         self._report_progress(
             progress,
             {
@@ -620,6 +627,7 @@ class EstateTransformationService:
                 principal=principal,
                 transformation_requirements=proposal.proposed_changes,
                 assessment_findings=report.findings,
+                approved_source_exclusions=approved_source_exclusions,
                 cancelled=cancelled,
             )
         except ShapingBudgetExceeded as error:
@@ -653,7 +661,15 @@ class EstateTransformationService:
                 "detail": "Complete reshaped content was generated.",
             },
         )
-        findings = self._validator.validate(outcome.unit, (span,))
+        findings = (
+            self._validator.validate(
+                outcome.unit,
+                (span,),
+                approved_source_exclusions=approved_source_exclusions,
+            )
+            if approved_source_exclusions
+            else self._validator.validate(outcome.unit, (span,))
+        )
         blocking = sum(1 for finding in findings if finding.severity.value == "blocking")
         warnings = sum(1 for finding in findings if finding.severity.value == "warning")
         self._report_progress(

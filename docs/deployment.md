@@ -167,6 +167,11 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
+Changes to shaping instructions or deterministic transformation actions require
+a fresh discovery, recommendation, and human approval for affected documents.
+An existing approved proposal cannot authorize a newly introduced source
+exclusion after deployment.
+
 ### Deploy a code-only revision
 
 Container Apps deploys immutable images rather than individual changed files.
@@ -246,7 +251,7 @@ relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
 The transformation estimator is version `1.6`, and the shaping prompt is version
-`1.8`. The estimate includes the structured assessment-finding payload,
+`1.9`. The estimate includes the structured assessment-finding payload,
 structured-output overhead, and a bounded hidden-reasoning reserve. It reserves
 an initial candidate plus one targeted repair and stores a cryptographic hash of
 the exact shaping prompt. Proposals created with an earlier estimator or shaping
@@ -307,9 +312,9 @@ After the revision becomes ready:
     distinct, source-grounded questions balanced across documents. Confirm a
     sparse source returns fewer questions without filler.
 15. If the estate contains a proposal created before estimator version `1.6` or
-    shaping prompt version `1.8`, confirm transformation stops before model use
+    shaping prompt version `1.9`, confirm transformation stops before model use
     and instructs the reviewer to create and approve a current improvement plan.
-16. Create and approve a plan using estimator `1.6` and prompt `1.8`, then
+16. Create and approve a plan using estimator `1.6` and prompt `1.9`, then
     confirm progress reports **model attempt 1 of 2**. If preservation fails,
     confirm the exact validation rule and source clause are reported and only one
     targeted repair can run.

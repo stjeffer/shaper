@@ -168,6 +168,7 @@ class ShapingLoop:
         principal: Principal,
         transformation_requirements: Sequence[str] = (),
         assessment_findings: Sequence[DocumentFinding] = (),
+        approved_source_exclusions: Sequence[str] = (),
         cancelled: Callable[[], bool] = lambda: False,
     ) -> ShapingOutcome:
         """Run until one valid candidate, an abstention, cancellation, or hard limit."""
@@ -200,6 +201,7 @@ class ShapingLoop:
                     "assessment_findings": [
                         finding.model_dump(mode="json") for finding in assessment_findings
                     ],
+                    "approved_source_exclusions": list(approved_source_exclusions),
                     "validation_feedback": feedback,
                     "validation_findings": validation_findings,
                     "rejected_candidate": rejected_candidate,
@@ -312,9 +314,15 @@ class ShapingLoop:
                     parameters_hash=canonical_hash({"temperature": 0}),
                 ),
             )
-            findings = self._validator.validate(
-                unit,
-                tuple(sorted(evidence_spans.values(), key=lambda span: span.ordinal)),
+            validation_spans = tuple(sorted(evidence_spans.values(), key=lambda span: span.ordinal))
+            findings = (
+                self._validator.validate(
+                    unit,
+                    validation_spans,
+                    approved_source_exclusions=approved_source_exclusions,
+                )
+                if approved_source_exclusions
+                else self._validator.validate(unit, validation_spans)
             )
             blocking = [
                 finding for finding in findings if finding.severity is FindingSeverity.BLOCKING

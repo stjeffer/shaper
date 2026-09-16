@@ -23,7 +23,7 @@ estate governance, but it does not affect Findings or transformation actions.
 | URL and SharePoint registration | Implemented | Registration only until a connector synchronizes content |
 | File and ZIP upload | Implemented | Bounded uploads with scanning and inventory controls |
 | Individual document removal | Implemented | Excludes a document from future workflows while retaining source provenance |
-| Document assessment | Implemented | 29 deterministic, read-only checks per document |
+| Document assessment | Implemented | 31 deterministic, read-only checks per document |
 | Evidence-grounded Findings | Implemented | Content-quality findings with agent impact and quoted evidence |
 | Full-document review | Implemented | Exact original-file download plus an authorized, version-pinned extracted-text viewer |
 | Transformation recommendations | Implemented | Generated only for selected documents |
@@ -62,7 +62,7 @@ using optimistic concurrency. Archived estates remain read-only. **Delete**
 opens the same name-confirmed, archive-then-purge safeguard used inside the
 estate workspace.
 
-The **Assessment checks** screen groups all 29 deterministic checks into
+The **Assessment checks** screen groups all 31 deterministic checks into
 keyboard-operable category tabs so reviewers can inspect one focused group at a
 time. Each entry explains what the check looks for and its likely impact on
 retrieval or agent answers. The browser loads this catalogue from the
@@ -185,7 +185,7 @@ technology.
 | No question coverage | No FAQ or question-shaped content is detected | Reduces direct answer coverage |
 | Implicit procedure | Procedural language lacks explicit numbered steps | Makes actions harder to extract and follow |
 
-Seven baseline checks produce these established Findings. Twenty-two additional
+Seven baseline checks produce these established Findings. Twenty-four additional
 checks cover the document-quality risks below.
 
 | Risk group | Checks |
@@ -196,6 +196,7 @@ checks cover the document-quality risks below.
 | Incompleteness | Missing definitions, missing enumeration, dangling program |
 | Provenance and authority | Unclear source of truth, undocumented verbal policy, restricted companion |
 | Formatting and retrieval | Inconsistent heading hierarchy, inaccessible embedded content, repeated variation, noncanonical duplicate |
+| Unsafe source instruction | Source-authored AI directive, unsupported comparative claim |
 
 These checks identify review candidates. They do not prove legal meaning,
 authority, or semantic contradiction. A content owner must inspect the quoted
@@ -232,7 +233,7 @@ The recommendation stage:
 
 * Uses the selected document IDs and the active discovery run
 * Produces version-pinned proposals
-* Leads with a per-document summary of all 29 deterministic checks, including
+* Leads with a per-document summary of all 31 deterministic checks, including
   which checks need attention and which passed
 * Shows failed-check explanations and likely agent impact before the proposed
   changes
@@ -309,7 +310,11 @@ source with a summary. The approved recommendations are included in the shaping
 request together with the exact proposal-pinned assessment findings. Findings
 explain the detected condition, likely agent impact, and supporting source
 evidence. They are diagnostic context, not permission to edit. Only the approved
-recommendations authorize transformations.
+recommendations authorize transformations. For the two unsafe-source findings,
+an approved recommendation can authorize omission only of the exact
+sentence-level finding evidence from the exact report and current source version.
+The candidate must add the canonical intentional-exclusion review note, and may
+not retain that text as substantive policy. Any other omission remains blocking.
 
 Actions that require unavailable authority remain flag-only. Shaper preserves
 the source instead of inventing missing metadata or definitions, deciding that

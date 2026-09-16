@@ -251,7 +251,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         discovery_run_id = discovery_response.json()["run"]["value"]["run_id"]
         report = discovery_response.json()["reports"][0]
         assert report["readiness_score"] >= 0
-        assert len(report["checks_completed"]) == 29
+        assert len(report["checks_completed"]) == 31
         assert all(finding["evidence"] for finding in report["findings"])
         assert all(finding["agent_impact"] for finding in report["findings"])
 
@@ -512,7 +512,7 @@ def test_given_authenticated_user_when_checks_requested_then_full_catalog_is_ret
         assert response.status_code == 200
         payload = response.json()
         assert payload["method"] == "deterministic"
-        assert payload["total"] == 29
+        assert payload["total"] == 31
         assert {item["code"] for item in payload["items"]} == set(
             DOCUMENT_CHECK_CODES + BASELINE_CHECK_CODES
         )
