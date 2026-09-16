@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import cache
 from importlib import resources
 
-PROMPT_VERSION = "2.1"
+PROMPT_VERSION = "2.2"
 
 
 class PromptResourceError(RuntimeError):

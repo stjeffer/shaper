@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -19,11 +20,13 @@ from shaper.domain import (
     AnswerUnit,
     Claim,
     CollectionRole,
+    FindingSeverity,
     Principal,
     ReviewDecision,
     SourceDocument,
     SourceSpan,
     UnitState,
+    ValidationFinding,
 )
 from shaper.domain.models import Derivation, ReviewOutcome
 
@@ -84,13 +87,13 @@ def decision(unit: AnswerUnit, expected_revision: int) -> ReviewDecision:
     )
 
 
-def preservation_rule_ids(
+def preservation_findings(
     document: SourceDocument,
     source_text: str,
     candidate_text: str,
     *,
     approved_source_exclusions: tuple[str, ...] = (),
-) -> set[str]:
+) -> tuple[ValidationFinding, ...]:
     """Validate a candidate against a single source span."""
     span = SourceSpan(
         span_id="span-1",
@@ -114,11 +117,27 @@ def preservation_rule_ids(
             parameters_hash=ZERO_HASH,
         ),
     )
+    return tuple(
+        DeterministicValidator().validate(
+            unit, [span], approved_source_exclusions=approved_source_exclusions
+        )
+    )
+
+
+def preservation_rule_ids(
+    document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+    *,
+    approved_source_exclusions: tuple[str, ...] = (),
+) -> set[str]:
+    """Return the identifiers for preservation findings."""
     return {
         finding.rule_id
-        for finding in DeterministicValidator().validate(
-            unit,
-            [span],
+        for finding in preservation_findings(
+            document,
+            source_text,
+            candidate_text,
             approved_source_exclusions=approved_source_exclusions,
         )
     }
@@ -1647,7 +1666,7 @@ def test_given_policy_body_introduces_zero_and_controls_when_validated_then_bloc
     }.issubset(rule_ids)
 
 
-def test_given_unlabelled_policy_after_review_heading_when_validated_then_blocks(
+def test_given_unlabelled_policy_after_review_heading_when_validated_then_is_diagnostic_only(
     source_document: SourceDocument,
 ) -> None:
     source_text = "Employees submit benefit elections."
@@ -1659,15 +1678,15 @@ def test_given_unlabelled_policy_after_review_heading_when_validated_then_blocks
 
     rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
 
-    assert {
-        "content.review_notes_structure",
+    assert "content.review_notes_structure" in rule_ids
+    assert not {
         "content.material_fact",
         "content.operative_clause",
         "content.qualifier_clause",
-    }.issubset(rule_ids)
+    }.intersection(rule_ids)
 
 
-def test_given_indented_policy_after_review_note_when_validated_then_blocks(
+def test_given_indented_policy_after_review_note_when_validated_then_is_diagnostic_only(
     source_document: SourceDocument,
 ) -> None:
     source_text = "Employees submit benefit elections."
@@ -1680,12 +1699,142 @@ def test_given_indented_policy_after_review_note_when_validated_then_blocks(
 
     rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
 
-    assert {
-        "content.review_notes_structure",
+    assert "content.review_notes_structure" in rule_ids
+    assert not {
         "content.material_fact",
         "content.operative_clause",
         "content.qualifier_clause",
-    }.issubset(rule_ids)
+    }.intersection(rule_ids)
+
+
+def test_given_malformed_review_notes_with_later_heading_when_validated_then_it_isolated(
+    source_document: SourceDocument,
+) -> None:
+    findings = preservation_findings(
+        source_document,
+        "Employees submit benefit elections.",
+        (
+            "Employees submit benefit elections.\n"
+            "## Missing information and review notes\n"
+            "- Missing: Enrollment process detail is unavailable.\n"
+            "## Follow-up\n"
+            "Employees must submit changes during a 0-day waiting period."
+        ),
+    )
+
+    by_rule = {finding.rule_id: finding for finding in findings}
+    assert by_rule["content.review_notes_structure"].severity is FindingSeverity.WARNING
+    assert by_rule["content.review_notes_policy"].severity is FindingSeverity.WARNING
+    assert not {
+        "content.material_fact",
+        "content.operative_clause",
+        "content.qualifier_clause",
+    }.intersection(by_rule)
+
+
+def test_given_invented_policy_in_substantive_answer_when_validated_then_it_blocks(
+    source_document: SourceDocument,
+) -> None:
+    findings = preservation_findings(
+        source_document,
+        "Employees submit benefit elections.",
+        "Employees submit benefit elections. Managers must approve every election.",
+    )
+
+    assert any(
+        finding.rule_id == "content.operative_clause"
+        and finding.severity is FindingSeverity.BLOCKING
+        for finding in findings
+    )
+
+
+def test_given_rhetorical_once_when_validated_then_qualifier_check_does_not_block(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "We're confident that once you explore everything below, you'll agree "
+        "Solstice sets the standard."
+    )
+    rule_ids = preservation_rule_ids(source_document, source_text, source_text)
+
+    assert "content.qualifier_clause" not in rule_ids
+
+
+@pytest.mark.parametrize(
+    ("source_text", "candidate_text", "expected_qualifier_finding"),
+    (
+        (
+            "Remote work is available only after probation.",
+            "Remote work is available only after probation.",
+            False,
+        ),
+        (
+            "Remote work is available only after probation.",
+            "Remote work is available after probation.",
+            True,
+        ),
+        (
+            "We're confident that once you explore everything below, you'll agree "
+            "Solstice sets the standard.",
+            "We're confident that you will agree Solstice sets the standard.",
+            False,
+        ),
+    ),
+)
+def test_given_declarative_policy_or_rhetorical_qualifier_when_validated_then_it_is_classified(
+    source_document: SourceDocument,
+    source_text: str,
+    candidate_text: str,
+    expected_qualifier_finding: bool,
+) -> None:
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert ("content.qualifier_clause" in rule_ids) is expected_qualifier_finding
+
+
+@pytest.mark.parametrize(
+    "candidate_text",
+    (
+        "Claims are paid after an inspection.",
+        "Claims are paid only before an inspection.",
+    ),
+)
+def test_given_passive_claims_policy_qualifier_changed_when_validated_then_it_blocks(
+    source_document: SourceDocument, candidate_text: str
+) -> None:
+    source_text = "Claims are paid only after an inspection."
+
+    assert "content.qualifier_clause" in preservation_rule_ids(
+        source_document, source_text, candidate_text
+    )
+
+
+def test_given_unchanged_passive_claims_policy_when_validated_then_it_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Claims are paid only after an inspection."
+
+    assert "content.qualifier_clause" not in preservation_rule_ids(
+        source_document, source_text, source_text
+    )
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    (
+        "New employees become eligible after completing probation.",
+        "Employees may access records only with manager approval.",
+        "Employees should retain receipts during claims review.",
+    ),
+)
+def test_given_policy_bearing_qualifier_removed_when_validated_then_it_blocks(
+    source_document: SourceDocument, source_text: str
+) -> None:
+    candidate_text = re.sub(r"\s+(?:after|only with|during)\b.*", ".", source_text)
+
+    assert "content.qualifier_clause" in preservation_rule_ids(
+        source_document, source_text, candidate_text
+    )
 
 
 def test_given_valid_candidate_when_reviewed_then_only_human_approval_is_publishable(

@@ -312,7 +312,7 @@ explain the detected condition, likely agent impact, and supporting source
 evidence. They are diagnostic context, not permission to edit. Only the approved
 recommendations authorize transformations. For the two unsafe-source findings,
 an approved recommendation can authorize omission only of the exact
-sentence-level finding evidence from the exact report and current source version.
+fragment-level finding evidence from the exact report and current source version.
 The candidate must add the canonical intentional-exclusion review note, and may
 not retain that text as substantive policy. Any other omission remains blocking.
 
@@ -327,9 +327,12 @@ When unresolved gaps must remain visible, the generated document appends one
 final **Missing information and review notes** section. Source identifiers,
 evidence scores, confidence scores, validation scores, and machine status
 annotations do not appear in the human-facing answer. Preservation checks treat
-that final section as review context rather than policy, while continuing to
-block invented values, duties, permissions, and temporal restrictions in the
-substantive document.
+that final section as review context rather than policy even when its formatting
+is imperfect. Review-note structure and policy wording remain visible as
+diagnostic warnings without cascading into unrelated policy findings. Shaper
+continues to block invented values, identifiers, duties, permissions,
+prohibitions, and policy-bearing temporal restrictions in the substantive
+document.
 
 The shaping contract requires preservation of rules, duties, advisory language,
 permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
@@ -341,7 +344,10 @@ identity words, values, controls, and qualifiers instead of relying on original
 clause position. This permits faithful Q&A, list, and procedure restructuring
 while continuing to block values, modal strength, polarity, or qualifiers moved
 between subjects. Low source-word coverage remains visible as review evidence but
-does not reject a faithful clearer rewrite by itself. The first rejected
+does not reject a faithful clearer rewrite by itself. Generic lexical
+material-clause similarity is also advisory; exact semantic controls remain
+blocking. Qualifier preservation requires policy context, so rhetorical uses of
+words such as "once" or "within" do not block transformation. The first rejected
 candidate, exact rule details, source-clause excerpt, and remedies are supplied
 for one targeted repair with the same assessment evidence and approval boundary.
 Repeated findings stop immediately. If preservation still fails, the run shows

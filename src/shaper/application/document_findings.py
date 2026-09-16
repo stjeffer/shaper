@@ -436,20 +436,30 @@ _EMBEDDED = re.compile(
     re.IGNORECASE,
 )
 _AI_DIRECTIVE = re.compile(
-    r"\b(?:ai\s+(?:assistants?|agents?|systems?)|language model|chatbot|"
-    r"automated\s+(?:assistant|agent|system))\b"
+    r"(?:"
+    r"\b(?:(?:ai\s*/\s*)?summarizer|ai\s+(?:assistants?|agents?|systems?)|"
+    r"language model|chatbot|automated\s+(?:assistant|agent|system))\b"
     r"[^.!?\n]{0,220}\b(?:must|should|always|never|ignore|follow|summari[sz]e|"
-    r"answer|respond|repeat|instruct)\b"
+    r"answer|respond|repeat|instruct|frame)\b"
     r"|\b(?:must|should|always|never|ignore|follow|summari[sz]e|answer|respond|"
-    r"repeat|instruct)\b[^.!?\n]{0,220}"
-    r"\b(?:ai\s+(?:assistants?|agents?|systems?)|language model|chatbot|"
-    r"automated\s+(?:assistant|agent|system))\b",
+    r"repeat|instruct|frame)\b[^.!?\n]{0,220}"
+    r"\b(?:(?:ai\s*/\s*)?summarizer|ai\s+(?:assistants?|agents?|systems?)|"
+    r"language model|chatbot|automated\s+(?:assistant|agent|system))\b"
+    r")",
+    re.IGNORECASE,
+)
+_DIRECTIVE_CONTINUATION = re.compile(
+    r"^\s*(?:and|but|or)\s+"
+    r"(?:must|should|always|never|ignore|follow|summari[sz]e|answer|respond|"
+    r"repeat|instruct|frame)\b",
     re.IGNORECASE,
 )
 _UNSUPPORTED_COMPARATIVE = re.compile(
     r"\b(?:stud(?:y|ies)|research|benchmark(?:ing)?|survey|report)\s+"
     r"(?:shows?|found|demonstrates?|proves?)\b|"
-    r"\b(?:best[- ]in[- ]class|industry[- ]leading|outperform\w*|proven superior)\b",
+    r"\b(?:best[- ]in[- ]class|industry[- ]leading|outperform\w*|proven superior|"
+    r"sets?\s+the\s+standard|one\s+of\s+the\s+best\s+in\s+(?:our\s+)?peer\s+group|"
+    r"ranked\s+among\s+the\s+most\s+generous)\b",
     re.IGNORECASE,
 )
 _TRACEABLE_SUPPORT = re.compile(
@@ -983,6 +993,32 @@ def _sentences_matching(
     return tuple(matches)
 
 
+def _directive_matches(text: str) -> tuple[tuple[str, int], ...]:
+    """Return directive clauses without absorbing independent semicolon clauses."""
+    matches: list[tuple[str, int]] = []
+    for sentence, offset in _sentence_matches(text):
+        segments = tuple(re.finditer(r"[^;]+", sentence))
+        index = 0
+        while index < len(segments):
+            segment = segments[index]
+            directive = segment.group().strip()
+            if not _AI_DIRECTIVE.search(directive):
+                index += 1
+                continue
+            end = index + 1
+            while end < len(segments) and _DIRECTIVE_CONTINUATION.search(segments[end].group()):
+                end += 1
+            quote = ";".join(part.group() for part in segments[index:end]).strip()
+            matches.append(
+                (
+                    quote,
+                    offset + segment.start() + len(segment.group()) - len(segment.group().lstrip()),
+                )
+            )
+            index = end
+    return tuple(matches)
+
+
 def _sentence_evidence(
     text: str,
     sentences: Sequence[tuple[str, int]],
@@ -1013,7 +1049,7 @@ def unsafe_source_content_matches(text: str) -> tuple[tuple[str, str, int], ...]
     """Classify source-like unsafe content for discovery and candidate validation."""
     directives = (
         ("source_authored_ai_directive", sentence, offset)
-        for sentence, offset in _sentences_matching(text, _AI_DIRECTIVE)
+        for sentence, offset in _directive_matches(text)
     )
     unsupported_comparatives = (
         ("unsupported_comparative_claim", sentence, offset)

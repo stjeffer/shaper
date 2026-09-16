@@ -682,7 +682,7 @@ authorize edits. Only the approved requirements define what may change, so
 flag-only findings cannot trigger invented metadata, normalized terminology,
 reconstructed embedded content, or silently consolidated rules.
 
-Shaping prompt version `1.9` requires schema-constrained, source-preserving
+Shaping prompt version `2.2` requires schema-constrained, source-preserving
 content with exact source-span citations. It explicitly retains source-backed
 organization and document identity and tells a targeted repair to restore each
 identified source clause with its original subject, control language, qualifiers,
@@ -703,19 +703,24 @@ can pass without allowing one subject to inherit another subject's rule.
 Interrogative headings and colon-ended scaffolds do not create policy-control
 findings. Missing information and review notes use one canonical final heading.
 The preservation gate validates only the substantive document before that heading,
-so machine values and diagnostic wording cannot become policy facts or controls.
-Values, duties, and qualifiers introduced before the heading remain blocking.
-The sole preservation exception is a source sentence that an exact current
+even when the review-note structure is malformed, so one representation defect
+cannot manufacture value, duty, or qualifier failures from diagnostic text.
+Review-note structure, review-note policy wording, and generic lexical clause
+coverage remain visible as warnings. Exact values, identifiers, duties,
+permissions, prohibitions, and policy-bearing qualifiers introduced or changed
+before the heading remain blocking. Qualifier checks require policy context, so
+rhetorical phrases such as "once you explore" do not become temporal restrictions.
+The sole preservation exception is an exact source fragment that an exact current
 discovery report identifies as a source-authored AI directive or unsupported
 comparative claim and whose exact exclusion action is in the approved proposal.
-The transformation service derives that sentence-level exception from the
+The transformation service derives that fragment-level exception from the
 matching source version, excludes it from the preservation baseline, requires
 its canonical audit note, and still blocks it if retained as substantive policy.
 Model text and review notes never grant exclusion authority.
 
-Low lexical coverage is review evidence rather than an automatic rejection
-because a faithful clearer rewrite need not copy 70 percent of the original
-vocabulary. A blocking finding returns the rejected candidate, structured rule
+Low lexical coverage and generic material-clause similarity are review evidence
+rather than automatic rejection because a faithful clearer rewrite need not copy
+the original vocabulary. A blocking semantic finding returns the rejected candidate, structured rule
 details, and a bounded source-clause excerpt for one targeted repair. The repair
 receives the same assessment evidence and approved requirements. Repeated
 findings stop immediately. If the repair fails, transformation reports the exact

@@ -312,12 +312,14 @@ After the revision becomes ready:
     distinct, source-grounded questions balanced across documents. Confirm a
     sparse source returns fewer questions without filler.
 15. If the estate contains a proposal created before estimator version `1.6` or
-    shaping prompt version `1.9`, confirm transformation stops before model use
+    shaping prompt version `2.2`, confirm transformation stops before model use
     and instructs the reviewer to create and approve a current improvement plan.
-16. Create and approve a plan using estimator `1.6` and prompt `1.9`, then
+16. Create and approve a plan using estimator `1.6` and prompt `2.2`, then
     confirm progress reports **model attempt 1 of 2**. If preservation fails,
-    confirm the exact validation rule and source clause are reported and only one
-    targeted repair can run.
+    confirm only blocking semantic validation rules are supplied for one targeted
+    repair. Confirm review-note structure, review-note policy wording, and generic
+    lexical material-clause diagnostics remain warnings and do not terminate the
+    transformation.
 17. Confirm assessment findings remain visible as evidence while flag-only
    actions preserve terminology, repeated variations, and unavailable embedded
    content rather than inventing a resolution.

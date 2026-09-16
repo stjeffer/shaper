@@ -30,6 +30,31 @@ _POLICY_DECLARATION = re.compile(
     r"notify|request|review|pay|reimburse|apply|use|work)\b",
     re.IGNORECASE,
 )
+_POLICY_STATUS = re.compile(
+    r"\b(?:employees?|managers?|supervisors?|contractors?|hr|human resources|"
+    r"(?:the\s+)?(?:company|organization|employer|department|team))\b"
+    r"(?:\s+[\w'-]+){0,3}\s+"
+    r"(?:are|become|remain)\s+(?:eligible|ineligible|available|unavailable)\b",
+    re.IGNORECASE,
+)
+_POLICY_APPLICABILITY = re.compile(
+    r"\b(?:benefit|policy|coverage|plan|program)\b(?:\s+[\w'-]+){0,3}\s+appl(?:y|ies)\b",
+    re.IGNORECASE,
+)
+_POLICY_PASSIVE_OUTCOME = re.compile(
+    r"\b(?:claims?|benefits?|expenses?|payments?|reimbursements?|requests?|applications?)\b"
+    r"(?:\s+[\w'-]+){0,3}\s+"
+    r"(?:are|is|were|was)\s+"
+    r"(?:paid|approved|processed|provided|reimbursed|granted|denied)\b",
+    re.IGNORECASE,
+)
+_RHETORICAL_OR_PROMOTIONAL_CLAUSE = re.compile(
+    r"\b(?:we(?:'re| are)\s+confident|you(?:'ll| will)\s+agree|"
+    r"explore\s+everything\s+(?:below|above)|sets?\s+the\s+standard|"
+    r"best[- ]in[- ]class|industry[- ]leading|one\s+of\s+the\s+best|"
+    r"ranked\s+among\s+the\s+most)\b",
+    re.IGNORECASE,
+)
 _IDENTIFIER = re.compile(r"\b\d{3,5}\s*\(\s*[a-z]\s*\)", re.IGNORECASE)
 _OPERATIVE_CLAUSE = re.compile(
     r"\b(?:must(?:\s+not)?|shall(?:\s+not)?|should(?:\s+not)?|required|prohibited|"
@@ -294,10 +319,12 @@ class DeterministicValidator:
         review_notes_issue = _review_notes_structure_issue(unit.answer)
         if review_notes_issue is not None:
             findings.append(
-                self._blocking(
-                    unit,
-                    "content.review_notes_structure",
-                    review_notes_issue,
+                ValidationFinding(
+                    rule_id="content.review_notes_structure",
+                    severity=FindingSeverity.WARNING,
+                    subject_id=unit.unit_id,
+                    message=review_notes_issue,
+                    remedy="Use one final review-notes section with labelled bullet items",
                 )
             )
         review_notes_policy_issue = _review_notes_policy_issue(
@@ -306,15 +333,17 @@ class DeterministicValidator:
         )
         if review_notes_policy_issue is not None:
             findings.append(
-                self._blocking(
-                    unit,
-                    "content.review_notes_policy",
-                    review_notes_policy_issue,
+                ValidationFinding(
+                    rule_id="content.review_notes_policy",
+                    severity=FindingSeverity.WARNING,
+                    subject_id=unit.unit_id,
+                    message=review_notes_policy_issue,
+                    remedy=(
+                        "Keep review notes non-policy and preserve policy in the substantive answer"
+                    ),
                 )
             )
-        answer_text = (
-            _substantive_answer(unit.answer) if review_notes_issue is None else unit.answer
-        )
+        answer_text = _substantive_answer(unit.answer)
         source_words = [word.casefold() for word in _WORD.findall(source_text)]
         answer_words = [word.casefold() for word in _WORD.findall(answer_text)]
         if len(source_words) >= 40:
@@ -479,11 +508,15 @@ class DeterministicValidator:
                 omitted_material_clauses.append(clause[:120])
         if omitted_material_clauses:
             findings.append(
-                self._blocking(
-                    unit,
-                    "content.material_clause",
-                    "The reshaped document omits or materially rewrites a substantive "
-                    f"source clause: {omitted_material_clauses[0]}",
+                ValidationFinding(
+                    rule_id="content.material_clause",
+                    severity=FindingSeverity.WARNING,
+                    subject_id=unit.unit_id,
+                    message=(
+                        "The reshaped document omits or materially rewrites a substantive "
+                        f"source clause: {omitted_material_clauses[0]}"
+                    ),
+                    remedy="Review semantic completeness against the source evidence",
                 )
             )
         for rule_id, pattern, label in _PRESERVATION_CATEGORIES:
@@ -491,7 +524,8 @@ class DeterministicValidator:
                 (
                     source_clause
                     for source_index, source_clause in enumerate(source_clauses)
-                    if pattern.search(source_clause)
+                    if _has_policy_bearing_anchor(source_clause)
+                    and pattern.search(source_clause)
                     and not _preserves_pattern(
                         source_clause,
                         answer_clauses,
@@ -576,7 +610,8 @@ class DeterministicValidator:
                 (
                     source_clause
                     for source_index, source_clause in enumerate(source_clauses)
-                    if pattern.search(source_clause)
+                    if _has_policy_bearing_anchor(source_clause)
+                    and pattern.search(source_clause)
                     and not _preserves_pattern(
                         source_clause,
                         answer_clauses,
@@ -590,6 +625,7 @@ class DeterministicValidator:
                 pattern,
                 source_clauses,
                 answer_clauses,
+                policy_anchor_required=True,
             ):
                 excerpt = (
                     f" Source clause to preserve: {changed_qualifier_clause[:120]}"
@@ -814,12 +850,15 @@ def _pattern_association_changed(
     pattern: re.Pattern[str],
     source_clauses: Sequence[str],
     answer_clauses: Sequence[str],
+    *,
+    policy_anchor_required: bool = False,
 ) -> bool:
+    policy_filter = _has_policy_bearing_anchor if policy_anchor_required else _is_policy_clause
     source_policy_clauses = tuple(
-        source_clause for source_clause in source_clauses if _is_policy_clause(source_clause)
+        source_clause for source_clause in source_clauses if policy_filter(source_clause)
     )
     answer_policy_clauses = tuple(
-        answer_clause for answer_clause in answer_clauses if _is_policy_clause(answer_clause)
+        answer_clause for answer_clause in answer_clauses if policy_filter(answer_clause)
     )
     if any(
         pattern.search(source_clause)
@@ -830,7 +869,7 @@ def _pattern_association_changed(
             pattern,
         )
         for source_index, source_clause in enumerate(source_clauses)
-        if _is_policy_clause(source_clause)
+        if policy_filter(source_clause)
     ):
         return True
     return any(
@@ -852,6 +891,13 @@ def _pattern_association_changed(
 
 def _is_policy_clause(clause: str) -> bool:
     return not clause.rstrip().endswith(("?", ":"))
+
+
+def _has_policy_bearing_anchor(clause: str) -> bool:
+    """Exclude rhetorical and promotional prose from qualifier checks."""
+    if clause.lstrip().startswith("#") or clause.rstrip().endswith("?"):
+        return False
+    return bool(clause.strip()) and not _RHETORICAL_OR_PROMOTIONAL_CLAUSE.search(clause)
 
 
 def _align_clauses(source_clauses: Sequence[str], candidate_clauses: Sequence[str]) -> list[str]:
