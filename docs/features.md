@@ -114,20 +114,15 @@ knowledge estate and opening the assessment-check catalogue. Internal
 environment indicators and opaque identity fragments are not shown because
 they do not help people complete either task.
 
-The workspace ships the pinned `@fluentui/web-components` 2.6.1 bundle with the
-application and uses a `fluent-design-system-provider`. The provider applies the
-documented colour recipes, Segoe UI Variable type ramp with Segoe UI fallback,
-four-pixel control radius, eight-pixel layer radius, and standard control
-density. The fixed light theme uses the Microsoft Teams `#5b5fc7` accent, a
-subtle Teams-tinted canvas, and white raised surfaces. It retains Windows
-forced-colours behavior. A local theme bootstrap initializes the Fluent
-luminance token before it loads the application.
+The workspace uses native semantic HTML controls styled by local design tokens.
+The fixed light theme uses the Microsoft Teams `#5b5fc7` accent, a Segoe UI
+Variable type ramp with Segoe UI fallback, a subtle Teams-tinted canvas, and
+white raised surfaces. Local CSS defines control density, radii, interaction
+states, visible focus, responsive behavior, and Windows forced-colours support.
+No runtime web-component bootstrap or public CDN is required.
 
-Action controls use `fluent-button` with the documented `accent`, `neutral`, and
-`lightweight` appearances. The official component recipes control their fills,
-strokes, hover states, pressed states, disabled states, and focus indicators.
-Application CSS styles component hosts for placement and responsive layout but
-does not reach into shadow parts or add a second border around the controls.
+Action controls use native buttons, links, fields, selects, checkboxes, tabs,
+dialogs, and disclosure elements with explicit accessible names and states.
 Interface symbols are locally packaged Microsoft Fluent System Icons under the
 upstream MIT license; text glyphs and emoji are not used as control icons.
 
@@ -270,7 +265,8 @@ Completed improvement plans collectively offer up to 20 distinct,
 content-grounded evaluation questions before output evaluation is enabled. Shaper
 samples substantive passages across the estate and balances the selection across
 documents. It returns fewer questions when the available knowledge cannot support
-20 without duplication. Reviewers can include or exclude individual cases and
+20 without duplication. Short labels and fragments below the substantive-passage threshold do not become
+filler questions. Reviewers can include or exclude individual cases and
 prepare either Microsoft Foundry JSONL using the standard `query`,
 `ground_truth`, and `context` columns, or a Copilot Studio single-response CSV
 using `question` and `expectedResponse`. Suggested keywords remain visible in
@@ -326,10 +322,15 @@ The shaping contract requires preservation of rules, duties, advisory language,
 permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
 definitions, procedure steps, escalation paths, and material examples.
 Deterministic gates reject outputs with missing values or durations and check
-each operative category independently. Low source-word coverage remains visible
-as review evidence but does not reject a faithful clearer rewrite by itself. The
-first rejected candidate, exact rule details, and remedies are supplied for one
-targeted repair with the same assessment evidence and approval boundary.
+each operative category independently. Structural list, step, and question
+numbers are not treated as policy facts. Clause matching follows source-specific
+identity words, values, controls, and qualifiers instead of relying on original
+clause position. This permits faithful Q&A, list, and procedure restructuring
+while continuing to block values, modal strength, polarity, or qualifiers moved
+between subjects. Low source-word coverage remains visible as review evidence but
+does not reject a faithful clearer rewrite by itself. The first rejected
+candidate, exact rule details, source-clause excerpt, and remedies are supplied
+for one targeted repair with the same assessment evidence and approval boundary.
 Repeated findings stop immediately. If preservation still fails, the run shows
 the exact blocking reason and saves no artifact.
 

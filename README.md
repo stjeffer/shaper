@@ -153,6 +153,8 @@ The [platform architecture](docs/architecture.md) includes:
   from immutable source evidence to plain-language Findings
 * A [governed transformation flow](docs/architecture.md#governed-transformation-and-token-budget)
   covering estimates, exact approval, bounded shaping, preview, and publication
+* An estate-wide evaluation-draft flow that balances up to 20 source-grounded
+  questions across approved document plans
 
 ## Local development
 

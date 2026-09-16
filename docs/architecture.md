@@ -576,6 +576,9 @@ flowchart TB
     shaping["`**Transformation**
     Findings are diagnostic evidence;
     approved actions are change authority`"]
+    evaluation["`**Evaluation drafts**
+    Up to 20 grounded questions,
+    balanced across estate documents`"]
 
     source --> checks
     checks --> finding
@@ -585,6 +588,8 @@ flowchart TB
     proposal --> approval
     report -->|"`exact pinned report`"| shaping
     approval --> shaping
+    source --> evaluation
+    proposal --> evaluation
 ```
 
 This separation matters because one numeric score hides materially different
@@ -593,6 +598,13 @@ and oversized paragraph can all lower content suitability for different reasons
 and require different remediation. Findings preserve that causal information so
 the reviewer can see what could fail, why agent behavior could degrade, and
 which source evidence supports the conclusion.
+
+Evaluation drafts use the same version-pinned source content but remain separate
+from assessment and transformation. The browser samples substantive passages,
+creates no more than 20 distinct questions for the estate, and selects them in
+round-robin document order. Sparse estates return fewer questions rather than
+duplicating or inventing coverage. Each draft retains its source version,
+ground-truth passage, context, and subject-matter-review requirement.
 
 The exact uploaded or connector-provided bytes are retained as the immutable
 source of record for each version. Extracted text is a reviewable derivative used
@@ -667,18 +679,32 @@ authorize edits. Only the approved requirements define what may change, so
 flag-only findings cannot trigger invented metadata, normalized terminology,
 reconstructed embedded content, or silently consolidated rules.
 
-The prompt requires schema-constrained, source-preserving content with exact
-source-span citations. Claims provide concise block-level provenance rather than
-duplicating the complete answer. After each candidate, the deterministic
-preservation gate checks exact retention of numeric and duration facts and
-category-level retention of duties, advisory language, permissions, prohibitions,
-and exceptions. Low lexical coverage is review evidence rather than an automatic
-rejection because a faithful clearer rewrite need not copy 70 percent of the
-original vocabulary. A blocking finding returns the rejected candidate, structured
-rule details, and remedies for one targeted repair. The repair receives the same
-assessment evidence and approved requirements. Repeated findings stop immediately.
-If the repair fails, transformation reports the exact blocking rule and persists
-no artifact.
+Shaping prompt version `1.7` requires schema-constrained, source-preserving
+content with exact source-span citations. It explicitly retains source-backed
+organization and document identity and tells a targeted repair to restore each
+identified source clause with its original subject, control language, qualifiers,
+values, and durations. Claims provide concise block-level provenance rather than
+duplicating the complete answer.
+
+After each candidate, the deterministic preservation gate checks exact retention
+of numeric and duration facts and category-level retention of duties, advisory
+language, permissions, prohibitions, and exceptions. Structural list, step, and
+question numbering is removed before material-fact comparison, while a value or
+duration absent from the source remains blocking. Clause association uses
+source-specific identity words rather than source position. Joined
+subject-and-predicate clauses are segmented before checking values, modal
+strength, polarity, and restrictive qualifiers, so Q&A and procedure reordering
+can pass without allowing one subject to inherit another subject's rule.
+Interrogative headings and colon-ended scaffolds do not create policy-control
+findings.
+
+Low lexical coverage is review evidence rather than an automatic rejection
+because a faithful clearer rewrite need not copy 70 percent of the original
+vocabulary. A blocking finding returns the rejected candidate, structured rule
+details, and a bounded source-clause excerpt for one targeted repair. The repair
+receives the same assessment evidence and approved requirements. Repeated
+findings stop immediately. If the repair fails, transformation reports the exact
+blocking rule and persists no artifact.
 
 Each Azure OpenAI request has a 90-second timeout, low reasoning effort, and a
 provider-side completion-token cap derived from the approved estimate. The gateway

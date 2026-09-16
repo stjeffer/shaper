@@ -167,27 +167,73 @@ logic ship in the application image. Deploy them through the standard revision
 workflow above. No separate front-end deployment is required because the
 Container App serves the workspace assets.
 
-The workspace stylesheet and local theme bootstrap use the versioned `fluent2-v11`
-asset query. The bootstrap loads the application module with the same version.
-These versions prevent a new revision from reusing an older control palette or
-application bundle from a browser or edge cache. The Microsoft Teams accent is
-fixed in the shipped assets. The workspace deliberately uses the Teams light
-theme, including a subtle purple-tinted canvas and white raised surfaces, so no
-theme selector or server-side theme configuration is required.
+### Deploy a code-only revision
 
-The local `fluent-theme.js` bootstrap loads the pinned
-`@fluentui/web-components` 2.6.1 module from the workspace `vendor` directory.
-The image also includes the Fluent UI, Fluent System Icons, and bundled
-`tabbable` MIT license notices. The bootstrap sets light-theme provider
-luminance through the public Fluent Design Token API before loading `app.js`.
-Buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress indicators,
-accordions, links, and data grids use the official Fluent custom elements
-without reaching into component shadow parts. Interface symbols use locally
-packaged Microsoft Fluent System Icons rather than text glyphs or emoji.
-The hidden native file input is the sole exception because the browser file
-chooser requires it; a Fluent button invokes that input. The workspace therefore
-does not depend on a public CDN or a corresponding content-security exception at
-runtime.
+Container Apps deploys immutable images rather than individual changed files.
+For an application-only change, Azure Container Registry reuses unchanged image
+layers, which provides a differential build without changing the deployment
+contract. Build with the integrated commit SHA and deploy that exact tag:
+
+```bash
+REVISION="$(git rev-parse --short HEAD)"
+REGISTRY_NAME="YOUR_REGISTRY_NAME"
+REGISTRY_SERVER="${REGISTRY_NAME}.azurecr.io"
+CONTAINER_APP="YOUR_CONTAINER_APP"
+RESOURCE_GROUP="YOUR_RESOURCE_GROUP"
+
+az acr build \
+  --registry "${REGISTRY_NAME}" \
+  --image "shaper:${REVISION}" \
+  --file Dockerfile \
+  .
+
+az containerapp update \
+  --resource-group "${RESOURCE_GROUP}" \
+  --name "${CONTAINER_APP}" \
+  --container-name shaper \
+  --image "${REGISTRY_SERVER}/shaper:${REVISION}" \
+  --revision-suffix "${REVISION}"
+```
+
+The `--container-name shaper` argument is required when the Container App
+template contains the application and ClamAV containers. Omitting it causes the
+CLI to reject the update rather than choosing a container implicitly.
+
+Verify that the new revision is healthy, running one or more replicas, and owns
+the intended traffic before retiring the prior revision:
+
+```bash
+az containerapp revision show \
+  --resource-group "${RESOURCE_GROUP}" \
+  --name "${CONTAINER_APP}" \
+  --revision "${CONTAINER_APP}--${REVISION}" \
+  --query "{health:properties.healthState,provisioning:properties.provisioningState,replicas:properties.replicas,traffic:properties.trafficWeight}"
+
+FQDN="$(az containerapp show \
+  --resource-group "${RESOURCE_GROUP}" \
+  --name "${CONTAINER_APP}" \
+  --query properties.configuration.ingress.fqdn \
+  --output tsv)"
+curl --fail --show-error --silent "https://${FQDN}/health/live"
+curl --fail --show-error --silent "https://${FQDN}/health/ready"
+```
+
+The workspace stylesheet and application module use independent versioned asset
+queries. These versions prevent a new revision from reusing an older layout,
+control palette, or application bundle from a browser or edge cache. The
+Microsoft Teams accent is fixed in the shipped assets. The workspace deliberately
+uses the Teams light theme, including a subtle purple-tinted canvas and white
+raised surfaces, so no theme selector or server-side theme configuration is
+required.
+
+The workspace uses native semantic HTML controls and local CSS rather than a
+runtime web-component bootstrap. Buttons, fields, selects, checkboxes, tabs,
+menus, dialogs, progress indicators, disclosure controls, links, and data grids
+carry their native or explicit ARIA roles and accessible names. Interface symbols
+use locally packaged Microsoft Fluent System Icons rather than text glyphs or
+emoji. The browser file chooser remains a hidden native input invoked by a named
+button. The workspace does not depend on a public CDN or a corresponding
+content-security exception at runtime.
 
 The image packages separate shaping and model-assisted evaluation system prompts
 as Markdown resources under `shaper/prompts`. Callers select the required prompt
@@ -200,15 +246,15 @@ The `agent_impact` field is an additive, optional field in persisted
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
-The transformation estimator and shaping prompt are version `1.6`. The estimate
-includes the structured assessment-finding payload, structured-output overhead,
-and a bounded hidden-reasoning reserve. It reserves an initial candidate plus one
-targeted repair and stores a cryptographic hash of the exact shaping prompt.
-Proposals created before version `1.6` remain stored, but
-the new revision rejects them before model use because they do not bind the
-approved budget and actions to the current evidence and instructions. Run
-**Create improvement plan** again and obtain a new approval before transforming
-those documents. No database migration is required.
+The transformation estimator is version `1.6`, and the shaping prompt is version
+`1.7`. The estimate includes the structured assessment-finding payload,
+structured-output overhead, and a bounded hidden-reasoning reserve. It reserves
+an initial candidate plus one targeted repair and stores a cryptographic hash of
+the exact shaping prompt. Proposals created with an earlier estimator or shaping
+prompt remain stored, but the new revision rejects them before model use because
+they do not bind the approved budget and actions to the current evidence and
+instructions. Run **Create improvement plan** again and obtain a new approval
+before transforming those documents. No database migration is required.
 
 The transformation preflight resolves the exact discovery report named by the
 proposal. It rejects a missing report, report identity mismatch, source-version
@@ -236,8 +282,8 @@ After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
 2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
-   theme selector, and renders official Fluent primary and lightweight actions
-   without an additional host-level border.
+   theme selector, and renders consistent primary, secondary, and lightweight
+   actions.
 3. Confirm the shell uses the fixed Teams light palette: a subtle purple-tinted
    canvas, white raised surfaces, and Teams purple only for selection and primary
    actions.
@@ -247,7 +293,7 @@ After the revision becomes ready:
    controls remain distinguishable in Windows forced-colours mode.
 6. Confirm buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress
    indicators, accordions, links, and the assessment data grid expose their
-   expected Fluent roles and accessible names.
+   expected native or ARIA roles and accessible names.
 7. Run discovery for an estate with at least one known content issue.
 8. Confirm the Assess data grid contains **Document** and **Findings**, with no
    readiness-score or reshaping-effort column.
@@ -261,13 +307,17 @@ After the revision becomes ready:
 13. Start transformation and confirm the live progress surface names each check,
    updates results as stages complete, and opens the generated output when the run
    completes.
-14. If the estate contains a proposal created before estimator version `1.6`,
-   confirm transformation stops before model use and instructs the reviewer to
-   create and approve a current improvement plan.
-15. Create and approve a version `1.6` plan, then confirm progress reports
-   **model attempt 1 of 2**. If preservation fails, confirm the exact validation
-   rule is reported and only one targeted repair can run.
-16. Confirm assessment findings remain visible as evidence while flag-only
+14. Open the **Evaluation set** tab and confirm the estate offers up to 20
+    distinct, source-grounded questions balanced across documents. Confirm a
+    sparse source returns fewer questions without filler.
+15. If the estate contains a proposal created before estimator version `1.6` or
+    shaping prompt version `1.7`, confirm transformation stops before model use
+    and instructs the reviewer to create and approve a current improvement plan.
+16. Create and approve a plan using estimator `1.6` and prompt `1.7`, then
+    confirm progress reports **model attempt 1 of 2**. If preservation fails,
+    confirm the exact validation rule and source clause are reported and only one
+    targeted repair can run.
+17. Confirm assessment findings remain visible as evidence while flag-only
    actions preserve terminology, repeated variations, and unavailable embedded
    content rather than inventing a resolution.
 
