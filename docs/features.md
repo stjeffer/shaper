@@ -266,13 +266,15 @@ inline progress state. Completion reports how many plans are ready; stale or
 missing discovery evidence produces an actionable error instead of an empty
 approval screen.
 
-Each completed improvement plan also offers draft, content-grounded evaluation
-questions before output evaluation is enabled. Reviewers can include or exclude
-individual cases and prepare either Microsoft Foundry JSONL using the standard
-`query`, `ground_truth`, and `context` columns, or a Copilot Studio
-single-response CSV using `question` and `expectedResponse`. Suggested keywords
-remain visible in Shaper so reviewers can configure keyword-match evaluation
-after import.
+Completed improvement plans collectively offer up to 20 distinct,
+content-grounded evaluation questions before output evaluation is enabled. Shaper
+samples substantive passages across the estate and balances the selection across
+documents. It returns fewer questions when the available knowledge cannot support
+20 without duplication. Reviewers can include or exclude individual cases and
+prepare either Microsoft Foundry JSONL using the standard `query`,
+`ground_truth`, and `context` columns, or a Copilot Studio single-response CSV
+using `question` and `expectedResponse`. Suggested keywords remain visible in
+Shaper so reviewers can configure keyword-match evaluation after import.
 Expected answers are derived from version-pinned source passages and remain
 marked for subject-matter review. The UI names suitable Foundry evaluator
 dimensions or Copilot Studio test methods without claiming that a generated case

@@ -1,3 +1,9 @@
+import {
+  EVALUATION_QUESTION_TARGET,
+  selectEstateEvaluations,
+  suggestedEvaluations,
+} from "./evaluation-suggestions.mjs?v=20260915-evaluation-20-v1";
+
 const state = {
   session: null,
   collectionId: null,
@@ -252,83 +258,6 @@ function announce(message) {
   });
 }
 
-function evaluationPassages(sourceText) {
-  const passages = [];
-  let heading = "";
-  sourceText
-    .split(/\n\s*\n/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .forEach((part) => {
-      const headingMatch = part.match(/^#{1,6}\s+([^\n]+)(?:\n+([\s\S]+))?$/);
-      let content = part;
-      if (headingMatch) {
-        heading = headingMatch[1].trim();
-        content = (headingMatch[2] ?? "").trim();
-        if (!content) return;
-      }
-      const candidates =
-        content.length > 1200
-          ? content.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()) ??
-            []
-          : [content];
-      candidates
-        .filter((candidate) => candidate.length >= 40)
-        .forEach((candidate) => passages.push({ heading, text: candidate.slice(0, 1000) }));
-    });
-  const seen = new Set();
-  return passages.filter((passage) => {
-    const key = `${passage.heading}\n${passage.text}`.toLocaleLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function evaluationKeywords(passage) {
-  const excluded = new Set([
-    "about",
-    "after",
-    "before",
-    "from",
-    "have",
-    "must",
-    "shall",
-    "that",
-    "their",
-    "there",
-    "these",
-    "this",
-    "with",
-  ]);
-  return [...new Set(passage.toLocaleLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])]
-    .filter((word) => !excluded.has(word))
-    .slice(0, 5);
-}
-
-function suggestedEvaluations(proposal, documentValue, sourceText) {
-  return evaluationPassages(sourceText)
-    .slice(0, 5)
-    .map((passage, index) => {
-      const focus = passage.heading || passage.text.split(/\s+/).slice(0, 7).join(" ");
-      return {
-        id: `${proposal.recommendation_id}-evaluation-${index + 1}`,
-        document_id: documentValue.document_id,
-        source_version: documentValue.source_version,
-        source_reference: `${documentValue.document_id}@${documentValue.source_version}`,
-        query: passage.heading
-          ? `According to ${documentValue.title}, what guidance is provided under "${focus}"?`
-          : `According to ${documentValue.title}, what does the source say about "${focus}…"?`,
-        ground_truth: passage.text,
-        context: passage.text,
-        keywords: evaluationKeywords(`${passage.heading} ${passage.text}`),
-        foundry_evaluators: ["groundedness", "relevance", "completeness"],
-        copilot_studio_methods: ["General quality", "Compare meaning", "Keyword match"],
-        needs_sme_review: true,
-      };
-    });
-}
-
 async function loadEvaluationSuggestions() {
   state.evaluationSuggestions = [];
   state.selectedEvaluationSuggestions.clear();
@@ -360,6 +289,7 @@ async function loadEvaluationSuggestions() {
       );
     }
   }
+  state.evaluationSuggestions = selectEstateEvaluations(state.evaluationSuggestions);
   state.evaluationSuggestions.forEach((suggestion) => {
     state.selectedEvaluationSuggestions.add(suggestion.id);
   });
@@ -432,7 +362,7 @@ function renderEvaluationOptions() {
   const selected = state.selectedEvaluationSuggestions.size;
   elements.evaluationSelectionSummary.textContent = `${selected} suggested evaluation${
     selected === 1 ? "" : "s"
-  } selected`;
+  } selected (up to ${EVALUATION_QUESTION_TARGET} per estate)`;
   elements.downloadEvaluations.disabled = selected === 0;
 }
 
