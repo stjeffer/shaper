@@ -15,7 +15,7 @@ from shaper.application.review import (
     ReviewService,
     RiskTier,
 )
-from shaper.application.validation import DeterministicValidator
+from shaper.application.validation import DeterministicValidator, findings_for_review
 from shaper.domain import (
     AnswerUnit,
     Claim,
@@ -278,6 +278,30 @@ def test_given_approved_exclusion_without_canonical_note_when_validated_then_it_
     )
 
     assert "content.approved_exclusion_note" in rule_ids
+
+
+def test_given_exclusion_findings_when_preparing_artifact_then_only_retention_stays_blocking() -> (
+    None
+):
+    findings = (
+        ValidationFinding(
+            rule_id="content.approved_exclusion_note",
+            severity=FindingSeverity.BLOCKING,
+            subject_id="unit-1",
+            message="Missing exclusion note",
+        ),
+        ValidationFinding(
+            rule_id="content.approved_exclusion_retained",
+            severity=FindingSeverity.BLOCKING,
+            subject_id="unit-1",
+            message="Excluded content retained",
+        ),
+    )
+
+    reviewed = findings_for_review(findings, enforce_preservation_checks=False)
+
+    assert reviewed[0].severity is FindingSeverity.WARNING
+    assert reviewed[1].severity is FindingSeverity.BLOCKING
 
 
 def test_given_review_note_invents_policy_when_validated_then_it_blocks(

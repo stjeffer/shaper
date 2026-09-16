@@ -353,9 +353,11 @@ words such as "once" or "within" do not create false temporal findings.
 The default run retains an integrity-valid artifact for review even when
 preservation findings remain. Selecting **Try one automatic repair from
 preservation findings** makes one bounded repair attempt for that run. Source
-identity, source version, cited evidence, candidate schema, and approval-bound
-exclusions remain non-bypassable. Publication requires acknowledgment of every
-finding stored on the current artifact.
+identity, source version, cited evidence, candidate schema, exclusion authority,
+and retained intentionally excluded content remain non-bypassable. A missing
+exclusion audit note remains a review finding instead of blocking artifact
+generation. Publication requires acknowledgment of every finding stored on the
+current artifact.
 
 The Azure OpenAI request is bounded by a 90-second timeout and an output-token
 limit from the approved estimate. The common path therefore uses one model call;

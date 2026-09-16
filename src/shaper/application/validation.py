@@ -196,7 +196,6 @@ _NON_BYPASSABLE_RULE_IDS = frozenset(
         "source.version",
         "grounding.span_exists",
         "content.approved_exclusion_retained",
-        "content.approved_exclusion_note",
     }
 )
 

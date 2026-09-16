@@ -53,7 +53,8 @@ Retry the failed transformation after the provider window resets. If a single
 transformation repeatedly reaches the limit, increase deployment capacity
 within the approved regional quota. Review mode avoids the optional repair call;
 it does not bypass source identity, cited evidence, candidate schema, or
-approval-bound exclusion integrity controls.
+exclusion authority. Retaining intentionally excluded content remains an
+integrity failure; a missing exclusion audit note remains a review finding.
 
 ## State and recovery
 

@@ -728,8 +728,10 @@ one targeted repair with the same evidence and approval boundary. Remaining
 findings are persisted with the retained artifact.
 
 Source identity, source-version identity, cited-span existence, candidate schema,
-and approval-bound exclusion enforcement remain non-bypassable. These integrity
-failures stop transformation and persist no artifact. Publication approval must
+exclusion authority, and retention of intentionally excluded content remain
+non-bypassable. A missing required exclusion audit note remains visible as a
+review finding. Integrity failures stop transformation and persist no artifact.
+Publication approval must
 acknowledge every finding on the current artifact, which prevents stale or partial
 review without treating representation-sensitive heuristics as absolute truth.
 

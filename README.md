@@ -48,9 +48,11 @@ original immutable source untouched. By default, deterministic preservation
 findings remain visible for human review instead of blocking artifact generation.
 Reviewers can request one bounded automatic repair for the current run.
 
-Source identity, source version, cited evidence, candidate schema, and
-approval-bound exclusions remain non-bypassable. Publication remains a separate
-human-governed action that requires acknowledgment of the current findings.
+Source identity, source version, cited evidence, candidate schema, exclusion
+authority, and retention of intentionally excluded content remain non-bypassable.
+A missing exclusion audit note becomes a visible review finding rather than
+destroying the artifact. Publication remains a separate human-governed action
+that requires acknowledgment of the current findings.
 
 ### Govern
 
