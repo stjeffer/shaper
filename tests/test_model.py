@@ -6,7 +6,7 @@ import json
 
 import httpx
 import pytest
-from openai import APIConnectionError
+from openai import APIConnectionError, RateLimitError
 
 from shaper.application.model import (
     AzureOpenAIModelGateway,
@@ -35,6 +35,28 @@ class FailingClient:
     """Expose a failing chat boundary."""
 
     chat = FailingChat()
+
+
+class RateLimitedCompletions:
+    """Raise a provider rate-limit failure."""
+
+    def create(self, **kwargs: object) -> None:
+        del kwargs
+        request = httpx.Request("POST", "https://example.invalid")
+        response = httpx.Response(429, request=request)
+        raise RateLimitError("Rate limit reached", response=response, body=None)
+
+
+class RateLimitedChat:
+    """Expose rate-limited chat completions."""
+
+    completions = RateLimitedCompletions()
+
+
+class RateLimitedClient:
+    """Expose a rate-limited chat boundary."""
+
+    chat = RateLimitedChat()
 
 
 class CapturingCompletions:
@@ -178,6 +200,28 @@ def test_given_openai_transport_failure_when_generated_then_error_is_classified(
 
     assert captured.value.retryable
     assert str(captured.value) == "Azure OpenAI request failed"
+
+
+def test_given_provider_rate_limit_when_generated_then_error_is_actionable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = object.__new__(AzureOpenAIModelGateway)
+    monkeypatch.setattr(gateway, "_client", RateLimitedClient(), raising=False)
+    monkeypatch.setattr(gateway, "_deployment", "test-deployment", raising=False)
+    monkeypatch.setattr(gateway, "_default_max_output_tokens", 8_000, raising=False)
+    monkeypatch.setattr(gateway, "_reasoning_effort", "low", raising=False)
+
+    with pytest.raises(ModelProviderError) as captured:
+        gateway.generate(
+            system_prompt=EVALUATION_PROMPT,
+            prompt="test",
+            schema={"type": "object"},
+        )
+
+    assert captured.value.retryable
+    assert str(captured.value) == (
+        "Azure OpenAI rate limit was reached; retry after provider capacity resets"
+    )
 
 
 def test_given_caller_system_prompt_when_generated_then_azure_sends_it(

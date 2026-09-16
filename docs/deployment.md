@@ -97,6 +97,8 @@ and prepare:
 * An OIDC issuer for the tenant
 * Collection-scoped app roles such as `shaper:{collection}:query`
 * Existing Azure OpenAI chat and embedding deployments
+* At least 50,000 tokens per minute (TPM) on the chat deployment; 100,000 TPM
+  is recommended for repair-heavy or concurrent transformations
 * An approved ClamAV image reference pinned by digest for production
 * Permission to create an application credential for Container Apps
   authentication, or `SHAPER_ENTRA_CLIENT_SECRET`
@@ -104,6 +106,28 @@ and prepare:
 
 The Bicep deployment does not create tenant-level Entra applications or grant
 SharePoint permissions. Those operations require separate tenant governance.
+
+Shaping can make an initial model request followed immediately by a bounded
+repair request. A 10,000 TPM deployment cannot reliably complete that cycle.
+Increase the capacity of an existing `gpt-5-mini` Global Standard deployment
+before deploying Shaper:
+
+```bash
+az cognitiveservices account deployment create \
+  --resource-group YOUR_OPENAI_RESOURCE_GROUP \
+  --name YOUR_OPENAI_ACCOUNT \
+  --deployment-name YOUR_CHAT_DEPLOYMENT \
+  --model-format OpenAI \
+  --model-name gpt-5-mini \
+  --model-version 2025-08-07 \
+  --sku-name GlobalStandard \
+  --sku-capacity 100
+```
+
+Capacity `100` provides 100,000 TPM for this model. Confirm the model version,
+SKU, and quota available in your region before changing an existing deployment.
+The deployment script fails before provisioning when the selected chat
+deployment exposes less than 50,000 TPM.
 
 ## Validate the template
 

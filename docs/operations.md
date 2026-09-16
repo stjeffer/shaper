@@ -30,6 +30,30 @@ finding. A missing value on a historical report is compatible and uses a
 presentation fallback. A missing value on a newly generated report indicates
 contract drift and should be investigated before relying on the assessment.
 
+### Azure OpenAI rate limits
+
+One document transformation can require an initial shaping request and one
+bounded repair request. Configure the chat deployment with at least 50,000 TPM;
+100,000 TPM is recommended for concurrent or repair-heavy use.
+
+When a run reports `Azure OpenAI rate limit was reached`, correlate its document
+identifier with application logs and check for HTTP 429 responses. Confirm the
+deployment's token rate limit:
+
+```bash
+az cognitiveservices account deployment show \
+  --resource-group YOUR_OPENAI_RESOURCE_GROUP \
+  --name YOUR_OPENAI_ACCOUNT \
+  --deployment-name YOUR_CHAT_DEPLOYMENT \
+  --query "properties.rateLimits[?key == 'token'] | [0].count" \
+  --output tsv
+```
+
+Retry the failed transformation after the provider window resets. If a single
+transformation repeatedly reaches the limit, increase deployment capacity
+within the approved regional quota rather than disabling repair or
+source-preservation validation.
+
 ## State and recovery
 
 PostgreSQL is the authoritative store for Knowledge Estate registrations,

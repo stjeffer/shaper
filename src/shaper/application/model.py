@@ -200,8 +200,13 @@ class AzureOpenAIModelGateway:
                 isinstance(status_code, int)
                 and (status_code in {408, 409, 429} or status_code >= 500)
             )
+            message = (
+                "Azure OpenAI rate limit was reached; retry after provider capacity resets"
+                if status_code == 429
+                else "Azure OpenAI request failed"
+            )
             raise ModelProviderError(
-                "Azure OpenAI request failed",
+                message,
                 retryable=retryable,
             ) from error
         except (json.JSONDecodeError, IndexError, KeyError, TypeError, ValueError) as error:

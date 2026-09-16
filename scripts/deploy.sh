@@ -8,6 +8,7 @@
 set -euo pipefail
 
 readonly SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly MINIMUM_CHAT_TPM=50000
 
 usage() {
   echo "Usage: ${0##*/} --resource-group NAME --prefix NAME [OPTIONS]"
@@ -93,6 +94,19 @@ main() {
   require_environment SHAPER_SCANNER_IMAGE
 
   az account show --output none
+  local chat_tpm
+  chat_tpm="$(az cognitiveservices account deployment show \
+    --resource-group "${SHAPER_AZURE_OPENAI_RESOURCE_GROUP}" \
+    --name "${SHAPER_AZURE_OPENAI_ACCOUNT}" \
+    --deployment-name "${SHAPER_AZURE_OPENAI_CHAT_DEPLOYMENT}" \
+    --query "properties.rateLimits[?key == 'token'] | [0].count" \
+    --output tsv)"
+  [[ "${chat_tpm}" =~ ^[0-9]+([.][0-9]+)?$ ]] \
+    || err "Azure OpenAI chat deployment returned no token rate limit"
+  local chat_tpm_integer="${chat_tpm%%.*}"
+  (( chat_tpm_integer >= MINIMUM_CHAT_TPM )) \
+    || err "Azure OpenAI chat deployment requires at least ${MINIMUM_CHAT_TPM} TPM"
+
   if [[ -z "$(printenv SHAPER_ENTRA_CLIENT_ID || true)" ]]; then
     export SHAPER_ENTRA_CLIENT_ID="${SHAPER_OIDC_AUDIENCE#api://}"
   fi
