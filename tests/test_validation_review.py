@@ -108,7 +108,7 @@ def preservation_rule_ids(
         derivation=Derivation(
             run_id="run-preservation",
             model="fake",
-            prompt_version="1.7",
+            prompt_version="1.8",
             parameters_hash=ZERO_HASH,
         ),
     )
@@ -1318,6 +1318,87 @@ def test_given_source_unsupported_number_when_validated_then_blocks(
     rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
 
     assert "content.material_fact" in rule_ids
+
+
+def test_given_review_notes_with_machine_values_and_controls_when_validated_then_ignored(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit benefit elections."
+    candidate_text = (
+        "# Benefit elections\n"
+        "Employees submit benefit elections.\n"
+        "## Missing information and review notes\n"
+        "- Missing: Evidence score 0.0 for source doc-example:0. Confirm whether employees must "
+        "submit changes during open enrollment."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert not {
+        "content.material_fact",
+        "content.operative_clause",
+        "content.qualifier_clause",
+    }.intersection(rule_ids)
+
+
+def test_given_policy_body_introduces_zero_and_controls_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit benefit elections."
+    candidate_text = (
+        "Employees must submit benefit elections during a 0-day waiting period.\n"
+        "## Missing information and review notes\n"
+        "- Missing: No additional information is available."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert {
+        "content.material_fact",
+        "content.operative_clause",
+        "content.qualifier_clause",
+    }.issubset(rule_ids)
+
+
+def test_given_unlabelled_policy_after_review_heading_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit benefit elections."
+    candidate_text = (
+        "Employees submit benefit elections.\n"
+        "## Missing information and review notes\n"
+        "Employees must submit changes during a 0-day waiting period."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert {
+        "content.review_notes_structure",
+        "content.material_fact",
+        "content.operative_clause",
+        "content.qualifier_clause",
+    }.issubset(rule_ids)
+
+
+def test_given_indented_policy_after_review_note_when_validated_then_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Employees submit benefit elections."
+    candidate_text = (
+        "Employees submit benefit elections.\n"
+        "## Missing information and review notes\n"
+        "- Missing: The enrollment process is not documented.\n"
+        " Employees must submit changes during a 0-day waiting period."
+    )
+
+    rule_ids = preservation_rule_ids(source_document, source_text, candidate_text)
+
+    assert {
+        "content.review_notes_structure",
+        "content.material_fact",
+        "content.operative_clause",
+        "content.qualifier_clause",
+    }.issubset(rule_ids)
 
 
 def test_given_valid_candidate_when_reviewed_then_only_human_approval_is_publishable(

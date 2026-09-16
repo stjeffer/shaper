@@ -115,11 +115,11 @@ environment indicators and opaque identity fragments are not shown because
 they do not help people complete either task.
 
 The workspace uses native semantic HTML controls styled by local design tokens.
-The fixed light theme uses the Microsoft Teams `#5b5fc7` accent, a Segoe UI
-Variable type ramp with Segoe UI fallback, a subtle Teams-tinted canvas, and
-white raised surfaces. Local CSS defines control density, radii, interaction
-states, visible focus, responsive behavior, and Windows forced-colours support.
-No runtime web-component bootstrap or public CDN is required.
+The fixed dark theme uses a near-black canvas, layered charcoal surfaces, a
+cyan accent, and lime completion highlights with Segoe UI and system-font
+fallbacks. Local CSS defines control density, radii, interaction states, visible
+focus, and responsive behavior. No runtime web-component bootstrap or public
+CDN is required.
 
 Action controls use native buttons, links, fields, selects, checkboxes, tabs,
 dialogs, and disclosure elements with explicit accessible names and states.
@@ -127,11 +127,11 @@ Interface symbols are locally packaged Microsoft Fluent System Icons under the
 upstream MIT license; text glyphs and emoji are not used as control icons.
 
 The shell uses comfortable spacing for navigation and forms, with compact rows
-for estate and findings data. A subtle Teams-tinted layer defines the canvas;
-neutral layers define panels, inputs, and data surfaces. Teams purple is
-reserved for primary actions and active selection. Ordinary cards remain flat;
-elevation is limited to menus and modal dialogs. Tabs use the Fluent borderless
-treatment and brand selection indicator instead of outlining every tab.
+for estate and findings data. Charcoal layers define panels, inputs, and data
+surfaces. Cyan marks interactive focus and primary actions, while lime indicates
+successful or completed states. Ordinary cards remain flat; elevation is limited
+to menus and modal dialogs. Tabs use a borderless treatment and accent selection
+indicator instead of outlining every tab.
 
 Uploaded content enters the scanning and inventory boundary before assessment.
 SharePoint entries are truthful registrations. They do not imply that Graph
@@ -166,7 +166,7 @@ behavior for unreadable files.
 
 ## Content-focused Findings
 
-The Assess table presents each document as a compact Fluent-style review surface.
+The Assess table presents each document as a compact native-control review surface.
 Findings summarize the count and high-priority count before the user expands
 them. Each finding includes a label, a plain-language description, an explicit
 explanation of the impact on agent responses, severity, and content-owner review
@@ -318,6 +318,14 @@ consolidating subtly different repeated rules. Safe approved actions can
 restructure headings, sections, grounded questions and answers, and
 source-supported procedures.
 
+When unresolved gaps must remain visible, the generated document appends one
+final **Missing information and review notes** section. Source identifiers,
+evidence scores, confidence scores, validation scores, and machine status
+annotations do not appear in the human-facing answer. Preservation checks treat
+that final section as review context rather than policy, while continuing to
+block invented values, duties, permissions, and temporal restrictions in the
+substantive document.
+
 The shaping contract requires preservation of rules, duties, advisory language,
 permissions, prohibitions, exceptions, qualifiers, thresholds, dates,
 definitions, procedure steps, escalation paths, and material examples.
@@ -349,6 +357,11 @@ The panels appear side by side when space permits and stack on narrow screens.
 The generated preview is sandboxed, and each panel reports loading failures
 independently so reviewers can still inspect the available side of the
 comparison.
+
+After publication approval, the Outputs view exposes **Export approved HTML**.
+The authenticated download returns the exact stored artifact bytes with the
+estate-governed filename rather than serializing the styled browser preview.
+Unapproved candidates remain unavailable for export.
 
 This two-boundary model separates:
 

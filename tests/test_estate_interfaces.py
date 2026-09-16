@@ -329,6 +329,13 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             ).status_code
             == 403
         )
+        assert (
+            client.get(
+                f"/v1/artifacts/{artifact_id}/download",
+                headers=headers,
+            ).status_code
+            == 403
+        )
         evaluation_response = client.get(
             f"/v1/artifacts/{artifact_id}/evaluation",
             headers=headers,
@@ -354,6 +361,18 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert content_response.status_code == 200
         assert "<!doctype html>" in content_response.text
         assert "Employees must request annual leave" in content_response.text
+        download_response = client.get(
+            f"/v1/artifacts/{artifact_id}/download",
+            headers=headers,
+        )
+        assert download_response.status_code == 200
+        assert download_response.content == content_response.content
+        assert download_response.headers["content-type"].startswith("text/html")
+        assert (
+            download_response.headers["content-disposition"]
+            == "attachment; filename*=UTF-8''shaper_leave-policy.html"
+        )
+        assert download_response.headers["x-content-type-options"] == "nosniff"
 
         store.connection.execute(
             "DELETE FROM records WHERE category = 'document_source' AND record_id = ?",

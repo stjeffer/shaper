@@ -221,10 +221,9 @@ curl --fail --show-error --silent "https://${FQDN}/health/ready"
 The workspace stylesheet and application module use independent versioned asset
 queries. These versions prevent a new revision from reusing an older layout,
 control palette, or application bundle from a browser or edge cache. The
-Microsoft Teams accent is fixed in the shipped assets. The workspace deliberately
-uses the Teams light theme, including a subtle purple-tinted canvas and white
-raised surfaces, so no theme selector or server-side theme configuration is
-required.
+workspace deliberately uses one fixed dark theme with a near-black canvas,
+layered charcoal surfaces, cyan interaction accents, and lime completion
+highlights, so no theme selector or server-side theme configuration is required.
 
 The workspace uses native semantic HTML controls and local CSS rather than a
 runtime web-component bootstrap. Buttons, fields, selects, checkboxes, tabs,
@@ -247,7 +246,7 @@ relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
 The transformation estimator is version `1.6`, and the shaping prompt is version
-`1.7`. The estimate includes the structured assessment-finding payload,
+`1.8`. The estimate includes the structured assessment-finding payload,
 structured-output overhead, and a bounded hidden-reasoning reserve. It reserves
 an initial candidate plus one targeted repair and stores a cryptographic hash of
 the exact shaping prompt. Proposals created with an earlier estimator or shaping
@@ -281,16 +280,13 @@ first. This endpoint is not a durable background queue.
 After the revision becomes ready:
 
 1. Open the authenticated workspace at `/concept/`.
-2. Confirm the workspace uses the Microsoft Teams purple accent, exposes no
-   theme selector, and renders consistent primary, secondary, and lightweight
-   actions.
-3. Confirm the shell uses the fixed Teams light palette: a subtle purple-tinted
-   canvas, white raised surfaces, and Teams purple only for selection and primary
-   actions.
+2. Confirm the workspace exposes no theme selector and renders consistent
+   primary, secondary, and lightweight actions.
+3. Confirm the shell uses the fixed dark palette: a near-black canvas, layered
+   charcoal surfaces, cyan interaction accents, and lime completion highlights.
 4. Confirm the estate list reflows without horizontal scrolling at a 320-pixel
    viewport and remains usable at 200% browser zoom.
-5. Confirm keyboard focus remains visible on actions and tabs, then verify
-   controls remain distinguishable in Windows forced-colours mode.
+5. Confirm keyboard focus remains visible on actions and tabs.
 6. Confirm buttons, fields, selects, checkboxes, tabs, menus, dialogs, progress
    indicators, accordions, links, and the assessment data grid expose their
    expected native or ARIA roles and accessible names.
@@ -311,15 +307,22 @@ After the revision becomes ready:
     distinct, source-grounded questions balanced across documents. Confirm a
     sparse source returns fewer questions without filler.
 15. If the estate contains a proposal created before estimator version `1.6` or
-    shaping prompt version `1.7`, confirm transformation stops before model use
+    shaping prompt version `1.8`, confirm transformation stops before model use
     and instructs the reviewer to create and approve a current improvement plan.
-16. Create and approve a plan using estimator `1.6` and prompt `1.7`, then
+16. Create and approve a plan using estimator `1.6` and prompt `1.8`, then
     confirm progress reports **model attempt 1 of 2**. If preservation fails,
     confirm the exact validation rule and source clause are reported and only one
     targeted repair can run.
 17. Confirm assessment findings remain visible as evidence while flag-only
    actions preserve terminology, repeated variations, and unavailable embedded
    content rather than inventing a resolution.
+18. Approve one generated artifact, select **Export approved HTML**, and confirm
+   the downloaded filename matches the artifact name. Confirm an unapproved
+   artifact download receives HTTP 403.
+19. Transform a document with missing-information notes and confirm they appear
+   only under **Missing information and review notes**. Confirm source IDs,
+   evidence scores, confidence scores, and validation annotations do not appear
+   in the exported document.
 
 Forward compatibility is automatic: the newer revision reads reports that do
 not contain `agent_impact`. The reverse direction is not automatic because

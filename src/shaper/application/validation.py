@@ -14,6 +14,11 @@ _MATERIAL_FACT = re.compile(
     re.IGNORECASE,
 )
 _LEADING_ENUMERATOR = re.compile(r"(?im)^\s*(?:#{1,6}\s*)?(?:(?:step|question)\s+)?\d+[.):]\s+")
+_REVIEW_NOTES_HEADING = re.compile(r"(?im)^#{1,6}\s+missing information and review notes\s*$")
+_REVIEW_NOTE_ITEM = re.compile(
+    r"^\s*[-*]\s+(?:missing|ambiguity|conflict|unresolved reference|review required):\s+\S",
+    re.IGNORECASE,
+)
 _OPERATIVE_CLAUSE = re.compile(
     r"\b(?:must(?:\s+not)?|shall(?:\s+not)?|should(?:\s+not)?|required|prohibited|"
     r"may(?!\s+(?:\d{1,2}\b|(?:19|20)\d{2}\b))(?:\s+(?:only|not))?|"
@@ -218,8 +223,20 @@ class DeterministicValidator:
     ) -> Sequence[ValidationFinding]:
         """Block candidates that compress or omit material source content."""
         findings: list[ValidationFinding] = []
+        review_notes_issue = _review_notes_structure_issue(unit.answer)
+        if review_notes_issue is not None:
+            findings.append(
+                self._blocking(
+                    unit,
+                    "content.review_notes_structure",
+                    review_notes_issue,
+                )
+            )
+        answer_text = (
+            _substantive_answer(unit.answer) if review_notes_issue is None else unit.answer
+        )
         source_words = [word.casefold() for word in _WORD.findall(source_text)]
-        answer_words = [word.casefold() for word in _WORD.findall(unit.answer)]
+        answer_words = [word.casefold() for word in _WORD.findall(answer_text)]
         if len(source_words) >= 40:
             source_counts = Counter(source_words)
             answer_counts = Counter(answer_words)
@@ -243,7 +260,7 @@ class DeterministicValidator:
                 )
 
         source_facts = _material_facts(source_text)
-        answer_facts = _material_facts(unit.answer)
+        answer_facts = _material_facts(answer_text)
         missing_facts = sorted(source_facts - answer_facts)
         if missing_facts:
             findings.append(
@@ -265,7 +282,7 @@ class DeterministicValidator:
                 )
             )
 
-        answer_words_set = {word.casefold() for word in _WORD.findall(unit.answer)}
+        answer_words_set = {word.casefold() for word in _WORD.findall(answer_text)}
         omitted_clauses = []
         for clause in re.split(r"(?<=[.!?])\s+|\n+", source_text):
             if not _OPERATIVE_CLAUSE.search(clause):
@@ -286,7 +303,7 @@ class DeterministicValidator:
                 )
             )
         source_clauses = _split_clauses(source_text)
-        answer_clauses = _split_clauses(unit.answer)
+        answer_clauses = _split_clauses(answer_text)
         reassigned_fact_clause = next(
             (
                 source_clause
@@ -517,6 +534,35 @@ def _split_clauses(text: str) -> list[str]:
         )
         if clause.strip()
     ]
+
+
+def _substantive_answer(answer: str) -> str:
+    review_notes = _REVIEW_NOTES_HEADING.search(answer)
+    if review_notes is None:
+        return answer
+    return answer[: review_notes.start()].rstrip()
+
+
+def _review_notes_structure_issue(answer: str) -> str | None:
+    headings = tuple(_REVIEW_NOTES_HEADING.finditer(answer))
+    if not headings:
+        return None
+    if len(headings) > 1:
+        return "The reshaped document contains more than one review-notes section"
+    notes = answer[headings[0].end() :].strip()
+    if not notes:
+        return "The reshaped document has an empty review-notes section"
+    if re.search(r"(?m)^#{1,6}\s+", notes):
+        return "The reshaped document places another section after review notes"
+    for line in notes.splitlines():
+        if not line.strip():
+            continue
+        if not _REVIEW_NOTE_ITEM.match(line):
+            return (
+                "Review notes must use labelled bullet items and contain no "
+                "source-backed policy content"
+            )
+    return None
 
 
 def _material_facts(text: str) -> set[str]:

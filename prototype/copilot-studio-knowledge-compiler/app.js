@@ -2259,7 +2259,10 @@ function renderArtifacts() {
         view.href = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`;
         view.target = "_blank";
         view.rel = "noopener";
-        actions.append(view);
+        const download = text("a", "Export approved HTML", "secondary link-button");
+        download.href = `/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/download`;
+        download.download = artifact.filename;
+        actions.append(view, download);
       }
       const sourceContent = text("pre", "Loading original content…", "comparison-source");
       sourceContent.tabIndex = 0;

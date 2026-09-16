@@ -644,6 +644,8 @@ Source coverage, material facts,
 and operative clauses`"]
     artifact["`**Reviewable artifact**
 Preview before publication`"]
+    export["`**Approved HTML export**
+Exact reviewed bytes and governed filename`"]
 
     recommendation --> estimate
     estimate --> approval
@@ -653,6 +655,7 @@ Preview before publication`"]
     preservation -->|"`pass`"| artifact
     preservation -->|"`block with structured feedback;
 one targeted repair`"| shaping
+    artifact -->|"`human publication approval`"| export
 ```
 
 The estimator derives fixed request overhead from the active shaping prompt,
@@ -679,12 +682,14 @@ authorize edits. Only the approved requirements define what may change, so
 flag-only findings cannot trigger invented metadata, normalized terminology,
 reconstructed embedded content, or silently consolidated rules.
 
-Shaping prompt version `1.7` requires schema-constrained, source-preserving
+Shaping prompt version `1.8` requires schema-constrained, source-preserving
 content with exact source-span citations. It explicitly retains source-backed
 organization and document identity and tells a targeted repair to restore each
 identified source clause with its original subject, control language, qualifiers,
 values, and durations. Claims provide concise block-level provenance rather than
-duplicating the complete answer.
+duplicating the complete answer. Machine-oriented source identifiers, evidence
+scores, confidence scores, and validation annotations stay outside the human-facing
+answer.
 
 After each candidate, the deterministic preservation gate checks exact retention
 of numeric and duration facts and category-level retention of duties, advisory
@@ -696,7 +701,10 @@ subject-and-predicate clauses are segmented before checking values, modal
 strength, polarity, and restrictive qualifiers, so Q&A and procedure reordering
 can pass without allowing one subject to inherit another subject's rule.
 Interrogative headings and colon-ended scaffolds do not create policy-control
-findings.
+findings. Missing information and review notes use one canonical final heading.
+The preservation gate validates only the substantive document before that heading,
+so machine values and diagnostic wording cannot become policy facts or controls.
+Values, duties, and qualifiers introduced before the heading remain blocking.
 
 Low lexical coverage is review evidence rather than an automatic rejection
 because a faithful clearer rewrite need not copy 70 percent of the original
@@ -705,6 +713,13 @@ details, and a bounded source-clause excerpt for one targeted repair. The repair
 receives the same assessment evidence and approved requirements. Repeated
 findings stop immediately. If the repair fails, transformation reports the exact
 blocking rule and persists no artifact.
+
+An approved artifact can be opened in the browser or exported as the exact stored
+HTML bytes. Export does not reconstruct content from the preview DOM. The
+authenticated download endpoint reuses the publication-approval authorization
+gate, returns the estate-governed filename through a UTF-8 content disposition,
+and prevents MIME sniffing. Candidates that have not passed publication review
+cannot be exported.
 
 Each Azure OpenAI request has a 90-second timeout, low reasoning effort, and a
 provider-side completion-token cap derived from the approved estimate. The gateway

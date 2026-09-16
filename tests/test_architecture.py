@@ -66,7 +66,8 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
     # Assert
-    assert '<fluent-data-grid-cell cell-type="columnheader" grid-column="3">' in markup
+    assert 'aria-label="Documents and assessment findings"' in markup
+    assert '<div class="grid-cell" role="columnheader">Findings</div>' in markup
     assert "Findings" in markup
     assert ">Readiness<" not in markup
     assert "Reshaping effort" not in markup
@@ -94,10 +95,10 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert 'findingsDialogMedia.addEventListener("change"' in script
     assert "moveOpenFindingsToCurrentLayout" in script
     assert ".discovery-review-layout.has-findings" in styles
-    assert ".findings-review-button:focus-visible" in styles
+    assert ":focus-visible" in styles
     assert 'class="assessment-note"' in markup
-    assert "result-evidence" in styles
-    assert ".result-item.high" in styles
+    assert '"result-evidence"' in script
+    assert '.result-list > [data-tone="high"]' in styles
     assert "font-family: inherit" in styles
     assert "/documents/` +" in script
     assert "result-list" in styles
@@ -128,7 +129,17 @@ def test_given_generated_artifact_when_rendered_then_before_and_after_panels_are
     assert 'outputPreview.setAttribute("sandbox", "")' in script
     assert "artifact-comparison" in styles
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in styles
-    assert ".comparison-preview[hidden]" in styles
+    assert ".comparison-preview {" in styles
+
+
+def test_given_approved_artifact_when_rendered_then_html_export_is_available() -> None:
+    script = (REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert '"Export approved HTML"' in script
+    assert "/download" in script
+    assert "download.download = artifact.filename" in script
 
 
 def test_given_transformation_estimate_when_rendered_then_usage_is_explained() -> None:
@@ -202,7 +213,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'id="estateSearch"' not in html
     assert 'class="nav-item"' in html
     assert 'data-action="open-create"' in html
-    assert 'aria-label="New estate"' in html
+    assert 'data-action="open-create" title="New estate"' in html
     assert '<span class="nav-item-label">New estate</span>' in html
     assert '<span class="nav-item-label">Checks</span>' in html
     assert html.count('class="nav-icon fluent-icon"') == 2
@@ -294,9 +305,9 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "checkbox.disabled = isArchived()" in browser_app
     assert "checkbox.disabled = !report" not in browser_app
     assert "selected for improvement planning" in browser_app
-    assert 'document.createElement("fluent-tabs")' in browser_app
-    assert 'document.createElement("fluent-tab")' in browser_app
-    assert 'document.createElement("fluent-tab-panel")' in browser_app
+    assert 'tablist.setAttribute("role", "tablist")' in browser_app
+    assert 'tab.setAttribute("role", "tab")' in browser_app
+    assert 'section.setAttribute("role", "tabpanel")' in browser_app
     assert 'tab.setAttribute("aria-selected", `${selected}`)' in browser_app
     assert '["ArrowLeft", "ArrowRight", "Home", "End"]' in browser_app
     assert "\nfunction switchSourceInputTab(name, focus = true)" in browser_app
@@ -311,107 +322,56 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'elements.sourceKind.addEventListener("change"' in browser_app
     assert 'source.credential_mode === "application"' in browser_app
     assert "await loadEstates(true)" in browser_app
-    assert 'document.createElement("fluent-menu")' in browser_app
-    assert browser_app.count('document.createElement("fluent-menu-item")') == 2
+    assert 'menu.setAttribute("role", "menu")' in browser_app
+    assert browser_app.count('setAttribute("role", "menuitem")') == 2
     assert "`/v1/estates/${estate.estate_id}`" in browser_app
     assert "`/v1/estates/${estate.estate_id}/purge`" in browser_app
     assert "function selectedActionEstate()" in browser_app
 
 
-def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_applied() -> None:
+def test_given_workspace_controls_when_inspected_then_native_design_system_is_applied() -> None:
     concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
     html = (concept_root / "index.html").read_text(encoding="utf-8")
     browser_app = (concept_root / "app.js").read_text(encoding="utf-8")
-    fluent_theme = (concept_root / "fluent-theme.js").read_text(encoding="utf-8")
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
     assert 'id="themePicker"' not in html
     assert "<legend>Theme</legend>" not in html
-    assert 'src="fluent-theme.js?v=20260914-fluent2-v11"' in html
-    assert 'href="styles.css?v=20260914-fluent2-v11"' in html
-    assert './vendor/fluent-web-components-2.6.1.min.js"' in fluent_theme
-    assert (concept_root / "vendor/fluent-web-components-2.6.1.min.js").is_file()
-    assert "MIT License" in (concept_root / "vendor/fluentui-LICENSE.txt").read_text(
-        encoding="utf-8"
-    )
-    assert "Copyright (c) 2015 David Clark" in (
-        concept_root / "vendor/tabbable-LICENSE.txt"
-    ).read_text(encoding="utf-8")
-    assert 'await import("./app.js?v=20260914-fluent2-v11")' in fluent_theme
-    assert 'id="fluentProvider"' in html
-    assert 'accent-base-color="#5b5fc7"' in html
-    assert 'neutral-base-color="#808080"' in html
-    assert 'control-corner-radius="4"' in html
-    assert '<fluent-button\n              class="primary"' in html
-    assert 'appearance="accent"' in html
-    assert 'appearance="neutral"' in html
-    assert 'appearance="lightweight"' in html
-    assert "--neutral-fill-stealth-rest: transparent" in styles
-    assert "--neutral-fill-stealth-hover: #e2e2f6" in styles
-    assert "function interactiveEventTarget(event)" in browser_app
-    assert "event.composedPath().find(" in browser_app
+    assert 'src="fluent-theme.js' not in html
+    assert 'href="styles.css?v=20260915-findings-workspace-v1"' in html
+    assert 'src="app.js?v=20260915-findings-workspace-v1"' in html
+    assert not re.search(r"<fluent-[a-z-]+", html)
     assert 'name="color-theme"' not in html
     assert "shaper-color-theme" not in html
     assert "COLOR_THEME_STORAGE_KEY" not in browser_app
     assert "applyColorTheme(" not in browser_app
     assert "themePicker" not in browser_app
-    assert "#0078d4" not in styles
-    assert "#0f6cbd" not in styles
     assert ':root[data-theme="teams"]' not in styles
     assert ':root[data-theme="office"]' not in styles
-    assert "baseLayerLuminance.setValueFor" in fluent_theme
-    assert "StandardLuminance.LightMode" in fluent_theme
-    assert "StandardLuminance.DarkMode" not in fluent_theme
-    assert "prefers-color-scheme" not in fluent_theme
-    assert "accentStrokeControlRest" not in fluent_theme
-    assert 'token.setValueFor(provider, "transparent")' not in fluent_theme
-    assert "--color-brand-background: var(--accent-fill-rest);" in styles
-    assert "--color-control-background: var(--neutral-fill-rest);" in styles
     assert "::part(control)" not in styles
-    assert "--spacingHorizontalXXXL: 32px;" in styles
-    assert "--borderRadiusMedium: 4px;" in styles
-    assert "--shadow8:" in styles
-    assert "--shadow28:" in styles
-    assert "background: var(--neutral-fill-input-rest);" in styles
-    assert "background: var(--neutral-layer-3);" in styles
+    assert "--canvas: #06090b;" in styles
+    assert "--surface: #0c1215;" in styles
+    assert "--accent: #6de0d2;" in styles
+    assert "--radius-lg: 4px;" in styles
+    assert "--space-8: 32px;" in styles
     assert "@media (prefers-color-scheme: dark)" not in styles
-    assert '"Segoe UI Variable", "Segoe UI"' in styles
-    assert "--color-brand-background-subtle: #f5f5ff;" in styles
-    assert "--color-control-background:" in styles
-    assert "--color-control-border: #d1d1d1;" in styles
-    assert "--color-input-border: #8a8886;" in styles
-    assert "text-transform: none;" in styles
-    assert 'class="button ' not in html
-    assert ".button {" not in styles
-    assert "@media (forced-colors: active)" in styles
-    for component in (
-        "fluent-accordion",
-        "fluent-anchor",
-        "fluent-button",
-        "fluent-checkbox",
-        "fluent-data-grid",
-        "fluent-dialog",
-        "fluent-menu",
-        "fluent-progress-ring",
-        "fluent-select",
-        "fluent-tab",
-        "fluent-text-area",
-        "fluent-text-field",
-    ):
-        assert f"<{component}" in html or f'"{component}"' in browser_app
-
+    assert '"Segoe UI", "Segoe UI Web"' in styles
+    assert "background: var(--surface-3);" in styles
+    assert "border: 1px solid var(--line);" in styles
+    assert "text-transform: uppercase;" in styles
     native_controls = re.findall(
         r"<(button|dialog|select|textarea|details|summary|input)\b([^>]*)>",
         html,
         flags=re.IGNORECASE,
     )
-    assert len(native_controls) == 1
-    assert native_controls[0][0] == "input"
-    assert 'type="file"' in native_controls[0][1]
-    assert not re.search(
-        r'document\.createElement\(["\'](button|dialog|input|select|textarea|details|summary)["\']\)',
-        browser_app,
-    )
+    assert len(native_controls) >= 20
+    assert {"button", "input", "select", "textarea"} <= {
+        element_name for element_name, _ in native_controls
+    }
+    assert 'type="file"' in html
+    assert 'document.createElement("button")' in browser_app
+    assert 'menu.setAttribute("role", "menu")' in browser_app
+    assert 'setAttribute("role", "menuitem")' in browser_app
     assert "showModal(" not in browser_app
     assert "window.confirm(" not in browser_app
     assert 'id="workflowSourcesTab"' in html

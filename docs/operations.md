@@ -92,7 +92,9 @@ managed identity.
    results before opening the generated output.
 9. Verify the Evaluation set contains up to 20 distinct, source-grounded
    questions balanced across documents, and fewer questions for sparse knowledge.
-10. Retain the prior revision until the observation window completes.
+10. Approve one generated artifact and verify **Export approved HTML** downloads
+    the exact reviewed artifact with its governed filename.
+11. Retain the prior revision until the observation window completes.
 
 The regression gate permits no deterministic pass-rate decrease, at most a
 5-percentage-point model-assisted pass-rate decrease, and at most a 20-percent

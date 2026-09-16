@@ -958,6 +958,28 @@ def create_app(services: HttpServices) -> FastAPI:
                 },
             )
 
+        @app.get("/v1/artifacts/{artifact_id}/download")
+        def download_artifact(
+            artifact_id: str,
+            actor: Principal = Depends(principal),
+        ) -> Response:
+            content = transformation_service.content(artifact_id, principal=actor)
+            artifact = estate_repository.get_artifact(artifact_id)
+            if artifact is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Artifact not found",
+                )
+            filename = quote(artifact.value.filename, safe="")
+            return Response(
+                content,
+                media_type="text/html",
+                headers={
+                    "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+
     @app.post("/v1/assessments")
     def assess(
         request: AssessmentRequest,
