@@ -186,6 +186,9 @@ denial, and a staged end-to-end workflow prove the expanded contract.
 For Entra v2 client-credential tokens, set `SHAPER_OIDC_AUDIENCE` to the API
 application UUID emitted in the token's `aud` claim. The `api://` identifier URI
 is used in the OAuth scope request, but it is not the expected JWT audience.
+Container Apps authentication must exclude `/mcp`, `/mcp/`, and `/mcp/*` so the
+MCP resource server, rather than the interactive browser middleware, validates
+bearer tokens at both the root endpoint and any subordinate MCP paths.
 
 The deployment output includes the live workspace URL at `/concept/`. Its
 data-free signed-out shell is public and explicitly initiates interactive Entra

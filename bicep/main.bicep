@@ -456,6 +456,8 @@ resource containerAppAuth 'Microsoft.App/containerApps/authConfigs@2024-03-01' =
     globalValidation: {
       excludedPaths: [
         '/health/*'
+        '/mcp'
+        '/mcp/'
         '/mcp/*'
         '/v1/demo/analysis'
         '/concept'

@@ -10,12 +10,16 @@
 
 ## Execution Status
 
-* Status: Implementation complete; production release pending
+* Status: Deployed; role-bearing production workflow smoke pending
 * Declared invocation scope: Full plan
 * Completed scope markers: P01 through P04, P05-T01, and P05-T02
 * All remaining active-plan markers: P05 and P05-T03
 * Status basis: MCP parity, documentation, tests, and deployment smoke automation
-  are complete and review-ready. No production deployment was performed.
+  are complete. Commit `5e385e0` is deployed to the development Container App;
+  health, readiness, MCP initialization, tool discovery, and no-role denial pass.
+  The current Azure CLI identity cannot acquire a role-bearing delegated token
+  without interactive consent, so the authorized production workflow smoke
+  remains pending.
 
 ## Execution Summary
 
@@ -62,6 +66,9 @@ review and approval, exact approved HTML retrieval, and evaluation questions.
 * Updated README, architecture, feature, deployment, and operations guidance.
 * Expanded deployment smoke automation to verify tool discovery, an authorized
   estate read, and a collection authorization denial.
+* Added explicit Container Apps authentication exclusions for `/mcp`, `/mcp/`,
+  and `/mcp/*` after live verification showed that the wildcard alone does not
+  exempt the root MCP endpoint.
 
 ### Tests and independent review
 
@@ -107,13 +114,19 @@ review and approval, exact approved HTML retrieval, and evaluation questions.
 | Bash syntax | P05-T03 preparation | Passed | `scripts/deploy.sh` parses successfully |
 | Diff hygiene | Full change set | Passed | `git diff --check` reports no errors |
 | Independent code review | Full change set | Passed | Two findings resolved; no remaining high-confidence findings |
+| Bicep build | P05-T03 | Passed | Updated Container Apps authentication template compiles |
+| Deployment | P05-T03 | Passed | Commit `5e385e0`, image digest `sha256:12a993b8e6d4ae560a7c9b9d9a05f550f64bdd639a43bff2ef0ec75ade219aee`, revision `ca-shaper-dev--5e385e0-auth`, 100% traffic |
+| Health and readiness | P05-T03 | Passed | Live, state store, estate store, malware scanner, and compile worker are ready |
+| MCP initialization and discovery | P05-T03 | Passed | Authenticated initialize succeeds and lists 24 tools |
+| MCP no-role authorization | P05-T03 | Passed | Workload token without collection roles is denied |
+| Role-bearing production workflow | P05-T03 | Pending | Azure CLI requires interactive consent for a delegated token with collection roles |
 
 ## Pre-Review Reconciliation
 
 * Plan markers and phase details: Reconciled
 * Completed-work evidence and handoff prose: Reconciled
 * Validation, blockers, remaining work, and follow-up items: Reconciled
-* Review readiness: Ready; production release remains a separate action
+* Review readiness: Deployed; bounded production smoke complete
 
 ## Blockers
 
@@ -121,8 +134,8 @@ review and approval, exact approved HTML retrieval, and evaluation questions.
 
 ## Remaining Work
 
-* P05-T03: Deploy to production and run the authenticated post-deployment smoke
-  workflow.
+* P05-T03: Run the authorized estate read and staged end-to-end production
+  workflow with a short-lived role-bearing smoke token.
 
 ## Follow-Up Items
 
@@ -135,16 +148,17 @@ review and approval, exact approved HTML retrieval, and evaluation questions.
 
 ## Return-to-Caller State
 
-* Implementation execution status: Complete and review-ready; release pending
+* Implementation execution status: Deployed; role-bearing workflow smoke pending
 * Declared scope and markers: Full plan; P01 through P04 and P05-T01/T02 complete
 * Validation coverage: Ruff, mypy, 68 targeted tests, 383 tracked full-suite
   tests, 80.87% coverage, Bash syntax, and diff checks passed
 * Blockers: None
-* Current plan and detail updates: Completion markers and production-release
-  boundary reconciled
+* Current plan and detail updates: Deployment evidence and remaining
+  role-bearing smoke boundary reconciled
 * Planning and critique state: Ready
 * Follow-up items: Native binary upload, durable workflow idempotency, and
   asynchronous transformation
-* Review readiness or no-handoff reason: Ready for release; P05-T03 remains
-  pending because no production deployment was requested
-* Continuation owner: Release operator
+* Review readiness or no-handoff reason: Release is healthy; P05-T03 remains
+  pending because the current Azure CLI identity requires interactive consent
+  to acquire a role-bearing delegated token
+* Continuation owner: Identity administrator or release operator

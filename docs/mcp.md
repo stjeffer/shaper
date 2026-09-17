@@ -462,6 +462,9 @@ Confirm:
 * The token `aud` claim is the API application UUID in `SHAPER_OIDC_AUDIENCE`
 * The `roles` claim contains the required `shaper:<collection-id>:<role>` value
 * The token is current and signed by a key in the issuer metadata
+* Container Apps authentication excludes `/mcp`, `/mcp/`, and `/mcp/*`; omitting
+  the explicit root paths causes the platform middleware to intercept `/mcp/`
+  before Shaper can validate the bearer token
 
 ### A workflow appears to time out
 

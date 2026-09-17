@@ -46,6 +46,9 @@ def test_given_postgres_deployment_when_inspected_then_compatibility_state_is_lo
     assert "name: 'SHAPER_POSTGRES_URL'" in template
     assert "secretRef: 'postgres-url'" in template
     assert "'/concept/*'" in template
+    assert "'/mcp'" in template
+    assert "'/mcp/'" in template
+    assert "'/mcp/*'" in template
     assert "unauthenticatedClientAction: 'Return401'" in template
     assert "name: 'SHAPER_SQLITE_JOURNAL_MODE'" in template
     assert "value: 'DELETE'" in template

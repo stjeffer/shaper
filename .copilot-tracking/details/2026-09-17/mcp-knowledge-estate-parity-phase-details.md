@@ -744,8 +744,10 @@ Prove the MCP extension is safe, usable, compatible, and supportable.
 
 ### Unresolved Items
 
-* Production deployment and post-deployment smoke testing require a separate
-  release action and short-lived smoke credentials.
+* Commit `5e385e0` is deployed and passes health, readiness, MCP initialization,
+  tool discovery, and no-role denial checks. The authorized estate workflow
+  requires a short-lived role-bearing token; the current Azure CLI identity
+  requires interactive consent before it can acquire one.
 
 <!-- rpi:task id=P05-T01 -->
 ### P05-T01: Add contract, parity, and security tests
@@ -882,5 +884,5 @@ Verify the deployed revision serves the expected contract and enforces access.
 
 #### Unresolved Items
 
-* Production deployment and post-deployment smoke testing require a separate
-  release action and short-lived smoke credentials.
+* The authorized estate read and staged end-to-end workflow remain pending until
+  a short-lived role-bearing smoke token is available.
