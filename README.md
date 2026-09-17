@@ -136,7 +136,10 @@ the C4 model and specialist-agent responsibility boundaries. See the
 content-focused Findings, approval boundaries, and lifecycle controls. Use the
 [document readiness checklist](docs/document-readiness-checklist.md) to review
 source structure, ambiguity, consistency, provenance, retrieval suitability,
-and parsing hygiene before ingestion.
+and parsing hygiene before ingestion. The
+[business requirements document](docs/planning/brds/shaper-business-requirements.md)
+defines the business goals, governance rules, requirements, acceptance criteria,
+risks, and stakeholder approval gates.
 
 ## Architecture diagrams
 
