@@ -48,7 +48,11 @@ The authenticated estate API exposes source registration, file and ZIP upload,
 discovery, per-document reports, recommendations, decisions, transformations,
 token usage, artifact review, archive, and purge. Container Apps authentication
 redirects browser users to Entra. Bearer-authenticated MCP remains excluded from
-interactive ingress handling and is validated by the application.
+interactive ingress handling and is validated by the application. MCP exposes
+the governed estate workflow after binary content is staged through REST,
+including score-free findings, proposals, decisions, one-document
+transformations, artifact review and approval, exact HTML retrieval, and
+grounded evaluation questions. See [Use Shaper through MCP](mcp.md).
 
 The platform assessment endpoint accepts canonical document profiles and returns
 immutable dimensions, evidence coverage, findings, topic clusters, and ranked
@@ -173,6 +177,11 @@ authentication, registers its callback URL, and waits for liveness and
 readiness. It initializes a real MCP session when `SHAPER_SMOKE_TOKEN` is set.
 When application or database secrets are omitted, the script creates bounded
 deployment credentials without writing them to the repository.
+
+After deployment, complete the MCP verification sequence in
+[Test a deployment](mcp.md#test-a-deployment). Initialization alone proves the
+transport is available; tool listing, an authorized read, an authorization
+denial, and a staged end-to-end workflow prove the expanded contract.
 
 For Entra v2 client-credential tokens, set `SHAPER_OIDC_AUDIENCE` to the API
 application UUID emitted in the token's `aud` claim. The `api://` identifier URI

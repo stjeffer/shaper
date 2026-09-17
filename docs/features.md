@@ -30,6 +30,7 @@ estate governance, but it does not affect Findings or transformation actions.
 | Human approval | Implemented | Required before transformation and publication |
 | Semantic HTML output | Implemented | Escaped, versioned, estate-owned artifacts |
 | Workflow progress | Implemented | Polls durable run state until a terminal status |
+| MCP workflow access | Implemented | Findings, proposals, decisions, one-document transformations, artifact approval, exact HTML, and evaluation questions |
 | Archive and purge | Implemented | Archive is read-only; purge is permanent and confirmed |
 | SharePoint synchronization | Planned | Requires Microsoft Graph consent and connector configuration |
 | Quantitative readiness calibration | Planned | Requires representative, human-reviewed evaluation data and is not shown in the Assess experience |
@@ -39,6 +40,13 @@ estate governance, but it does not affect Findings or transformation actions.
 The authenticated workspace at `/concept/` presents four task-oriented stages.
 The URL records the active estate and stage, so a user can return to the same
 workspace context.
+
+The authenticated MCP endpoint at `/mcp/` exposes the same application
+services for agent and automation clients. Binary uploads remain on the
+authenticated REST endpoint so file-size, malware-scanning, ZIP-expansion, and
+source-retention controls are not duplicated in tool arguments. See
+[Use Shaper through MCP](mcp.md) for setup, tool contracts, examples, and
+testing.
 
 ### Estate overview and assessment catalogue
 

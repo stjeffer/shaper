@@ -22,6 +22,7 @@ from shaper.application.estates import (
     EstateService,
     EstateSourceService,
 )
+from shaper.application.evaluation_sets import EvaluationSetService
 from shaper.application.jobs import (
     CompileJobDispatcher,
     CompileJobService,
@@ -229,6 +230,7 @@ def serve(
         renderer=HtmlArtifactRenderer(),
         clock=lambda: datetime.now(UTC),
     )
+    evaluation_set_service = EvaluationSetService(estate_repository)
     http_services = HttpServices(
         jobs=jobs,
         authenticator=authenticator,
@@ -250,6 +252,7 @@ def serve(
         recommendations=recommendation_service,
         decisions=decision_service,
         transformations=transformation_service,
+        evaluation_sets=evaluation_set_service,
         estate_repository=estate_repository,
         archive_expander=ZipArchiveExpander(scanner),
         malware_scanner=scanner,
@@ -268,6 +271,14 @@ def serve(
             jobs=jobs,
             query=query,
             principal=current_mcp_principal,
+            estates=estate_service,
+            estate_sources=source_service,
+            discovery=discovery_service,
+            recommendations=recommendation_service,
+            decisions=decision_service,
+            transformations=transformation_service,
+            estate_repository=estate_repository,
+            evaluation_sets=evaluation_set_service,
         ),
         auth=McpAuth(
             issuer_url=settings.oidc_issuer,

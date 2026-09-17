@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 from mcp.shared.memory import create_connected_server_and_client_session
+from pydantic import AnyUrl
 
 from shaper.application.assessment import EstateAssessmentService
 from shaper.application.demo import DemoAnalysisService
@@ -539,25 +541,46 @@ def test_given_mcp_server_when_listed_then_only_planned_tools_are_exposed(
 def test_given_mcp_server_when_initialized_then_real_sdk_client_lists_tools(
     source_document: SourceDocument,
 ) -> None:
-    async def use_client() -> set[str]:
+    async def use_client() -> tuple[set[str], tuple[str, str, str]]:
+        query = query_service(source_document)
+        unit = query.query(
+            "employees leave",
+            principal=query_principal(CollectionRole.QUERY),
+        )[0].unit
         server = create_mcp_server(
             McpServices(
                 jobs=CompileJobService(InMemoryJobStore()),
-                query=query_service(source_document),
+                query=query,
                 principal=lambda: query_principal(CollectionRole.QUERY),
             )
         )
         async with create_connected_server_and_client_session(server._mcp_server) as session:
             await session.initialize()
             result = await session.list_tools()
-            return {tool.name for tool in result.tools}
+            unit_result = await session.read_resource(
+                AnyUrl(f"knowledge://units/{unit.unit_id}")
+            )
+            source_result = await session.read_resource(
+                AnyUrl(f"knowledge://sources/{unit.source_id}")
+            )
+            release_result = await session.read_resource(
+                AnyUrl(f"knowledge://releases/{query.release_id}")
+            )
+            texts = []
+            for resource_result in (unit_result, source_result, release_result):
+                content = resource_result.contents[0]
+                assert hasattr(content, "text")
+                texts.append(content.text)
+            return {tool.name for tool in result.tools}, tuple(texts)  # type: ignore[return-value]
 
-    assert asyncio.run(use_client()) == {
+    tools, resources = asyncio.run(use_client())
+    assert tools == {
         "knowledge.compile",
         "knowledge.explain",
         "knowledge.job_status",
         "knowledge.query",
     }
+    assert all(json.loads(resource) for resource in resources)
 
 
 def test_given_combined_host_when_started_then_http_and_mcp_share_one_lifespan(

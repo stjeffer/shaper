@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
+import base64
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from fastapi.testclient import TestClient
+from mcp.shared.memory import create_connected_server_and_client_session
+from mcp.types import CallToolResult
+from pydantic import AnyUrl
 
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
 from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
@@ -19,6 +25,7 @@ from shaper.application.estates import (
     EstateService,
     EstateSourceService,
 )
+from shaper.application.evaluation_sets import EvaluationSetService, suggested_evaluations
 from shaper.application.jobs import CompileJobService, InMemoryJobStore
 from shaper.application.orchestration import (
     AgentReadinessAgent,
@@ -29,6 +36,7 @@ from shaper.application.orchestration import (
     TransformationAgent,
 )
 from shaper.application.ports import ModelResult
+from shaper.application.query import QueryResult
 from shaper.application.review import ReviewService
 from shaper.application.token_estimation import TokenEstimator
 from shaper.application.validation import DeterministicValidator
@@ -38,6 +46,7 @@ from shaper.infrastructure.compilation import SQLiteReviewStore
 from shaper.infrastructure.parsers import SupportedDocumentParser
 from shaper.infrastructure.sqlite import SQLiteEstateRepository, SQLiteStore
 from shaper.interfaces.http import HttpServices, create_app
+from shaper.interfaces.mcp_server import McpServices, create_mcp_server
 
 NOW = datetime.now(UTC) + timedelta(seconds=1)
 
@@ -100,7 +109,50 @@ class GroundedModel:
         )
 
 
-def _client(path: Path) -> tuple[TestClient, SQLiteStore, SQLiteEstateRepository]:
+class EmptyQuery:
+    """Minimal query gateway for estate-focused MCP tests."""
+
+    release_id = "release-1"
+
+    def query(
+        self,
+        text: str,
+        *,
+        principal: Principal,
+        limit: int = 10,
+    ) -> tuple[QueryResult, ...]:
+        del text, principal, limit
+        return ()
+
+    def explain(self, unit_id: str, *, principal: Principal) -> dict[str, object]:
+        del unit_id, principal
+        raise KeyError("Unit does not exist")
+
+
+def test_given_substantive_source_when_evaluations_generated_then_twenty_are_distinct() -> None:
+    source = "\n\n".join(
+        f"## Rule {index}\n\nEmployees must complete requirement {index} before approval."
+        for index in range(1, 31)
+    )
+
+    suggestions = suggested_evaluations(
+        "recommendation-1",
+        "document-1",
+        "a" * 64,
+        "Leave policy",
+        source,
+    )
+
+    assert len(suggestions) == 20
+    assert len({item.query for item in suggestions}) == 20
+    assert all(item.ground_truth in source for item in suggestions)
+    assert all(item.context == item.ground_truth for item in suggestions)
+    assert all("score" not in item.model_dump() for item in suggestions)
+
+
+def _client(
+    path: Path,
+) -> tuple[TestClient, SQLiteStore, SQLiteEstateRepository, HttpServices]:
     store = SQLiteStore(path)
     store.connect()
     store.migrate()
@@ -116,59 +168,267 @@ def _client(path: Path) -> tuple[TestClient, SQLiteStore, SQLiteEstateRepository
         agent_readiness_agent=AgentReadinessAgent(),
     )
     reviews = ReviewService(SQLiteReviewStore(store))
-    client = TestClient(
-        create_app(
-            HttpServices(
-                jobs=CompileJobService(InMemoryJobStore()),
-                authenticator=Authenticator(),
-                estates=EstateService(repository, clock=lambda: NOW),
-                estate_sources=EstateSourceService(repository, clock=lambda: NOW),
-                estate_inventory=EstateInventoryService(
-                    repository,
-                    parser=parser,
-                    clock=lambda: NOW,
-                ),
-                discovery=EstateDiscoveryService(
-                    repository,
-                    documents=DocumentAssessmentService(),
-                    orchestrator=orchestrator,
-                    clock=lambda: NOW,
-                ),
-                recommendations=EstateRecommendationService(
-                    repository,
-                    transformation_agent=TransformationAgent(),
-                    estimator=TokenEstimator(model_deployment="test-model"),
-                    clock=lambda: NOW,
-                ),
-                decisions=TransformationDecisionService(
-                    repository,
-                    clock=lambda: NOW,
-                ),
-                transformations=EstateTransformationService(
-                    repository,
-                    model=GroundedModel(),
-                    validator=DeterministicValidator(),
-                    reviews=reviews,
-                    renderer=HtmlArtifactRenderer(),
-                    clock=lambda: NOW,
-                ),
-                estate_repository=repository,
-                archive_expander=ZipArchiveExpander(CleanScanner()),
-                malware_scanner=CleanScanner(),
-            )
-        )
+    services = HttpServices(
+        jobs=CompileJobService(InMemoryJobStore()),
+        authenticator=Authenticator(),
+        estates=EstateService(repository, clock=lambda: NOW),
+        estate_sources=EstateSourceService(repository, clock=lambda: NOW),
+        estate_inventory=EstateInventoryService(
+            repository,
+            parser=parser,
+            clock=lambda: NOW,
+        ),
+        discovery=EstateDiscoveryService(
+            repository,
+            documents=DocumentAssessmentService(),
+            orchestrator=orchestrator,
+            clock=lambda: NOW,
+        ),
+        recommendations=EstateRecommendationService(
+            repository,
+            transformation_agent=TransformationAgent(),
+            estimator=TokenEstimator(model_deployment="test-model"),
+            clock=lambda: NOW,
+        ),
+        decisions=TransformationDecisionService(
+            repository,
+            clock=lambda: NOW,
+        ),
+        transformations=EstateTransformationService(
+            repository,
+            model=GroundedModel(),
+            validator=DeterministicValidator(),
+            reviews=reviews,
+            renderer=HtmlArtifactRenderer(),
+            clock=lambda: NOW,
+        ),
+        evaluation_sets=EvaluationSetService(repository),
+        estate_repository=repository,
+        archive_expander=ZipArchiveExpander(CleanScanner()),
+        malware_scanner=CleanScanner(),
     )
+    client = TestClient(create_app(services))
     return (
         client,
         store,
         repository,
+        services,
     )
+
+
+def _structured(result: CallToolResult) -> dict[str, object]:
+    payload = result.structuredContent
+    assert isinstance(payload, dict)
+    return payload
+
+
+def test_given_staged_document_when_mcp_workflow_runs_then_approved_bytes_are_available(
+    tmp_path: Path,
+) -> None:
+    client, store, repository, http_services = _client(tmp_path / "estate-mcp.db")
+    assert http_services.estates is not None
+    assert http_services.estate_sources is not None
+    assert http_services.discovery is not None
+    assert http_services.recommendations is not None
+    assert http_services.decisions is not None
+    assert http_services.transformations is not None
+    assert http_services.evaluation_sets is not None
+    server = create_mcp_server(
+        McpServices(
+            jobs=http_services.jobs,
+            query=EmptyQuery(),
+            principal=lambda: Authenticator().authenticate("valid"),
+            estates=http_services.estates,
+            estate_sources=http_services.estate_sources,
+            discovery=http_services.discovery,
+            recommendations=http_services.recommendations,
+            decisions=http_services.decisions,
+            transformations=http_services.transformations,
+            estate_repository=repository,
+            evaluation_sets=http_services.evaluation_sets,
+        )
+    )
+
+    async def run_workflow() -> None:
+        async with create_connected_server_and_client_session(server._mcp_server) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+            names = {tool.name for tool in tools.tools}
+            assert {
+                "knowledge.query",
+                "knowledge.explain",
+                "knowledge.compile",
+                "knowledge.job_status",
+                "estate.assessment_checks",
+                "estate.list",
+                "estate.get",
+                "estate.create",
+                "estate.update",
+                "estate.source.list",
+                "estate.source.register",
+                "estate.document.list",
+                "estate.run.list",
+                "estate.discovery.start",
+                "estate.discovery.reports",
+                "estate.recommendation.start",
+                "estate.proposal.list",
+                "estate.proposal.decide",
+                "estate.decision.list",
+                "estate.transformation.start",
+                "estate.artifact.list",
+                "estate.artifact.review",
+                "estate.artifact.approve",
+                "estate.evaluation.list",
+            } <= names
+            transform_tool = next(
+                tool for tool in tools.tools if tool.name == "estate.transformation.start"
+            )
+            assert transform_tool.annotations is not None
+            assert transform_tool.annotations.idempotentHint is False
+
+            created = _structured(
+                await session.call_tool(
+                    "estate.create",
+                    {
+                        "collection_id": "collection-1",
+                        "name": "MCP policy estate",
+                        "description": "MCP parity test",
+                        "generate_evaluations": True,
+                    },
+                )
+            )
+            estate_id = str(created["value"]["estate_id"])  # type: ignore[index]
+            upload = client.post(
+                f"/v1/estates/{estate_id}/uploads",
+                headers={"Authorization": "Bearer " + "valid"},
+                files={
+                    "files": (
+                        "leave-policy.md",
+                        (
+                            b"# Leave policy\n\nEmployees must request annual leave "
+                            b"from their manager."
+                        ),
+                        "text/markdown",
+                    )
+                },
+            )
+            assert upload.status_code == 201, upload.text
+            document = upload.json()["documents"][0]["value"]
+
+            discovery_result = _structured(
+                await session.call_tool("estate.discovery.start", {"estate_id": estate_id})
+            )
+            assert discovery_result["reports"]
+            report = discovery_result["reports"][0]  # type: ignore[index]
+            assert report["findings"]
+            assert all(finding["agent_impact"] for finding in report["findings"])
+            assert "readiness_score" not in report
+            discovery_run_id = discovery_result["run"]["value"]["run_id"]  # type: ignore[index]
+
+            recommendation_result = _structured(
+                await session.call_tool(
+                    "estate.recommendation.start",
+                    {
+                        "estate_id": estate_id,
+                        "discovery_run_id": discovery_run_id,
+                        "document_ids": [document["document_id"]],
+                    },
+                )
+            )
+            recommendation_run_id = recommendation_result["run"]["value"]["run_id"]  # type: ignore[index]
+            proposal = recommendation_result["proposals"][0]  # type: ignore[index]
+
+            evaluations = _structured(
+                await session.call_tool(
+                    "estate.evaluation.list",
+                    {
+                        "estate_id": estate_id,
+                        "recommendation_run_id": recommendation_run_id,
+                    },
+                )
+            )
+            assert 0 < len(evaluations["items"]) <= 20  # type: ignore[arg-type]
+            assert "score" not in json.dumps(evaluations)
+
+            await session.call_tool(
+                "estate.proposal.decide",
+                {
+                    "recommendation_id": proposal["recommendation_id"],
+                    "outcome": "approve",
+                    "reason": "Approved through MCP parity test",
+                    "expected_current_decision_id": None,
+                },
+            )
+            transformation = _structured(
+                await session.call_tool(
+                    "estate.transformation.start",
+                    {
+                        "estate_id": estate_id,
+                        "recommendation_id": proposal["recommendation_id"],
+                        "enforce_preservation_checks": False,
+                    },
+                )
+            )
+            assert transformation["run"]["value"]["status"] == "completed"  # type: ignore[index]
+
+            artifacts = _structured(
+                await session.call_tool("estate.artifact.list", {"estate_id": estate_id})
+            )
+            artifact = artifacts["items"][0]  # type: ignore[index]
+            artifact_id = artifact["value"]["artifact_id"]
+            review = _structured(
+                await session.call_tool(
+                    "estate.artifact.review",
+                    {"artifact_id": artifact_id},
+                )
+            )
+            review_record = cast(dict[str, object], review["review"])
+            artifact_record = cast(dict[str, object], review["artifact"])
+            preview = await session.read_resource(
+                AnyUrl(f"estate://artifacts/{artifact_id}/preview")
+            )
+            assert preview.contents
+
+            approval = _structured(
+                await session.call_tool(
+                    "estate.artifact.approve",
+                    {
+                        "artifact_id": artifact_id,
+                        "reason": "Grounding and findings reviewed",
+                        "expected_review_revision": review_record["revision"],
+                        "expected_artifact_revision": artifact_record["revision"],
+                        "acknowledged_finding_ids": review[
+                            "required_acknowledged_finding_ids"
+                        ],
+                    },
+                )
+            )
+            assert approval["artifact"]["value"]["status"] == "approved"  # type: ignore[index]
+
+            approved = await session.read_resource(
+                AnyUrl(f"estate://artifacts/{artifact_id}/content")
+            )
+            assert approved.contents
+            blob = approved.contents[0]
+            assert hasattr(blob, "blob")
+            decoded = base64.b64decode(blob.blob)
+            rest_download = client.get(
+                f"/v1/artifacts/{artifact_id}/download",
+                headers={"Authorization": "Bearer " + "valid"},
+            )
+            assert rest_download.status_code == 200
+            assert decoded == rest_download.content
+
+    try:
+        asyncio.run(run_workflow())
+    finally:
+        store.close()
 
 
 def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
     tmp_path: Path,
 ) -> None:
-    client, store, repository = _client(tmp_path / "estate-http.db")
+    client, store, repository, _services = _client(tmp_path / "estate-http.db")
     headers = {"Authorization": "Bearer valid"}
     try:
         estate_response = client.post(
@@ -277,6 +537,20 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert "/100" not in proposal["rationale"]
         assert "content finding" in proposal["rationale"]
         assert "effort" not in proposal["rationale"]
+
+        evaluation_response = client.get(
+            f"/v1/estates/{estate_id}/evaluations",
+            params={
+                "recommendation_run_id": recommendation_response.json()["run"]["value"][
+                    "run_id"
+                ]
+            },
+            headers=headers,
+        )
+        assert evaluation_response.status_code == 200
+        assert evaluation_response.json()["items"]
+        assert len(evaluation_response.json()["items"]) <= 20
+        assert "score" not in evaluation_response.text
 
         decision_response = client.put(
             f"/v1/proposals/{proposal['recommendation_id']}/decision",
@@ -411,7 +685,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
 def test_given_estate_documents_when_listed_then_current_assessment_coverage_is_reported(
     tmp_path: Path,
 ) -> None:
-    client, store, _repository = _client(tmp_path / "estate-summary-http.db")
+    client, store, _repository, _services = _client(tmp_path / "estate-summary-http.db")
     headers = {"Authorization": "Bearer " + "valid"}
     try:
         created = client.post(
@@ -497,7 +771,7 @@ def test_given_estate_documents_when_listed_then_current_assessment_coverage_is_
 def test_given_authenticated_user_when_checks_requested_then_full_catalog_is_returned(
     tmp_path: Path,
 ) -> None:
-    client, store, _repository = _client(tmp_path / "assessment-checks-http.db")
+    client, store, _repository, _services = _client(tmp_path / "assessment-checks-http.db")
     try:
         response = client.get(
             "/v1/assessment-checks",
@@ -521,7 +795,7 @@ def test_given_active_estate_when_archived_and_purged_then_lifecycle_is_enforced
     tmp_path: Path,
 ) -> None:
     # Arrange
-    client, store, _repository = _client(tmp_path / "estate-lifecycle-http.db")
+    client, store, _repository, _services = _client(tmp_path / "estate-lifecycle-http.db")
     headers = {"Authorization": "Bearer " + "valid"}
     try:
         created = client.post(

@@ -270,7 +270,7 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert "/transformation-runs/stream" in browser_app
     assert "Microsoft Foundry JSONL" in html
     assert "Copilot Studio CSV" in html
-    assert "function suggestedEvaluations(" in browser_app
+    assert "/evaluations?recommendation_run_id=" in browser_app
     assert "ground_truth: suggestion.ground_truth" in browser_app
     assert '["question", "expectedResponse"]' in browser_app
     assert "Suggested keywords:" in browser_app

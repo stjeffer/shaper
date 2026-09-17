@@ -256,113 +256,24 @@ function announce(message) {
   });
 }
 
-function evaluationPassages(sourceText) {
-  const passages = [];
-  let heading = "";
-  sourceText
-    .split(/\n\s*\n/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .forEach((part) => {
-      const headingMatch = part.match(/^#{1,6}\s+([^\n]+)(?:\n+([\s\S]+))?$/);
-      let content = part;
-      if (headingMatch) {
-        heading = headingMatch[1].trim();
-        content = (headingMatch[2] ?? "").trim();
-        if (!content) return;
-      }
-      const candidates =
-        content.length > 1200
-          ? content.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()) ??
-            []
-          : [content];
-      candidates
-        .filter((candidate) => candidate.length >= 40)
-        .forEach((candidate) => passages.push({ heading, text: candidate.slice(0, 1000) }));
-    });
-  const seen = new Set();
-  return passages.filter((passage) => {
-    const key = `${passage.heading}\n${passage.text}`.toLocaleLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function evaluationKeywords(passage) {
-  const excluded = new Set([
-    "about",
-    "after",
-    "before",
-    "from",
-    "have",
-    "must",
-    "shall",
-    "that",
-    "their",
-    "there",
-    "these",
-    "this",
-    "with",
-  ]);
-  return [...new Set(passage.toLocaleLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])]
-    .filter((word) => !excluded.has(word))
-    .slice(0, 5);
-}
-
-function suggestedEvaluations(proposal, documentValue, sourceText) {
-  return evaluationPassages(sourceText)
-    .slice(0, 5)
-    .map((passage, index) => {
-      const focus = passage.heading || passage.text.split(/\s+/).slice(0, 7).join(" ");
-      return {
-        id: `${proposal.recommendation_id}-evaluation-${index + 1}`,
-        document_id: documentValue.document_id,
-        source_version: documentValue.source_version,
-        source_reference: `${documentValue.document_id}@${documentValue.source_version}`,
-        query: passage.heading
-          ? `According to ${documentValue.title}, what guidance is provided under "${focus}"?`
-          : `According to ${documentValue.title}, what does the source say about "${focus}…"?`,
-        ground_truth: passage.text,
-        context: passage.text,
-        keywords: evaluationKeywords(`${passage.heading} ${passage.text}`),
-        foundry_evaluators: ["groundedness", "relevance", "completeness"],
-        copilot_studio_methods: ["General quality", "Compare meaning", "Keyword match"],
-        needs_sme_review: true,
-      };
-    });
-}
-
 async function loadEvaluationSuggestions() {
   state.evaluationSuggestions = [];
   state.selectedEvaluationSuggestions.clear();
   state.evaluationSuggestionErrors = [];
   const estateId = recordValue(state.estate).estate_id;
-  for (const proposal of state.proposals) {
-    const documentRecord = state.documents.find(
-      (item) => recordValue(item).document_id === proposal.document_id,
+  if (!state.proposalRunId) return;
+  try {
+    const result = await api(
+      `/v1/estates/${estateId}/evaluations?recommendation_run_id=${encodeURIComponent(
+        state.proposalRunId,
+      )}`,
     );
-    const documentValue = documentRecord ? recordValue(documentRecord) : null;
-    if (!documentValue) {
-      state.evaluationSuggestionErrors.push(
-        `The source document for ${proposal.expected_artifact} is unavailable.`,
-      );
-      continue;
-    }
-    try {
-      const sourceText = await apiText(
-        `/v1/estates/${estateId}/documents/${encodeURIComponent(
-          documentValue.document_id,
-        )}/content?source_version=${encodeURIComponent(documentValue.source_version)}`,
-      );
-      state.evaluationSuggestions.push(
-        ...suggestedEvaluations(proposal, documentValue, sourceText),
-      );
-    } catch (error) {
-      state.evaluationSuggestionErrors.push(
-        `Suggestions for ${documentValue.title} could not be created: ${error.message}`,
-      );
-    }
+    state.evaluationSuggestions = result.items;
+    state.evaluationSuggestionErrors = result.errors;
+  } catch (error) {
+    state.evaluationSuggestionErrors.push(
+      `Evaluation suggestions could not be created: ${error.message}`,
+    );
   }
   state.evaluationSuggestions.forEach((suggestion) => {
     state.selectedEvaluationSuggestions.add(suggestion.id);

@@ -97,6 +97,9 @@ The implemented vertical slice includes:
 * Separate human publication approval before an artifact can be exported
 * PostgreSQL-backed Azure workflow state and local SQLite development state
 * A live authenticated estate workspace at `/concept/`
+* An authenticated MCP interface for the governed Knowledge Estate workflow,
+  including findings, proposals, transformations, artifact approval, exact HTML
+  retrieval, and grounded evaluation questions
 
 SharePoint sources remain truthful registrations until Microsoft Graph consent
 and synchronization are configured. Confluence, ServiceNow, arbitrary wiki
@@ -134,6 +137,8 @@ recovery, and retention. See [platform architecture](docs/architecture.md) for
 the C4 model and specialist-agent responsibility boundaries. See the
 [feature guide](docs/features.md) for the current Knowledge Estate workflow,
 content-focused Findings, approval boundaries, and lifecycle controls. Use the
+[MCP guide](docs/mcp.md) to configure a client, stage uploads, run the governed
+workflow, retrieve approved HTML, and test authorization. Use the
 [document readiness checklist](docs/document-readiness-checklist.md) to review
 source structure, ambiguity, consistency, provenance, retrieval suitability,
 and parsing hygiene before ingestion. The

@@ -254,6 +254,15 @@ malware-scanning containers. Container Apps authentication handles interactive
 Microsoft Entra sign-in, while the application validates bearer tokens for the
 MCP endpoint.
 
+The MCP adapter invokes the same estate, discovery, recommendation, decision,
+transformation, review, evaluation-set, and publication services as REST. It
+does not call REST internally or duplicate policy logic. MCP omits raw binary
+upload and irreversible estate purge: uploads retain the REST multipart,
+malware-scanning, and archive-expansion boundary, while purge remains a direct
+human-operated REST or browser action. Generated artifact previews require the
+review role; approved HTML requires the query role and is returned from the
+same hash-verified bytes as REST export.
+
 ```mermaid
 ---
 config:

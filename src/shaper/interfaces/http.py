@@ -48,6 +48,7 @@ from shaper.application.estates import (
     VersionedRecord,
     summarize_estate_assessment,
 )
+from shaper.application.evaluation_sets import EvaluationSetService
 from shaper.application.jobs import (
     CompileJobService,
     JobConflictError,
@@ -256,6 +257,7 @@ class HttpServices:
     recommendations: EstateRecommendationService | None = None
     decisions: TransformationDecisionService | None = None
     transformations: EstateTransformationService | None = None
+    evaluation_sets: EvaluationSetService | None = None
     estate_repository: EstateRepository | None = None
     archive_expander: ZipArchiveExpander | None = None
     malware_scanner: MalwareScanner | None = None
@@ -770,6 +772,23 @@ def create_app(services: HttpServices) -> FastAPI:
                 raise KeyError("Recommendation run does not belong to this estate")
             proposals = recommendation_service.proposals(run_id, principal=actor)
             return {"items": [jsonable_encoder(item) for item in proposals]}
+
+        @app.get("/v1/estates/{estate_id}/evaluations")
+        def list_evaluations(
+            estate_id: str,
+            recommendation_run_id: str,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            if services.evaluation_sets is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Evaluation-set generation is unavailable",
+                )
+            return services.evaluation_sets.generate(
+                estate_id,
+                recommendation_run_id,
+                principal=actor,
+            ).model_dump(mode="json")
 
         @app.put("/v1/proposals/{proposal_id}/decision")
         def decide_proposal(

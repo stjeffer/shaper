@@ -94,6 +94,19 @@ Inbound HTTP and MCP requests require signed OIDC tokens with the configured
 issuer and audience. Roles are collection-scoped. The shaping agent has no
 filesystem, arbitrary HTTP, shell, permission, review, or publication tool.
 
+MCP workflow-start tools are intentionally non-idempotent. A client timeout can
+occur after the server has persisted or completed a run. Operators and clients
+must inspect `estate.run.list` before retrying discovery, recommendation, or
+transformation. MCP transformation accepts one recommendation per call and
+clients should allow at least 210 seconds for an initial model request plus one
+optional repair. The legacy `knowledge.compile` tool remains idempotent through
+its required idempotency key.
+
+Artifact approval through MCP uses the same review role, current review
+revision, current artifact revision, rationale, and exact finding
+acknowledgment set as REST. MCP tool annotations help clients present
+confirmation, but they are not an authorization boundary.
+
 Use a ClamAV image pinned by approved digest and monitor signature-update
 failures. Readiness intentionally fails when the scanner is unavailable, so
 unscanned direct uploads cannot enter the workflow.

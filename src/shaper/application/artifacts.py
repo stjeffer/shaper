@@ -370,6 +370,22 @@ class EstateTransformationService:
         )
         return approved, published
 
+    def review_status(
+        self,
+        artifact_id: str,
+        *,
+        principal: Principal,
+    ) -> tuple[ReviewRecord, VersionedRecord[KnowledgeArtifact]]:
+        """Return the current authorized review and artifact revisions."""
+        artifact = self._repository.get_artifact(artifact_id)
+        if artifact is None:
+            raise KeyError(f"Knowledge artifact does not exist: {artifact_id}")
+        estate = self._repository.get_estate(artifact.value.estate_id)
+        if estate is None:
+            raise KeyError(f"Knowledge estate does not exist: {artifact.value.estate_id}")
+        EstateService._authorize(estate.value, principal, CollectionRole.REVIEW)
+        return self._reviews.get(artifact.value.unit_id), artifact
+
     def content(self, artifact_id: str, *, principal: Principal) -> bytes:
         """Return hash-verified bytes for an approved artifact."""
         artifact = self._repository.get_artifact(artifact_id)

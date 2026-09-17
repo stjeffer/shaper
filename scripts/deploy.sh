@@ -263,6 +263,36 @@ PY
   python3 -c \
     'import json,sys; from pathlib import Path; value=json.loads(Path(sys.argv[1]).read_text()); assert "result" in value' \
     "${response_file}"
+
+  curl --fail --silent --show-error \
+    --header "Accept: application/json, text/event-stream" \
+    --header "@${header_file}" \
+    --header "Content-Type: application/json" \
+    --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+    "${service_url}/mcp/" >"${response_file}"
+  python3 -c \
+    'import json,sys; from pathlib import Path; value=json.loads(Path(sys.argv[1]).read_text()); names={tool["name"] for tool in value["result"]["tools"]}; required={"knowledge.query","estate.list","estate.discovery.start","estate.transformation.start","estate.artifact.approve","estate.evaluation.list"}; assert required <= names' \
+    "${response_file}"
+
+  curl --fail --silent --show-error \
+    --header "Accept: application/json, text/event-stream" \
+    --header "@${header_file}" \
+    --header "Content-Type: application/json" \
+    --data "$(printf '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"estate.list","arguments":{"collection_id":"%s"}}}' "${SHAPER_COLLECTION_ID}")" \
+    "${service_url}/mcp/" >"${response_file}"
+  python3 -c \
+    'import json,sys; from pathlib import Path; value=json.loads(Path(sys.argv[1]).read_text()); assert value["result"].get("isError") is not True' \
+    "${response_file}"
+
+  curl --fail --silent --show-error \
+    --header "Accept: application/json, text/event-stream" \
+    --header "@${header_file}" \
+    --header "Content-Type: application/json" \
+    --data "$(printf '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"estate.list","arguments":{"collection_id":"%s-denied"}}}' "${SHAPER_COLLECTION_ID}")" \
+    "${service_url}/mcp/" >"${response_file}"
+  python3 -c \
+    'import json,sys; from pathlib import Path; value=json.loads(Path(sys.argv[1]).read_text()); assert value["result"].get("isError") is True' \
+    "${response_file}"
   fi
 
   printf "Deployment complete\n"
