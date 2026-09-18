@@ -54,7 +54,12 @@ from shaper.application.jobs import (
     JobConflictError,
     QuotaExceededError,
 )
+from shaper.application.model import ModelProviderError
 from shaper.application.orchestration import KnowledgeTransformationOrchestrator
+from shaper.application.passage_reshape import (
+    MAX_PASSAGE_CHARACTERS,
+    PassageReshapeService,
+)
 from shaper.application.ports import MalwareScanner
 from shaper.application.query import QueryGateway
 from shaper.application.regression import (
@@ -178,6 +183,16 @@ class SourceCreateRequest(BaseModel):
     credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER
 
 
+class PassageReshapeRequest(BaseModel):
+    """Suggest a replacement for one reviewed evidence passage."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_version: str = Field(min_length=1, max_length=128)
+    finding_code: str | None = Field(default=None, max_length=128)
+    passage: str = Field(min_length=1, max_length=MAX_PASSAGE_CHARACTERS)
+
+
 class SelectionRequest(BaseModel):
     """Select identifiers for a bounded workflow run."""
 
@@ -260,6 +275,7 @@ class HttpServices:
     transformations: EstateTransformationService | None = None
     evaluation_sets: EvaluationSetService | None = None
     estate_repository: EstateRepository | None = None
+    passage_reshape: PassageReshapeService | None = None
     archive_expander: ZipArchiveExpander | None = None
     malware_scanner: MalwareScanner | None = None
     max_upload_bytes: int = 25 * 1024 * 1024
@@ -592,6 +608,43 @@ def create_app(services: HttpServices) -> FastAPI:
                 raise ValueError("Requested source version is not current")
             content = estate_repository.load_document_content(document_id, source_version)
             return PlainTextResponse(content)
+
+        @app.post("/v1/estates/{estate_id}/documents/{document_id}/passage-reshape")
+        def reshape_document_passage(
+            estate_id: str,
+            document_id: str,
+            request: PassageReshapeRequest,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            if services.passage_reshape is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Focused passage reshaping is not configured on this deployment",
+                )
+            try:
+                suggestion = services.passage_reshape.suggest(
+                    estate_id=estate_id,
+                    document_id=document_id,
+                    source_version=request.source_version,
+                    finding_code=request.finding_code,
+                    passage=request.passage,
+                    principal=actor,
+                )
+            except ModelProviderError as error:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=str(error),
+                ) from error
+            return {
+                "replacement": suggestion.replacement,
+                "rationale": suggestion.rationale,
+                "finding_code": suggestion.finding_code,
+                "source_version": suggestion.source_version,
+                "usage": {
+                    "input_tokens": suggestion.input_tokens,
+                    "output_tokens": suggestion.output_tokens,
+                },
+            }
 
         @app.get("/v1/estates/{estate_id}/documents/{document_id}/source")
         def get_document_source(

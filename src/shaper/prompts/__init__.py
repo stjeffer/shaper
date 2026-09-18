@@ -32,9 +32,11 @@ def load_prompt(resource_name: str) -> str:
 
 SHAPING_PROMPT = load_prompt("shaping.md")
 EVALUATION_PROMPT = load_prompt("evaluation.md")
+PASSAGE_RESHAPE_PROMPT = load_prompt("passage_reshape.md")
 
 __all__ = [
     "EVALUATION_PROMPT",
+    "PASSAGE_RESHAPE_PROMPT",
     "PROMPT_VERSION",
     "SHAPING_PROMPT",
     "PromptResourceError",

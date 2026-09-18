@@ -35,6 +35,7 @@ from shaper.application.orchestration import (
     KnowledgeTransformationOrchestrator,
     TransformationAgent,
 )
+from shaper.application.passage_reshape import PassageReshapeService
 from shaper.application.ports import ModelResult
 from shaper.application.query import QueryResult
 from shaper.application.review import ReviewService
@@ -106,6 +107,33 @@ class GroundedModel:
             response_id="response-1",
             input_tokens=12,
             output_tokens=8,
+        )
+
+
+class PassageModel:
+    """Deterministic passage-rewrite model for focused reshape tests."""
+
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    def generate(
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        schema: dict[str, object],
+        max_output_tokens: int | None = None,
+    ) -> ModelResult:
+        del system_prompt, schema, max_output_tokens
+        self.prompts.append(prompt)
+        return ModelResult(
+            payload={
+                "replacement": "Employees request annual leave from their line manager.",
+                "rationale": "Named the decision owner and removed ambiguity.",
+            },
+            response_id="passage-1",
+            input_tokens=20,
+            output_tokens=14,
         )
 
 
@@ -203,6 +231,11 @@ def _client(
             clock=lambda: NOW,
         ),
         evaluation_sets=EvaluationSetService(repository),
+        passage_reshape=PassageReshapeService(
+            repository,
+            estates=EstateService(repository, clock=lambda: NOW),
+            model=PassageModel(),
+        ),
         estate_repository=repository,
         archive_expander=ZipArchiveExpander(CleanScanner()),
         malware_scanner=CleanScanner(),
@@ -848,6 +881,88 @@ def test_given_active_estate_when_archived_and_purged_then_lifecycle_is_enforced
         assert rejected_mutation.status_code == 409
         assert purged.status_code == 200
         assert purged.json()["purged"] is True
+        assert missing.status_code == 404
+    finally:
+        store.close()
+
+
+def test_given_assessed_passage_when_reshape_requested_then_suggestion_is_returned(
+    tmp_path: Path,
+) -> None:
+    client, store, _repository, _services = _client(tmp_path / "estate-passage.db")
+    headers = {"Authorization": "Bearer valid"}
+    try:
+        estate_id = client.post(
+            "/v1/estates",
+            headers=headers,
+            json={
+                "collection_id": "collection-1",
+                "name": "Policy estate",
+                "description": "",
+                "artifact_name_template": "shaper_{source_stem}.html",
+            },
+        ).json()["value"]["estate_id"]
+        uploaded = client.post(
+            f"/v1/estates/{estate_id}/uploads",
+            headers=headers,
+            files={
+                "files": (
+                    "leave-policy.md",
+                    b"# Leave policy\n\nLeave should be requested promptly by the relevant party.",
+                    "text/markdown",
+                )
+            },
+        ).json()["documents"][0]["value"]
+        document_id = uploaded["document_id"]
+        source_version = uploaded["source_version"]
+
+        response = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/passage-reshape",
+            headers=headers,
+            json={
+                "source_version": source_version,
+                "finding_code": "ambiguous_language",
+                "passage": "Leave should be requested promptly by the relevant party.",
+            },
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["replacement"].startswith("Employees request annual leave")
+        assert payload["rationale"]
+        assert payload["source_version"] == source_version
+        assert payload["usage"]["output_tokens"] == 14
+
+        stale = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/passage-reshape",
+            headers=headers,
+            json={
+                "source_version": "0" * 64,
+                "finding_code": "ambiguous_language",
+                "passage": "Leave should be requested promptly by the relevant party.",
+            },
+        )
+        assert stale.status_code == 422
+
+        untagged = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/passage-reshape",
+            headers=headers,
+            json={
+                "source_version": source_version,
+                "passage": "Leave should be requested promptly by the relevant party.",
+            },
+        )
+        assert untagged.status_code == 200, untagged.text
+        assert untagged.json()["finding_code"] is None
+
+        missing = client.post(
+            f"/v1/estates/{estate_id}/documents/missing-document/passage-reshape",
+            headers=headers,
+            json={
+                "source_version": source_version,
+                "finding_code": "ambiguous_language",
+                "passage": "Leave should be requested promptly by the relevant party.",
+            },
+        )
         assert missing.status_code == 404
     finally:
         store.close()

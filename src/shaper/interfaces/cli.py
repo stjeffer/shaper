@@ -38,6 +38,7 @@ from shaper.application.orchestration import (
     KnowledgeTransformationOrchestrator,
     TransformationAgent,
 )
+from shaper.application.passage_reshape import PassageReshapeService
 from shaper.application.review import ReviewService, ReviewStore
 from shaper.application.token_estimation import TokenEstimator
 from shaper.application.validation import DeterministicValidator
@@ -233,6 +234,11 @@ def serve(
         renderer=HtmlArtifactRenderer(),
         clock=lambda: datetime.now(UTC),
     )
+    passage_reshape_service = PassageReshapeService(
+        estate_repository,
+        estates=estate_service,
+        model=model,
+    )
     evaluation_set_service = EvaluationSetService(estate_repository)
     http_services = HttpServices(
         jobs=jobs,
@@ -256,6 +262,7 @@ def serve(
         decisions=decision_service,
         transformations=transformation_service,
         evaluation_sets=evaluation_set_service,
+        passage_reshape=passage_reshape_service,
         estate_repository=estate_repository,
         archive_expander=ZipArchiveExpander(scanner),
         malware_scanner=scanner,
