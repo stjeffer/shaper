@@ -93,6 +93,10 @@ new complete release and advance the pointer through the publication service.
 Inbound HTTP and MCP requests require signed OIDC tokens with the configured
 issuer and audience. Roles are collection-scoped. The shaping agent has no
 filesystem, arbitrary HTTP, shell, permission, review, or publication tool.
+Container Apps may forward both a bearer token and its validated ingress
+principal to REST routes. Shaper accepts that pair only when independent bearer
+validation resolves to the same tenant and subject; mismatched or untrusted
+ingress identities fail closed.
 
 MCP workflow-start tools are intentionally non-idempotent. A client timeout can
 occur after the server has persisted or completed a run. Operators and clients

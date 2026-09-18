@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import json
+
 import pytest
 
 from shaper.application.jobs import (
@@ -10,9 +13,14 @@ from shaper.application.jobs import (
     InMemoryJobStore,
     QuotaExceededError,
 )
-from shaper.domain import CollectionRole, JobState, OutputRef, Principal, SourceRef
+from shaper.domain import CollectionGrant, CollectionRole, JobState, OutputRef, Principal, SourceRef
 from shaper.domain.models import OutputKind, SourceKind
-from shaper.interfaces.auth import ClaimsPrincipalMapper, OIDCAuthenticator, discover_jwks_uri
+from shaper.interfaces.auth import (
+    ClaimsPrincipalMapper,
+    OIDCAuthenticator,
+    RequestPrincipalResolver,
+    discover_jwks_uri,
+)
 
 
 def principal() -> Principal:
@@ -22,6 +30,85 @@ def principal() -> Principal:
         tenant_id="tenant-1",
         collection_roles={"collection-1": frozenset({CollectionRole.COMPILE})},
     )
+
+
+class StaticAuthenticator:
+    """Return one deterministic bearer principal."""
+
+    def __init__(self, value: Principal) -> None:
+        self._value = value
+
+    def authenticate(self, token: str) -> Principal:
+        assert token == "valid"
+        return self._value
+
+
+class EmptyGrantRepository:
+    """Provide no persisted grants for an app-only ingress identity."""
+
+    def grants_for(
+        self,
+        tenant_id: str,
+        principal_id: str,
+    ) -> tuple[CollectionGrant, ...]:
+        assert tenant_id
+        assert principal_id
+        return ()
+
+
+def ingress_identity(*, principal_id: str, tenant_id: str = "tenant-1") -> str:
+    """Encode the identity header emitted by Container Apps authentication."""
+    payload = {
+        "claims": [
+            {"typ": "sub", "val": principal_id},
+            {"typ": "tid", "val": tenant_id},
+        ]
+    }
+    return base64.b64encode(json.dumps(payload).encode()).decode()
+
+
+def test_given_matching_bearer_and_ingress_when_resolved_then_bearer_roles_are_used() -> None:
+    bearer = principal()
+    resolver = RequestPrincipalResolver(
+        authenticator=StaticAuthenticator(bearer),
+        grants=EmptyGrantRepository(),
+        trust_ingress_identity=True,
+    )
+
+    resolved = resolver.resolve(
+        authorization="Bearer valid",
+        ingress_principal=ingress_identity(principal_id=bearer.principal_id),
+    )
+
+    assert resolved == bearer
+
+
+def test_given_mismatched_bearer_and_ingress_when_resolved_then_access_is_denied() -> None:
+    resolver = RequestPrincipalResolver(
+        authenticator=StaticAuthenticator(principal()),
+        grants=EmptyGrantRepository(),
+        trust_ingress_identity=True,
+    )
+
+    with pytest.raises(PermissionError, match="do not match"):
+        resolver.resolve(
+            authorization="Bearer valid",
+            ingress_principal=ingress_identity(principal_id="other-person"),
+        )
+
+
+def test_given_untrusted_matching_ingress_when_resolved_then_access_is_denied() -> None:
+    resolver = RequestPrincipalResolver(
+        authenticator=StaticAuthenticator(principal()),
+        grants=EmptyGrantRepository(),
+        trust_ingress_identity=False,
+    )
+
+    with pytest.raises(PermissionError, match="not trusted"):
+        resolver.resolve(
+            authorization="Bearer valid",
+            ingress_principal=ingress_identity(principal_id="person-1"),
+        )
 
 
 def source() -> SourceRef:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Protocol
 from urllib.parse import urlparse
 
@@ -15,8 +15,7 @@ from jwt import PyJWKClient
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken
 
-from shaper.application.estates import EstateRepository
-from shaper.domain import CollectionRole, Principal
+from shaper.domain import CollectionGrant, CollectionRole, Principal
 
 
 class Authenticator(Protocol):
@@ -24,6 +23,13 @@ class Authenticator(Protocol):
 
     def authenticate(self, token: str) -> Principal:
         """Validate a token and return its application principal."""
+
+
+class CollectionGrantReader(Protocol):
+    """Read persisted collection grants for trusted ingress identities."""
+
+    def grants_for(self, tenant_id: str, principal_id: str) -> Sequence[CollectionGrant]:
+        """Return grants for one tenant-scoped principal."""
 
 
 class ClaimsPrincipalMapper:
@@ -68,7 +74,7 @@ class RequestPrincipalResolver:
         self,
         *,
         authenticator: Authenticator,
-        grants: EstateRepository,
+        grants: CollectionGrantReader,
         trust_ingress_identity: bool = False,
     ) -> None:
         self._authenticator = authenticator
@@ -82,20 +88,31 @@ class RequestPrincipalResolver:
         ingress_principal: str | None,
     ) -> Principal:
         """Fail closed for mixed, malformed, missing, or untrusted identities."""
-        has_bearer = authorization is not None
-        has_ingress = ingress_principal is not None
-        if has_bearer and has_ingress:
-            raise PermissionError("Bearer and ingress identities cannot be combined")
-        if has_bearer:
-            prefix = "Bearer "
-            if authorization is None or not authorization.startswith(prefix):
-                raise PermissionError("Authorization header must use Bearer")
-            return self._authenticator.authenticate(authorization.removeprefix(prefix))
-        if has_ingress:
-            if not self._trust_ingress_identity:
-                raise PermissionError("Ingress identity is not trusted by this deployment")
-            return self._ingress_principal(ingress_principal or "")
+        if authorization is not None and ingress_principal is not None:
+            bearer = self._bearer_principal(authorization)
+            ingress = self._trusted_ingress_principal(ingress_principal)
+            if (
+                bearer.principal_id != ingress.principal_id
+                or bearer.tenant_id != ingress.tenant_id
+            ):
+                raise PermissionError("Bearer and ingress identities do not match")
+            return bearer
+        if authorization is not None:
+            return self._bearer_principal(authorization)
+        if ingress_principal is not None:
+            return self._trusted_ingress_principal(ingress_principal)
         raise PermissionError("Authentication is required")
+
+    def _bearer_principal(self, authorization: str) -> Principal:
+        prefix = "Bearer "
+        if not authorization.startswith(prefix):
+            raise PermissionError("Authorization header must use Bearer")
+        return self._authenticator.authenticate(authorization.removeprefix(prefix))
+
+    def _trusted_ingress_principal(self, encoded: str) -> Principal:
+        if not self._trust_ingress_identity:
+            raise PermissionError("Ingress identity is not trusted by this deployment")
+        return self._ingress_principal(encoded)
 
     def _ingress_principal(self, encoded: str) -> Principal:
         try:

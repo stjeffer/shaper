@@ -189,6 +189,10 @@ is used in the OAuth scope request, but it is not the expected JWT audience.
 Container Apps authentication must exclude `/mcp`, `/mcp/`, and `/mcp/*` so the
 MCP resource server, rather than the interactive browser middleware, validates
 bearer tokens at both the root endpoint and any subordinate MCP paths.
+For REST API calls, Container Apps authentication forwards the validated ingress
+principal together with the original bearer token. Shaper independently
+validates the bearer token and accepts the combined identity only when its tenant
+and subject exactly match the trusted ingress principal.
 
 The deployment output includes the live workspace URL at `/concept/`. Its
 data-free signed-out shell is public and explicitly initiates interactive Entra
