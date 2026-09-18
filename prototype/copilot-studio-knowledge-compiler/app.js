@@ -809,7 +809,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   index.className = "findings-index";
   index.setAttribute("aria-label", "Findings index");
   const detail = document.createElement("div");
-  detail.className = "findings-detail";
+  detail.className = "findings-detail finding-inline-detail";
   detail.setAttribute("aria-live", "polite");
   const indexedFindings = [];
 
@@ -1093,8 +1093,10 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     const finding = indexedFindings[findingIndex];
     if (!finding) return;
     review.activeFindingIndex = findingIndex;
+    let activeButton = null;
     index.querySelectorAll("[data-finding-index]").forEach((button) => {
       button.setAttribute("aria-pressed", `${button.dataset.findingIndex === `${findingIndex}`}`);
+      if (button.dataset.findingIndex === `${findingIndex}`) activeButton = button;
     });
     documentBody.querySelectorAll(".review-mark").forEach((mark) => {
       mark.classList.toggle("is-active", mark.dataset.findingIndex === `${findingIndex}`);
@@ -1162,6 +1164,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     if (matchedPassages.length === 0) detailSections.push(evidence);
     detailSections.push(footer);
     detail.replaceChildren(...detailSections);
+    activeButton?.insertAdjacentElement("afterend", detail);
   };
 
   index.addEventListener("click", (event) => {
@@ -1231,7 +1234,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     renderDetail(review.activeFindingIndex);
   });
 
-  container.append(index, detail);
+  container.append(index);
   workspace.append(documentPane, container);
   updateDocumentActions();
   renderDetail(0);
