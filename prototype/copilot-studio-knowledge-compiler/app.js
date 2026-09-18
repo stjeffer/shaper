@@ -919,9 +919,19 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     const passages = review.segments
       .map((segment, segmentIndex) => ({ segment, segmentIndex }))
       .filter((entry) => entry.segment.kind === "mark" && entry.segment.findingIndex === findingIndex);
-    block.append(
-      text("p", `Highlighted passages \u00b7 ${passages.length}`, "finding-detail-label"),
+    const passageHeading = document.createElement("div");
+    passageHeading.className = "finding-passage-heading";
+    passageHeading.append(
+      text("p", "Improve highlighted content", "finding-detail-label"),
+      text(
+        "p",
+        passages.length === 1
+          ? "Edit the passage directly or ask Shaper for a clearer version."
+          : `Edit any of the ${passages.length} highlighted passages or ask Shaper for a clearer version.`,
+        "finding-passage-intro",
+      ),
     );
+    block.append(passageHeading);
     if (review.status !== "ready") {
       block.append(
         text(
@@ -981,7 +991,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
       reshape.type = "button";
       reshape.className = "review-action";
       reshape.dataset.appearance = "lightweight";
-      reshape.textContent = "Reshape this passage";
+      reshape.textContent = "Suggest content";
       const note = document.createElement("p");
       note.className = "finding-passage-note";
       actions.append(save, reset, reshape);
@@ -1117,10 +1127,11 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     );
     const evidence = document.createElement("section");
     evidence.className = "finding-evidence-block";
-    evidence.append(
-      text("p", `Source evidence \u00b7 ${finding.evidence?.length ?? 0}`, "finding-detail-label"),
+    evidence.append(text("p", "Source evidence", "finding-detail-label"));
+    const matchedPassages = review.segments.filter(
+      (segment) => segment.kind === "mark" && segment.findingIndex === findingIndex,
     );
-    if (finding.evidence?.length) {
+    if (finding.evidence?.length && matchedPassages.length === 0) {
       const evidenceList = document.createElement("div");
       evidenceList.className = "finding-evidence-list";
       finding.evidence.forEach((entry) => {
@@ -1132,7 +1143,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
         evidenceList.append(figure);
       });
       evidence.append(evidenceList);
-    } else {
+    } else if (matchedPassages.length === 0) {
       evidence.append(
         text("p", "No source excerpt was supplied for this finding.", "finding-empty-evidence"),
       );
@@ -1147,7 +1158,10 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
       ),
       text("span", documentTitle, "finding-document-name"),
     );
-    detail.replaceChildren(header, impact, evidence, passageBlock(findingIndex, finding), footer);
+    const detailSections = [header, impact, passageBlock(findingIndex, finding)];
+    if (matchedPassages.length === 0) detailSections.push(evidence);
+    detailSections.push(footer);
+    detail.replaceChildren(...detailSections);
   };
 
   index.addEventListener("click", (event) => {
