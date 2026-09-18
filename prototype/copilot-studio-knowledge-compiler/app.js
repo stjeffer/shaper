@@ -678,7 +678,97 @@ const FINDING_GROUPS = [
   { tone: "advisory", label: "Advisory" },
 ];
 
-function documentFindings(report, documentTitle = "Document") {
+const REVIEW_MIN_QUOTE = 8;
+
+function normalizeWithMap(value) {
+  const characters = [];
+  const map = [];
+  let previousSpace = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (/\s/.test(character)) {
+      if (previousSpace) continue;
+      characters.push(" ");
+      map.push(index);
+      previousSpace = true;
+      continue;
+    }
+    characters.push(character);
+    map.push(index);
+    previousSpace = false;
+  }
+  return { normalized: characters.join(""), map };
+}
+
+function locateQuote(normalized, quote, taken) {
+  const cleaned = (quote ?? "")
+    .replace(/^[\s"'\u2018\u2019\u201c\u201d\u2026.]+/, "")
+    .replace(/[\s"'\u2018\u2019\u201c\u201d\u2026]+$/, "");
+  if (cleaned.length < REVIEW_MIN_QUOTE) return null;
+  const target = cleaned.replace(/\s+/g, " ");
+  let from = 0;
+  while (from <= normalized.normalized.length) {
+    const index = normalized.normalized.indexOf(target, from);
+    if (index < 0) return null;
+    const start = normalized.map[index];
+    const end = normalized.map[index + target.length - 1] + 1;
+    if (!taken.some((span) => start < span.end && end > span.start)) {
+      return { start, end };
+    }
+    from = index + 1;
+  }
+  return null;
+}
+
+function buildReviewSegments(content, indexedFindings) {
+  const normalized = normalizeWithMap(content);
+  const spans = [];
+  indexedFindings.forEach((finding, findingIndex) => {
+    finding.locatedPassages = 0;
+    finding.unlocatedPassages = 0;
+    (finding.evidence ?? []).forEach((entry) => {
+      const range = locateQuote(normalized, entry.quote, spans);
+      if (!range) {
+        finding.unlocatedPassages += 1;
+        return;
+      }
+      spans.push({ ...range, findingIndex, tone: finding.tone });
+      finding.locatedPassages += 1;
+    });
+  });
+  spans.sort((first, second) => first.start - second.start);
+  const segments = [];
+  let cursor = 0;
+  spans.forEach((span) => {
+    if (span.start > cursor) {
+      segments.push({ kind: "text", text: content.slice(cursor, span.start) });
+    }
+    const passage = content.slice(span.start, span.end);
+    segments.push({
+      kind: "mark",
+      text: passage,
+      original: passage,
+      edited: false,
+      findingIndex: span.findingIndex,
+      tone: span.tone,
+    });
+    cursor = span.end;
+  });
+  if (cursor < content.length) {
+    segments.push({ kind: "text", text: content.slice(cursor) });
+  }
+  return segments;
+}
+
+function revisedReviewText(review) {
+  return review.segments.map((segment) => segment.text).join("");
+}
+
+function reviewHasEdits(review) {
+  return review.segments.some((segment) => segment.kind === "mark" && segment.edited);
+}
+
+function documentFindings(report, documentTitle = "Document", documentValue = null) {
   const classified = classifyFindings(report);
   if (classified.length === 0) {
     const results = document.createElement("ul");
@@ -704,6 +794,10 @@ function documentFindings(report, documentTitle = "Document") {
     groups.get(tone).push(finding);
   }
 
+  const workspace = document.createElement("div");
+  workspace.className = "review-workspace";
+  workspace.setAttribute("aria-label", `${documentTitle} content review`);
+
   const container = document.createElement("div");
   container.className = "findings-workspace";
   container.setAttribute("aria-label", `${documentTitle} content quality findings`);
@@ -714,6 +808,238 @@ function documentFindings(report, documentTitle = "Document") {
   detail.className = "findings-detail";
   detail.setAttribute("aria-live", "polite");
   const indexedFindings = [];
+
+  const review = {
+    status: documentValue ? "loading" : "unavailable",
+    message: "",
+    segments: [],
+    original: "",
+    activeFindingIndex: 0,
+  };
+
+  const documentPane = document.createElement("section");
+  documentPane.className = "review-document";
+  documentPane.setAttribute("aria-label", `${documentTitle} text`);
+  const documentHeader = document.createElement("header");
+  documentHeader.className = "review-document-header";
+  const documentHeaderCopy = document.createElement("div");
+  documentHeaderCopy.className = "review-document-header-copy";
+  documentHeaderCopy.append(
+    text("p", "Assessed text", "finding-detail-label"),
+    text("h4", documentTitle, "review-document-title"),
+  );
+  const documentActions = document.createElement("div");
+  documentActions.className = "review-document-actions";
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.dataset.appearance = "lightweight";
+  copyButton.className = "review-action";
+  copyButton.textContent = "Copy revised text";
+  const downloadButton = document.createElement("button");
+  downloadButton.type = "button";
+  downloadButton.dataset.appearance = "lightweight";
+  downloadButton.className = "review-action";
+  downloadButton.textContent = "Download revised text";
+  const revertButton = document.createElement("button");
+  revertButton.type = "button";
+  revertButton.dataset.appearance = "lightweight";
+  revertButton.className = "review-action";
+  revertButton.textContent = "Revert all edits";
+  documentActions.append(copyButton, downloadButton, revertButton);
+  documentHeader.append(documentHeaderCopy, documentActions);
+  const documentStatus = document.createElement("p");
+  documentStatus.className = "review-document-status";
+  documentStatus.setAttribute("aria-live", "polite");
+  const documentBody = document.createElement("div");
+  documentBody.className = "review-document-body";
+  documentPane.append(documentHeader, documentStatus, documentBody);
+
+  const updateDocumentActions = () => {
+    const edited = reviewHasEdits(review);
+    const ready = review.status === "ready";
+    copyButton.disabled = !ready;
+    downloadButton.disabled = !ready;
+    revertButton.disabled = !edited;
+    documentStatus.textContent =
+      review.status === "loading"
+        ? "Loading assessed text\u2026"
+        : review.status === "error"
+          ? review.message
+          : review.status === "unavailable"
+            ? "Assessed text is not available for this document."
+            : edited
+              ? "Working copy edited in this browser. The uploaded source stays unchanged \u2014 copy or download the revised text to keep it."
+              : "Highlighted passages are the evidence behind each finding. Select a highlight or a finding to review it.";
+  };
+
+  const renderDocumentBody = () => {
+    if (review.status !== "ready") {
+      documentBody.replaceChildren();
+      return;
+    }
+    const textBody = document.createElement("div");
+    textBody.className = "review-document-text";
+    review.segments.forEach((segment, segmentIndex) => {
+      if (segment.kind === "text") {
+        textBody.append(document.createTextNode(segment.text));
+        return;
+      }
+      const mark = document.createElement("mark");
+      mark.className = `review-mark tone-${segment.tone ?? "warning"}`;
+      mark.dataset.segmentIndex = `${segmentIndex}`;
+      mark.dataset.findingIndex = `${segment.findingIndex}`;
+      mark.tabIndex = 0;
+      mark.setAttribute("role", "button");
+      mark.setAttribute(
+        "aria-label",
+        `Highlighted passage for finding ${segment.findingIndex + 1}`,
+      );
+      if (segment.edited) mark.classList.add("is-edited");
+      if (segment.findingIndex === review.activeFindingIndex) mark.classList.add("is-active");
+      mark.textContent = segment.text;
+      textBody.append(mark);
+    });
+    documentBody.replaceChildren(textBody);
+  };
+
+  const scrollMarkIntoView = (findingIndex) => {
+    const mark = documentBody.querySelector(`.review-mark[data-finding-index="${findingIndex}"]`);
+    mark?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+
+  let renderDetail = () => {};
+
+  const passageBlock = (findingIndex, finding) => {
+    const block = document.createElement("section");
+    block.className = "finding-passage-block";
+    const passages = review.segments
+      .map((segment, segmentIndex) => ({ segment, segmentIndex }))
+      .filter((entry) => entry.segment.kind === "mark" && entry.segment.findingIndex === findingIndex);
+    block.append(
+      text("p", `Highlighted passages \u00b7 ${passages.length}`, "finding-detail-label"),
+    );
+    if (review.status !== "ready") {
+      block.append(
+        text(
+          "p",
+          review.status === "loading"
+            ? "Loading the assessed text so passages can be edited\u2026"
+            : "Passage editing needs the assessed text, which is not available here.",
+          "finding-empty-evidence",
+        ),
+      );
+      return block;
+    }
+    if (passages.length === 0) {
+      block.append(
+        text(
+          "p",
+          "This finding's evidence could not be matched to an exact passage, so nothing is highlighted for it.",
+          "finding-empty-evidence",
+        ),
+      );
+      return block;
+    }
+    const list = document.createElement("div");
+    list.className = "finding-passage-list";
+    passages.forEach(({ segment, segmentIndex }, position) => {
+      const card = document.createElement("article");
+      card.className = "finding-passage-card";
+      if (segment.edited) card.classList.add("is-edited");
+      card.append(
+        text(
+          "p",
+          segment.edited
+            ? `Passage ${position + 1} \u00b7 edited`
+            : `Passage ${position + 1}`,
+          "finding-passage-label",
+        ),
+      );
+      const field = document.createElement("textarea");
+      field.className = "finding-passage-input";
+      field.rows = Math.min(8, Math.max(2, Math.ceil(segment.text.length / 70)));
+      field.value = segment.text;
+      field.setAttribute("aria-label", `Passage ${position + 1} text`);
+      const actions = document.createElement("div");
+      actions.className = "finding-passage-actions";
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "review-action";
+      save.dataset.appearance = "primary";
+      save.textContent = "Apply edit";
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.className = "review-action";
+      reset.dataset.appearance = "lightweight";
+      reset.textContent = "Restore original";
+      reset.disabled = !segment.edited;
+      const reshape = document.createElement("button");
+      reshape.type = "button";
+      reshape.className = "review-action";
+      reshape.dataset.appearance = "lightweight";
+      reshape.textContent = "Reshape this passage";
+      const note = document.createElement("p");
+      note.className = "finding-passage-note";
+      actions.append(save, reset, reshape);
+      save.addEventListener("click", () => {
+        const next = field.value;
+        if (next === segment.text) {
+          note.textContent = "No change to apply.";
+          return;
+        }
+        review.segments[segmentIndex].text = next;
+        review.segments[segmentIndex].edited = next !== segment.original;
+        renderDocumentBody();
+        updateDocumentActions();
+        renderDetail(findingIndex);
+        scrollMarkIntoView(findingIndex);
+      });
+      reset.addEventListener("click", () => {
+        review.segments[segmentIndex].text = segment.original;
+        review.segments[segmentIndex].edited = false;
+        renderDocumentBody();
+        updateDocumentActions();
+        renderDetail(findingIndex);
+      });
+      reshape.addEventListener("click", async () => {
+        if (!documentValue) return;
+        reshape.disabled = true;
+        note.textContent = "Asking Shaper for a reshaped passage\u2026";
+        try {
+          const estateId = recordValue(state.estate)?.estate_id;
+          const payload = await api(
+            `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+              `${encodeURIComponent(documentValue.document_id)}/passage-reshape`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                source_version: documentValue.source_version,
+                finding_code: finding.code ?? null,
+                passage: field.value,
+              }),
+            },
+          );
+          if (payload?.replacement) {
+            field.value = payload.replacement;
+            note.textContent = payload.rationale
+              ? `Suggested: ${payload.rationale} Review it, then apply the edit.`
+              : "Suggestion ready. Review it, then apply the edit.";
+          } else {
+            note.textContent = "Shaper returned no suggestion for this passage.";
+          }
+        } catch (error) {
+          note.textContent = `Focused reshaping is unavailable: ${error.message}`;
+        } finally {
+          reshape.disabled = false;
+        }
+      });
+      card.append(field, actions, note);
+      list.append(card);
+    });
+    block.append(list);
+    return block;
+  };
+
   for (const { tone, label } of FINDING_GROUPS) {
     const items = groups.get(tone);
     if (!items?.length) continue;
@@ -723,11 +1049,7 @@ function documentFindings(report, documentTitle = "Document") {
     heading.className = "result-group-heading";
     heading.append(
       text("span", "", "result-group-dot"),
-      text(
-        "h3",
-        `${label} \u00b7 ${items.length}`,
-        "result-group-label",
-      ),
+      text("h3", `${label} \u00b7 ${items.length}`, "result-group-label"),
     );
     const list = document.createElement("div");
     list.className = "findings-index-list";
@@ -745,18 +1067,23 @@ function documentFindings(report, documentTitle = "Document") {
       button.append(
         text("span", String(findingIndex + 1).padStart(2, "0"), "finding-number"),
         text("span", finding.label, "finding-index-label"),
-        text("span", "›", "finding-index-arrow"),
+        text("span", "\u203a", "finding-index-arrow"),
       );
       list.append(button);
     });
     section.append(heading, list);
     index.append(section);
   }
-  const renderDetail = (findingIndex) => {
+
+  renderDetail = (findingIndex) => {
     const finding = indexedFindings[findingIndex];
     if (!finding) return;
+    review.activeFindingIndex = findingIndex;
     index.querySelectorAll("[data-finding-index]").forEach((button) => {
       button.setAttribute("aria-pressed", `${button.dataset.findingIndex === `${findingIndex}`}`);
+    });
+    documentBody.querySelectorAll(".review-mark").forEach((mark) => {
+      mark.classList.toggle("is-active", mark.dataset.findingIndex === `${findingIndex}`);
     });
     const header = document.createElement("header");
     header.className = "finding-detail-header";
@@ -769,40 +1096,62 @@ function documentFindings(report, documentTitle = "Document") {
     );
     header.append(
       headingCopy,
-      text("span", `${String(findingIndex + 1).padStart(2, "0")} / ${String(indexedFindings.length).padStart(2, "0")}`, "finding-position"),
+      text(
+        "span",
+        `${String(findingIndex + 1).padStart(2, "0")} / ${String(indexedFindings.length).padStart(2, "0")}`,
+        "finding-position",
+      ),
     );
     const impact = document.createElement("section");
     impact.className = "finding-impact-block";
     impact.append(
       text("p", "Agent impact", "finding-detail-label"),
-      text("p", finding.agentImpact ?? "This issue can make agent answers less reliable or complete."),
+      text(
+        "p",
+        finding.agentImpact ?? "This issue can make agent answers less reliable or complete.",
+      ),
     );
     const evidence = document.createElement("section");
     evidence.className = "finding-evidence-block";
-    evidence.append(text("p", `Source evidence · ${finding.evidence?.length ?? 0}`, "finding-detail-label"));
+    evidence.append(
+      text("p", `Source evidence \u00b7 ${finding.evidence?.length ?? 0}`, "finding-detail-label"),
+    );
     if (finding.evidence?.length) {
       const evidenceList = document.createElement("div");
       evidenceList.className = "finding-evidence-list";
       finding.evidence.forEach((entry) => {
         const figure = document.createElement("figure");
-        figure.append(text("figcaption", entry.location || "Source passage"), text("blockquote", entry.quote));
+        figure.append(
+          text("figcaption", entry.location || "Source passage"),
+          text("blockquote", entry.quote),
+        );
         evidenceList.append(figure);
       });
       evidence.append(evidenceList);
     } else {
-      evidence.append(text("p", "No source excerpt was supplied for this finding.", "finding-empty-evidence"));
+      evidence.append(
+        text("p", "No source excerpt was supplied for this finding.", "finding-empty-evidence"),
+      );
     }
     const footer = document.createElement("footer");
     footer.className = "finding-detail-footer";
     footer.append(
-      text("span", finding.review_required ? "Content owner review required" : "No mandatory review", finding.review_required ? "review-required" : "finding-review-status"),
+      text(
+        "span",
+        finding.review_required ? "Content owner review required" : "No mandatory review",
+        finding.review_required ? "review-required" : "finding-review-status",
+      ),
       text("span", documentTitle, "finding-document-name"),
     );
-    detail.replaceChildren(header, impact, evidence, footer);
+    detail.replaceChildren(header, impact, evidence, passageBlock(findingIndex, finding), footer);
   };
+
   index.addEventListener("click", (event) => {
     const button = event.target.closest("[data-finding-index]");
-    if (button) renderDetail(Number(button.dataset.findingIndex));
+    if (button) {
+      renderDetail(Number(button.dataset.findingIndex));
+      scrollMarkIntoView(Number(button.dataset.findingIndex));
+    }
   });
   index.addEventListener("keydown", (event) => {
     if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
@@ -810,13 +1159,89 @@ function documentFindings(report, documentTitle = "Document") {
     const current = buttons.indexOf(event.target.closest("[data-finding-index]"));
     if (current < 0) return;
     event.preventDefault();
-    const next = event.key === "ArrowDown" ? (current + 1) % buttons.length : (current - 1 + buttons.length) % buttons.length;
+    const next =
+      event.key === "ArrowDown"
+        ? (current + 1) % buttons.length
+        : (current - 1 + buttons.length) % buttons.length;
     buttons[next].focus();
     buttons[next].click();
   });
+
+  const selectMark = (mark) => {
+    const findingIndex = Number(mark.dataset.findingIndex);
+    renderDetail(findingIndex);
+    index.querySelector(`[data-finding-index="${findingIndex}"]`)?.scrollIntoView({
+      block: "nearest",
+    });
+  };
+  documentBody.addEventListener("click", (event) => {
+    const mark = event.target.closest(".review-mark");
+    if (mark) selectMark(mark);
+  });
+  documentBody.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const mark = event.target.closest(".review-mark");
+    if (!mark) return;
+    event.preventDefault();
+    selectMark(mark);
+  });
+
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(revisedReviewText(review));
+      documentStatus.textContent = "Revised text copied to the clipboard.";
+    } catch {
+      documentStatus.textContent = "Copying is blocked in this browser; use the download instead.";
+    }
+  });
+  downloadButton.addEventListener("click", () => {
+    const blob = new Blob([revisedReviewText(review)], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${documentTitle.replace(/[^\w.-]+/g, "-")}-revised.txt`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+  revertButton.addEventListener("click", () => {
+    review.segments.forEach((segment) => {
+      if (segment.kind !== "mark") return;
+      segment.text = segment.original;
+      segment.edited = false;
+    });
+    renderDocumentBody();
+    updateDocumentActions();
+    renderDetail(review.activeFindingIndex);
+  });
+
   container.append(index, detail);
+  workspace.append(documentPane, container);
+  updateDocumentActions();
   renderDetail(0);
-  return container;
+
+  if (documentValue) {
+    const estateId = recordValue(state.estate)?.estate_id;
+    apiText(
+      `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+        `${encodeURIComponent(documentValue.document_id)}/content?source_version=` +
+        `${encodeURIComponent(documentValue.source_version)}`,
+    )
+      .then((content) => {
+        review.original = content;
+        review.segments = buildReviewSegments(content, indexedFindings);
+        review.status = "ready";
+        renderDocumentBody();
+        updateDocumentActions();
+        renderDetail(review.activeFindingIndex);
+      })
+      .catch((error) => {
+        review.status = "error";
+        review.message = `Assessed text could not be loaded: ${error.message}`;
+        updateDocumentActions();
+        renderDetail(review.activeFindingIndex);
+      });
+  }
+
+  return workspace;
 }
 
 function findingReviewButton(report, documentValue) {
@@ -865,7 +1290,7 @@ function populateFindingsDetail(documentValue, report, title, summary, body) {
   summary.textContent = `${findings.length} finding${
     findings.length === 1 ? "" : "s"
   } · ${report.checks_completed?.length ?? 7} checks run`;
-  body.replaceChildren(documentFindings(report, documentValue.title));
+  body.replaceChildren(documentFindings(report, documentValue.title, documentValue));
 }
 
 function updateFindingButtons() {
