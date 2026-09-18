@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from shaper.application.ports import ModelGateway
 from shaper.domain import AnswerUnit, SourceSpan
 from shaper.domain.models import canonical_hash
+from shaper.prompts import EVALUATION_PROMPT
 
 RUBRIC_VERSION = "1.0"
 
@@ -67,6 +68,7 @@ class ModelAssistedEvaluator:
             },
         }
         result = self._gateway.generate(
+            system_prompt=EVALUATION_PROMPT,
             prompt=json.dumps(evaluation_input, sort_keys=True),
             schema=QualityScores.model_json_schema(),
         )

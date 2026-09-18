@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
 from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
 from shaper.application.decisions import TransformationDecisionService
+from shaper.application.document_findings import BASELINE_CHECK_CODES, DOCUMENT_CHECK_CODES
 from shaper.application.estates import (
     EstateDiscoveryService,
     EstateInventoryService,
@@ -75,8 +76,10 @@ class CleanScanner:
 class GroundedModel:
     """Return one candidate grounded in the supplied source span."""
 
-    def generate(self, *, prompt: str, schema: dict[str, object]) -> ModelResult:
-        del schema
+    def generate(
+        self, *, system_prompt: str, prompt: str, schema: dict[str, object]
+    ) -> ModelResult:
+        del system_prompt, schema
         span = json.loads(prompt)["source"][0]
         return ModelResult(
             payload={
@@ -245,6 +248,18 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert report["readiness_score"] >= 0
         assert len(report["checks_completed"]) == 29
         assert all(finding["evidence"] for finding in report["findings"])
+        assert all(finding["agent_impact"] for finding in report["findings"])
+
+        source_response = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/source",
+            params={"source_version": source_version},
+            headers=headers,
+        )
+        assert source_response.status_code == 200
+        assert source_response.content == (
+            b"# Leave policy\n\nEmployees must request annual leave from their manager."
+        )
+        assert source_response.headers["content-disposition"].startswith("attachment;")
 
         recommendation_response = client.post(
             f"/v1/estates/{estate_id}/recommendation-runs",
@@ -254,6 +269,9 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert recommendation_response.status_code == 200
         proposal = recommendation_response.json()["proposals"][0]
         assert proposal["token_estimate"]["enforced_maximum"] > 0
+        assert "/100" not in proposal["rationale"]
+        assert "content finding" in proposal["rationale"]
+        assert "effort" not in proposal["rationale"]
 
         decision_response = client.put(
             f"/v1/proposals/{proposal['recommendation_id']}/decision",
@@ -265,14 +283,25 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             },
         )
         assert decision_response.status_code == 200
+        assert decision_response.json()["outcome"] == "approve"
+        assert decision_response.json()["document_id"] == document_id
 
         transformation_response = client.post(
-            f"/v1/estates/{estate_id}/transformation-runs",
+            f"/v1/estates/{estate_id}/transformation-runs/stream",
             headers=headers,
             json={"ids": [proposal["recommendation_id"]]},
         )
         assert transformation_response.status_code == 200
-        assert transformation_response.json()["run"]["value"]["status"] == "completed"
+        transformation_events = [
+            json.loads(line) for line in transformation_response.text.splitlines() if line.strip()
+        ]
+        assert transformation_events[-1]["type"] == "run_completed"
+        assert transformation_events[-1]["status"] == "completed"
+        assert {
+            event.get("check")
+            for event in transformation_events
+            if event["type"] == "check_updated"
+        } == {"reshape", "source_preservation", "grounding", "quality"}
 
         artifacts_response = client.get(
             f"/v1/estates/{estate_id}/artifacts",
@@ -282,6 +311,19 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         artifact_id = artifact["value"]["artifact_id"]
         assert artifact["value"]["filename"] == "shaper_leave-policy.html"
         assert artifact["value"]["evaluation"]["passed"]
+        preview_response = client.get(
+            f"/v1/artifacts/{artifact_id}/preview",
+            headers=headers,
+        )
+        assert preview_response.status_code == 200
+        assert "<!doctype html>" in preview_response.text
+        assert (
+            client.get(
+                f"/v1/artifacts/{artifact_id}/content",
+                headers=headers,
+            ).status_code
+            == 403
+        )
         evaluation_response = client.get(
             f"/v1/artifacts/{artifact_id}/evaluation",
             headers=headers,
@@ -308,6 +350,23 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert "<!doctype html>" in content_response.text
         assert "Employees must request annual leave" in content_response.text
 
+        store.connection.execute(
+            "DELETE FROM records WHERE category = 'document_source' AND record_id = ?",
+            (f"{document_id}:{source_version}",),
+        )
+        legacy_documents = client.get(
+            f"/v1/estates/{estate_id}/documents",
+            headers=headers,
+        )
+        assert legacy_documents.json()["items"][0]["source_retained"] is False
+        legacy_source = client.get(
+            f"/v1/estates/{estate_id}/documents/{document_id}/source",
+            params={"source_version": source_version},
+            headers=headers,
+        )
+        assert legacy_source.status_code == 409
+        assert "re-upload" in legacy_source.json()["detail"]
+
         document_record = repository.get_document(document_id)
         assert document_record is not None
         repository.save_document(
@@ -322,6 +381,115 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             ).status_code
             == 404
         )
+    finally:
+        store.close()
+
+
+def test_given_estate_documents_when_listed_then_current_assessment_coverage_is_reported(
+    tmp_path: Path,
+) -> None:
+    client, store, _repository = _client(tmp_path / "estate-summary-http.db")
+    headers = {"Authorization": "Bearer " + "valid"}
+    try:
+        created = client.post(
+            "/v1/estates",
+            headers=headers,
+            json={
+                "collection_id": "collection-1",
+                "name": "Assessment coverage",
+                "description": "",
+                "artifact_name_template": "shaper_{source_stem}.html",
+            },
+        ).json()
+        estate_id = created["value"]["estate_id"]
+
+        empty_summary = client.get(
+            "/v1/estates",
+            params={"collection_id": "collection-1"},
+            headers=headers,
+        ).json()["items"][0]
+        assert empty_summary["document_count"] == 0
+        assert empty_summary["assessed_document_count"] == 0
+        assert empty_summary["assessment_status"] == "no_documents"
+
+        first_upload = client.post(
+            f"/v1/estates/{estate_id}/uploads",
+            headers=headers,
+            files={
+                "files": (
+                    "first-policy.md",
+                    b"# First policy\n\nEmployees must follow the published steps.",
+                    "text/markdown",
+                )
+            },
+        )
+        assert first_upload.status_code == 201
+        unassessed_summary = client.get(
+            "/v1/estates",
+            params={"collection_id": "collection-1"},
+            headers=headers,
+        ).json()["items"][0]
+        assert unassessed_summary["document_count"] == 1
+        assert unassessed_summary["assessed_document_count"] == 0
+        assert unassessed_summary["assessment_status"] == "not_assessed"
+
+        discovery = client.post(
+            f"/v1/estates/{estate_id}/discovery-runs",
+            headers=headers,
+            json={},
+        )
+        assert discovery.status_code == 200
+        assessed_summary = client.get(
+            "/v1/estates",
+            params={"collection_id": "collection-1"},
+            headers=headers,
+        ).json()["items"][0]
+        assert assessed_summary["assessed_document_count"] == 1
+        assert assessed_summary["assessment_status"] == "assessed"
+
+        second_upload = client.post(
+            f"/v1/estates/{estate_id}/uploads",
+            headers=headers,
+            files={
+                "files": (
+                    "second-policy.md",
+                    b"# Second policy\n\nManagers should review requests.",
+                    "text/markdown",
+                )
+            },
+        )
+        assert second_upload.status_code == 201
+        partial_summary = client.get(
+            "/v1/estates",
+            params={"collection_id": "collection-1"},
+            headers=headers,
+        ).json()["items"][0]
+        assert partial_summary["document_count"] == 2
+        assert partial_summary["assessed_document_count"] == 1
+        assert partial_summary["assessment_status"] == "partially_assessed"
+    finally:
+        store.close()
+
+
+def test_given_authenticated_user_when_checks_requested_then_full_catalog_is_returned(
+    tmp_path: Path,
+) -> None:
+    client, store, _repository = _client(tmp_path / "assessment-checks-http.db")
+    try:
+        response = client.get(
+            "/v1/assessment-checks",
+            headers={"Authorization": "Bearer " + "valid"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["method"] == "deterministic"
+        assert payload["total"] == 29
+        assert {item["code"] for item in payload["items"]} == set(
+            DOCUMENT_CHECK_CODES + BASELINE_CHECK_CODES
+        )
+        assert all(item["what_it_checks"] for item in payload["items"])
+        assert all(item["agent_impact"] for item in payload["items"])
     finally:
         store.close()
 

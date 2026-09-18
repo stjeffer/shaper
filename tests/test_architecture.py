@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -65,25 +66,85 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     styles = (concept_root / "styles.css").read_text(encoding="utf-8")
 
     # Assert
-    assert '<th scope="col">Results</th>' in markup
-    assert "documentResults(report)" in script
-    assert "classifyResults(report).length" in script
+    assert '<fluent-data-grid-cell cell-type="columnheader" grid-column="3">' in markup
+    assert "Findings" in markup
+    assert ">Readiness<" not in markup
+    assert "Reshaping effort" not in markup
+    assert "report.effort_band" not in script
+    assert "documentFindings(report, documentValue.title)" in script
+    assert "classifyFindings(report).length" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
     assert "Long paragraph" in script
     assert "Document reference" in script
     assert "Additional issue detected" in script
-    assert 'metric("Results found", results)' in script
+    assert 'metric("Findings found", findings)' in script
+    assert "Agent impact:" in script
+    assert '"Transformation approved"' in script
+    assert "Approved. This document is ready to transform." in script
+    assert "const decision = recordValue(response)" in script
+    assert "report.readiness_score" not in script
     assert 'id="documentDialog"' in markup
     assert "checks run" in script
-    assert "findings-disclosure" in script
-    assert 'setAttribute("role", "progressbar")' in script
+    assert 'id="documentFindingsPanel"' in markup
+    assert 'id="documentFindingsDialog"' in markup
+    assert "function openDocumentFindings(button)" in script
+    assert "button.dataset.reviewFindings = documentValue.document_id" in script
+    assert 'window.matchMedia("(max-width: 1240px)")' in script
+    assert 'findingsDialogMedia.addEventListener("change"' in script
+    assert "moveOpenFindingsToCurrentLayout" in script
+    assert ".discovery-review-layout.has-findings" in styles
+    assert ".findings-review-button:focus-visible" in styles
     assert 'class="assessment-note"' in markup
     assert "result-evidence" in styles
     assert ".result-item.high" in styles
     assert "font-family: inherit" in styles
     assert "/documents/` +" in script
     assert "result-list" in styles
+    assert "result-impact" in styles
+    assert 'id="assessmentChecksView"' in markup
+    assert 'data-action="assessment-checks"' in markup
+    assert "The 29 checks Shaper runs" in markup
+    assert "assessment_status" in script
+    assert "document_count" in script
+    assert 'api("/v1/assessment-checks")' in script
+    assert "renderAssessmentChecks" in script
+    assert "assessment-check-card" in styles
+    assert "assessment-check-impact" in styles
+
+
+def test_given_generated_artifact_when_rendered_then_before_and_after_panels_are_present() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    script = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert '"Before reshaping"' in script
+    assert '"After reshaping"' in script
+    assert "artifact.source_version" in script
+    assert "artifact.document_id" in script
+    assert "artifact.artifact_id" in script
+    assert "/preview" in script
+    assert "recordValue(record).error" in script
+    assert 'outputPreview.setAttribute("sandbox", "")' in script
+    assert "artifact-comparison" in styles
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in styles
+    assert ".comparison-preview[hidden]" in styles
+
+
+def test_given_transformation_estimate_when_rendered_then_usage_is_explained() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    script = (concept_root / "app.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert '"Estimated token use"' in script
+    assert '"Content read"' in script
+    assert '"Content written"' in script
+    assert "Chart maximum:" in script
+    assert "estimate.enforced_maximum" in script
+    assert 'chart.setAttribute("role", "img")' in script
+    assert "token-estimate-chart" in styles
+    assert "token-segment" in styles
+    assert "token-estimate-legend" in styles
 
 
 def test_given_runtime_image_when_inspected_then_cli_and_source_are_packaged() -> None:
@@ -113,8 +174,8 @@ def test_given_live_estate_workspace_when_inspected_then_lifecycle_actions_are_w
     assert "/purge" in javascript
     assert "waitForRun" in javascript
     assert 'setAttribute("aria-busy"' in javascript
-    assert "if (!isArchived())" in javascript
-    assert javascript.index("function openDeleteDialog()") > javascript.index(
+    assert 'if (estate.status !== "archived")' in javascript
+    assert javascript.index("function openDeleteDialog(estateId)") > javascript.index(
         "async function createEstate"
     )
 
@@ -123,6 +184,14 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     html = (REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/index.html").read_text(
         encoding="utf-8"
     )
+    icon_sprite = (
+        REPOSITORY_ROOT
+        / "prototype/copilot-studio-knowledge-compiler/vendor/fluent-system-icons.svg"
+    ).read_text(encoding="utf-8")
+    icon_license = (
+        REPOSITORY_ROOT
+        / "prototype/copilot-studio-knowledge-compiler/vendor/fluent-system-icons-LICENSE.txt"
+    ).read_text(encoding="utf-8")
     browser_app = (
         REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler/app.js"
     ).read_text(encoding="utf-8")
@@ -134,13 +203,224 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'class="nav-item"' in html
     assert 'data-action="open-create"' in html
     assert 'aria-label="New estate"' in html
+    assert '<span class="nav-item-label">New estate</span>' in html
+    assert '<span class="nav-item-label">Checks</span>' in html
+    assert html.count('class="nav-icon fluent-icon"') == 2
+    assert html.count("./vendor/fluent-system-icons.svg#") >= 12
+    assert "fluentIcon(" in browser_app
+    assert '"more-horizontal-20"' in browser_app
+    for icon_id in (
+        "add-folder-24",
+        "arrow-left-20",
+        "checklist-20",
+        "checkmark-circle-20",
+        "dismiss-20",
+        "dismiss-circle-20",
+        "document-24",
+        "error-circle-20",
+        "folder-24",
+        "info-20",
+        "more-horizontal-20",
+        "sync-circle-20",
+        "warning-20",
+    ):
+        assert f'id="{icon_id}"' in icon_sprite
+    assert "Copyright (c) 2020 Microsoft Corporation" in icon_license
+    assert 'id="environment"' not in html
+    assert 'id="avatar"' not in html
+    assert 'querySelector("#avatar")' not in browser_app
+    assert "Create improvement plan" in html
+    assert "Review assessment and improvement plan" in html
+    assert 'id="proposalStatus"' in html
+    assert '"No improvement plan was created"' in browser_app
+    assert "state.proposals.length === 0" in browser_app
+    assert "function invalidateAssessmentEvidence()" in browser_app
+    assert "Run discovery to assess the updated estate." in browser_app
+    assert 'id="evaluationOptions"' in html
+    assert 'class="approval-review-tabs"' in html
+    assert 'aria-label="Improvement plan review"' in html
+    assert 'data-approval-review-tab="assessment"' in html
+    assert 'data-approval-review-tab="evaluations"' in html
+    assert 'id="assessmentResultsPanel"' in html
+    assert 'id="evaluationSetPanel"' in html
+    assert "function switchApprovalReviewTab(name, focus = true)" in browser_app
+    assert 'elements.approvalReviewTabs.addEventListener("keydown"' in browser_app
+    assert html.index('id="transformButton"') < html.index('id="approvalReviewTabs"')
+    assert 'id="transformationProgress"' in html
+    assert 'id="transformationProgressAnnouncement"' in html
+    assert "async function streamTransformation(estateId, ids, onEvent, signal)" in browser_app
+    assert "function updateTransformationProgress(event)" in browser_app
+    assert "function resetTransformationProgress()" in browser_app
+    assert "state.transformationAbortController?.abort()" in browser_app
+    assert "const operationId = crypto.randomUUID()" in browser_app
+    assert "if (!isCurrentOperation()) return;" in browser_app
+    assert 'panel.setAttribute("aria-busy", "true")' not in browser_app
+    assert "/transformation-runs/stream" in browser_app
+    assert "Microsoft Foundry JSONL" in html
+    assert "Copilot Studio CSV" in html
+    assert "function suggestedEvaluations(" in browser_app
+    assert "ground_truth: suggestion.ground_truth" in browser_app
+    assert '["question", "expectedResponse"]' in browser_app
+    assert "Suggested keywords:" in browser_app
+    assert "needs_sme_review: suggestion.needs_sme_review" in browser_app
+    assert "function proposalAssessmentResults(report)" in browser_app
+    assert '"Checks completed"' in browser_app
+    assert '"Checks that need attention"' in browser_app
+    assert "checks passed" in browser_app
+    assert "Recommended changes" in browser_app
+    assert "View estimated model usage" in browser_app
+    assert "await ensureAssessmentChecks()" in browser_app
     assert 'data-action="open-delete"' in html
+    assert 'id="editDialog"' in html
+    assert 'id="editForm"' in html
+    assert 'aria-label="Add content source"' in html
+    assert 'data-source-input-tab="location"' in html
+    assert 'data-source-input-tab="upload"' in html
+    assert 'data-source-input-panel="upload"' in html
+    assert 'id="sharePointCredentialMode"' in html
+    assert "Organization-managed connection" in html
+    assert "Credentials are never entered or stored" in html
+    assert 'class="source-workspace-grid"' in html
+    assert 'class="registered-sources-panel"' in html
     assert 'id="deleteConfirmation"' in html
     assert 'id="deleteConfirmButton"' in html
     assert "function requestedEstateRoute()" in browser_app
+    assert "formatShortDate(estate.updated_at)" in browser_app
+    assert "function fileFormatLabel(documentValue)" in browser_app
+    assert 'text("p", fileFormatLabel(documentValue))' in browser_app
+    assert "documentValue.media_type} ·" not in browser_app
+    assert 'partially_assessed: "Assessed"' in browser_app
+    assert '"Partially assessed"' not in browser_app
+    assert "checkbox.disabled = isArchived()" in browser_app
+    assert "checkbox.disabled = !report" not in browser_app
+    assert "selected for improvement planning" in browser_app
+    assert 'document.createElement("fluent-tabs")' in browser_app
+    assert 'document.createElement("fluent-tab")' in browser_app
+    assert 'document.createElement("fluent-tab-panel")' in browser_app
+    assert 'tab.setAttribute("aria-selected", `${selected}`)' in browser_app
+    assert '["ArrowLeft", "ArrowRight", "Home", "End"]' in browser_app
+    assert "\nfunction switchSourceInputTab(name, focus = true)" in browser_app
+    assert "\n  function switchSourceInputTab(name, focus = true)" not in browser_app
+    assert "function sourceDisplayDetail(source)" in browser_app
+    assert 'upload: "Uploaded file"' in browser_app
+    assert 'zip: "Uploaded ZIP bundle"' in browser_app
+    assert 'startsWith("asset:")' in browser_app
+    assert 'text("p", `${source.kind} · ${source.locator}`)' not in browser_app
+    assert 'elements.sourceInputTabs.addEventListener("click"' in browser_app
+    assert 'elements.sourceInputTabs.addEventListener("keydown"' in browser_app
+    assert 'elements.sourceKind.addEventListener("change"' in browser_app
+    assert 'source.credential_mode === "application"' in browser_app
     assert "await loadEstates(true)" in browser_app
+    assert 'document.createElement("fluent-menu")' in browser_app
+    assert browser_app.count('document.createElement("fluent-menu-item")') == 2
+    assert "`/v1/estates/${estate.estate_id}`" in browser_app
     assert "`/v1/estates/${estate.estate_id}/purge`" in browser_app
-    assert "elements.deleteConfirmation.value !== estate.name" in browser_app
+    assert "function selectedActionEstate()" in browser_app
+
+
+def test_given_workspace_controls_when_inspected_then_teams_fluent_system_is_applied() -> None:
+    concept_root = REPOSITORY_ROOT / "prototype/copilot-studio-knowledge-compiler"
+    html = (concept_root / "index.html").read_text(encoding="utf-8")
+    browser_app = (concept_root / "app.js").read_text(encoding="utf-8")
+    fluent_theme = (concept_root / "fluent-theme.js").read_text(encoding="utf-8")
+    styles = (concept_root / "styles.css").read_text(encoding="utf-8")
+
+    assert 'id="themePicker"' not in html
+    assert "<legend>Theme</legend>" not in html
+    assert 'src="fluent-theme.js?v=20260914-fluent2-v11"' in html
+    assert 'href="styles.css?v=20260914-fluent2-v11"' in html
+    assert './vendor/fluent-web-components-2.6.1.min.js"' in fluent_theme
+    assert (concept_root / "vendor/fluent-web-components-2.6.1.min.js").is_file()
+    assert "MIT License" in (concept_root / "vendor/fluentui-LICENSE.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "Copyright (c) 2015 David Clark" in (
+        concept_root / "vendor/tabbable-LICENSE.txt"
+    ).read_text(encoding="utf-8")
+    assert 'await import("./app.js?v=20260914-fluent2-v11")' in fluent_theme
+    assert 'id="fluentProvider"' in html
+    assert 'accent-base-color="#5b5fc7"' in html
+    assert 'neutral-base-color="#808080"' in html
+    assert 'control-corner-radius="4"' in html
+    assert '<fluent-button\n              class="primary"' in html
+    assert 'appearance="accent"' in html
+    assert 'appearance="neutral"' in html
+    assert 'appearance="lightweight"' in html
+    assert "--neutral-fill-stealth-rest: transparent" in styles
+    assert "--neutral-fill-stealth-hover: #e2e2f6" in styles
+    assert "function interactiveEventTarget(event)" in browser_app
+    assert "event.composedPath().find(" in browser_app
+    assert 'name="color-theme"' not in html
+    assert "shaper-color-theme" not in html
+    assert "COLOR_THEME_STORAGE_KEY" not in browser_app
+    assert "applyColorTheme(" not in browser_app
+    assert "themePicker" not in browser_app
+    assert "#0078d4" not in styles
+    assert "#0f6cbd" not in styles
+    assert ':root[data-theme="teams"]' not in styles
+    assert ':root[data-theme="office"]' not in styles
+    assert "baseLayerLuminance.setValueFor" in fluent_theme
+    assert "StandardLuminance.LightMode" in fluent_theme
+    assert "StandardLuminance.DarkMode" not in fluent_theme
+    assert "prefers-color-scheme" not in fluent_theme
+    assert "accentStrokeControlRest" not in fluent_theme
+    assert 'token.setValueFor(provider, "transparent")' not in fluent_theme
+    assert "--color-brand-background: var(--accent-fill-rest);" in styles
+    assert "--color-control-background: var(--neutral-fill-rest);" in styles
+    assert "::part(control)" not in styles
+    assert "--spacingHorizontalXXXL: 32px;" in styles
+    assert "--borderRadiusMedium: 4px;" in styles
+    assert "--shadow8:" in styles
+    assert "--shadow28:" in styles
+    assert "background: var(--neutral-fill-input-rest);" in styles
+    assert "background: var(--neutral-layer-3);" in styles
+    assert "@media (prefers-color-scheme: dark)" not in styles
+    assert '"Segoe UI Variable", "Segoe UI"' in styles
+    assert "--color-brand-background-subtle: #f5f5ff;" in styles
+    assert "--color-control-background:" in styles
+    assert "--color-control-border: #d1d1d1;" in styles
+    assert "--color-input-border: #8a8886;" in styles
+    assert "text-transform: none;" in styles
+    assert 'class="button ' not in html
+    assert ".button {" not in styles
+    assert "@media (forced-colors: active)" in styles
+    for component in (
+        "fluent-accordion",
+        "fluent-anchor",
+        "fluent-button",
+        "fluent-checkbox",
+        "fluent-data-grid",
+        "fluent-dialog",
+        "fluent-menu",
+        "fluent-progress-ring",
+        "fluent-select",
+        "fluent-tab",
+        "fluent-text-area",
+        "fluent-text-field",
+    ):
+        assert f"<{component}" in html or f'"{component}"' in browser_app
+
+    native_controls = re.findall(
+        r"<(button|dialog|select|textarea|details|summary|input)\b([^>]*)>",
+        html,
+        flags=re.IGNORECASE,
+    )
+    assert len(native_controls) == 1
+    assert native_controls[0][0] == "input"
+    assert 'type="file"' in native_controls[0][1]
+    assert not re.search(
+        r'document\.createElement\(["\'](button|dialog|input|select|textarea|details|summary)["\']\)',
+        browser_app,
+    )
+    assert "showModal(" not in browser_app
+    assert "window.confirm(" not in browser_app
+    assert 'id="workflowSourcesTab"' in html
+    assert 'aria-controls="workflowSourcesPanel"' in html
+    assert 'id="workflowSourcesPanel"' in html
+    assert 'role="tabpanel"' in html
+    assert 'button.setAttribute("aria-selected", `${selected}`);' in browser_app
+    assert 'elements.workflowTabs.setAttribute("activeid", button.id);' in browser_app
+    assert 'elements.workflowTabs.addEventListener("keydown"' in browser_app
 
 
 def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent() -> None:
@@ -165,8 +445,12 @@ def test_given_platform_architecture_when_inspected_then_shaper_is_not_an_agent(
 def test_given_c4_diagrams_when_inspected_then_renderer_conventions_are_present() -> None:
     architecture = (REPOSITORY_ROOT / "docs/architecture.md").read_text(encoding="utf-8")
 
-    assert architecture.count("flowchart TB") == 3
-    assert architecture.count("subGraphTitleMargin:") == 3
+    assert architecture.count("flowchart LR") == 1
+    assert architecture.count("flowchart TB") == 6
+    assert architecture.count("subGraphTitleMargin:") == 5
     assert "direction LR" not in architecture
     assert "C4Context" not in architecture
     assert "C4Container" not in architecture
+    assert "ctr_malware_scanner_i" in architecture
+    assert "cmp_estate_recommendation_service" in architecture
+    assert "cmp_estate_transformation_service" in architecture

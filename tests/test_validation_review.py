@@ -97,6 +97,169 @@ def test_given_missing_cited_span_when_validated_then_finding_blocks_publication
     assert [finding.rule_id for finding in findings] == ["grounding.span_exists"]
 
 
+def test_given_policy_summary_when_validated_then_content_loss_blocks_publication(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees must submit annual leave requests at least 20 working days in advance. "
+        "Managers must respond within 5 working days. Employees receive 25 days of annual "
+        "leave each year. Requests longer than 10 days require director approval. "
+        "Emergency leave may only be approved when supporting evidence is provided. "
+        "Unused leave cannot be carried forward unless HR provides written approval."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("How does annual leave work?",),
+        answer="Employees should request leave in advance and speak to their manager.",
+        claims=(
+            Claim(
+                text="Employees should request leave in advance.",
+                span_ids=("span-1",),
+            ),
+        ),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.1",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    findings = DeterministicValidator().validate(unit, [span])
+
+    assert {
+        "content.source_coverage",
+        "content.material_fact",
+        "content.operative_clause",
+    }.issubset({finding.rule_id for finding in findings})
+
+
+def test_given_restructured_complete_policy_when_validated_then_preservation_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "Employees must submit requests 20 days in advance. "
+        "Managers must respond within 5 days. "
+        "Unused leave cannot be carried forward without HR approval."
+    )
+    answer = (
+        "# Annual leave requests\n"
+        "- Employees must submit requests 20 days in advance.\n"
+        "- Managers must respond within 5 days.\n"
+        "- Unused leave cannot be carried forward without HR approval."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("How are annual leave requests handled?",),
+        answer=answer,
+        claims=(Claim(text=source_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.1",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    findings = DeterministicValidator().validate(unit, [span])
+
+    assert not [finding for finding in findings if finding.rule_id.startswith("content.")]
+
+
+def test_given_compound_duty_split_into_bullets_when_validated_then_clause_passes(
+    source_document: SourceDocument,
+) -> None:
+    source_text = (
+        "The contractor must maintain insurance, shall indemnify the client against all "
+        "losses, and is responsible for ensuring subcontractors comply with the policy."
+    )
+    answer = (
+        "# Contractor duties\n"
+        "- The contractor must maintain insurance.\n"
+        "- The contractor shall indemnify the client against all losses.\n"
+        "- The contractor is responsible for ensuring subcontractors comply with the policy."
+    )
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("What must the contractor do?",),
+        answer=answer,
+        claims=(Claim(text=source_text, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.1",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    findings = DeterministicValidator().validate(unit, [span])
+
+    assert "content.operative_clause" not in {finding.rule_id for finding in findings}
+
+
+def test_given_shorter_number_omitted_when_validated_then_material_fact_blocks(
+    source_document: SourceDocument,
+) -> None:
+    source_text = "Managers respond within 5 days. Employees receive 25 days annual leave."
+    answer = "Employees receive 25 days annual leave."
+    span = SourceSpan(
+        span_id="span-1",
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        ordinal=0,
+        text=source_text,
+        text_hash=hashlib.sha256(source_text.encode()).hexdigest(),
+    )
+    unit = AnswerUnit.create(
+        source_id=source_document.source_id,
+        source_version=source_document.source_version,
+        canonical_questions=("How much annual leave do employees receive?",),
+        answer=answer,
+        claims=(Claim(text=answer, span_ids=("span-1",)),),
+        confidence=0.9,
+        derivation=Derivation(
+            run_id="run-1",
+            model="fake",
+            prompt_version="1.1",
+            parameters_hash=ZERO_HASH,
+        ),
+    )
+
+    findings = DeterministicValidator().validate(unit, [span])
+
+    assert "content.material_fact" in {finding.rule_id for finding in findings}
+
+
 def test_given_valid_candidate_when_reviewed_then_only_human_approval_is_publishable(
     source_document: SourceDocument,
 ) -> None:

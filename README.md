@@ -63,22 +63,16 @@ remain production follow-up work.
 
 ## Agent Readiness Assessment
 
-The assessment reports a score from 0 to 100 across three dimensions:
+The Assess experience reports evidence-grounded findings across content quality,
+knowledge quality, and agent readiness. Each finding states what was detected,
+why it can affect retrieval or agent answers, where the evidence appears, and
+whether content-owner review is required.
 
-* Content quality: structure, readability, metadata completeness, and freshness
-* Knowledge quality: duplication, contradictions, authority, and coverage
-* Agent readiness: retrieval effectiveness, procedural clarity, FAQ coverage,
-  chunking suitability, and semantic consistency
-
-Every result includes metric explanations, evidence references, limitations,
-and assessment coverage. Unavailable metrics do not silently receive positive
-values. Duplicate and contradiction results are review-required candidates,
-not autonomous decisions, and authority is never inferred from recency alone.
-
-> [!IMPORTANT]
-> The current score is an uncalibrated deterministic heuristic. It is not an
-> accuracy percentage or model confidence score. Production quality claims
-> require calibration against representative, human-reviewed estates.
+Findings cover structure, readability, metadata, freshness, duplication,
+contradictions, authority, coverage, retrieval effectiveness, procedural
+clarity, FAQ coverage, chunking suitability, and semantic consistency.
+Duplicate and contradiction findings remain review candidates rather than
+autonomous decisions, and authority is never inferred from recency alone.
 
 ## Current MVP
 
@@ -86,8 +80,11 @@ The implemented vertical slice includes:
 
 * Named, durable Knowledge Estates containing SharePoint or URL registrations,
   individual uploads, and bounded ZIP bundles
-* Immutable source versions and per-document readiness, evidence coverage, and
-  reshaping-effort reports
+* Estate-list document counts and current-version assessment coverage, with
+  explicit no-documents, not-assessed, partially-assessed, and assessed states
+* Immutable source versions with per-document findings and evidence coverage
+* A transparent catalogue explaining all 29 deterministic checks, what each
+  checks, and its likely impact on retrieval or agent answers
 * Selection-scoped recommendations with input/output token ranges, an expected
   total, and an enforced maximum before model use
 * An estate-level option to generate versioned citation-coverage, structure,
@@ -102,12 +99,14 @@ The implemented vertical slice includes:
 
 SharePoint sources remain truthful registrations until Microsoft Graph consent
 and synchronization are configured. Confluence, ServiceNow, arbitrary wiki
-crawling, distributed workers, and score calibration remain follow-up work.
+crawling, distributed workers, and quantitative readiness calibration remain
+follow-up work.
 
 ## Azure architecture
 
-The current development deployment packages Shaper as one non-root OCI
-container on Azure Container Apps. One ASGI process exposes:
+The current development deployment packages Shaper as a non-root application
+container with a ClamAV sidecar in one Azure Container Apps replica. One ASGI
+process exposes:
 
 * Authenticated HTTP endpoints on `/v1`
 * MCP Streamable HTTP on `/mcp/`
@@ -115,9 +114,12 @@ container on Azure Container Apps. One ASGI process exposes:
 * The authenticated Knowledge Estates workspace on `/concept/`
 
 Azure Database for PostgreSQL persists estates, workflows, decisions, token
-usage, reviews, and artifact manifests. Azure Container Registry, a
-user-assigned managed identity, Log Analytics, and an Azure Files share support
-the deployment. A ClamAV sidecar scans uploads before inventory creation.
+usage, reviews, and Knowledge Estate artifact metadata and bytes. Azure Container
+Registry, a user-assigned managed identity, Log Analytics, and a provisioned
+Azure Files share support the deployment. The container image directs uploads
+and legacy compilation releases to the mounted share. PostgreSQL remains
+authoritative for Knowledge Estate records and generated artifact bytes. The
+ClamAV sidecar scans uploads before inventory creation.
 Container Apps authentication provides interactive Entra sign-in, while
 persisted collection grants remain the application authorization boundary.
 
@@ -130,7 +132,27 @@ topologies and [operations guidance](docs/operations.md) for monitoring,
 recovery, and retention. See [platform architecture](docs/architecture.md) for
 the C4 model and specialist-agent responsibility boundaries. See the
 [feature guide](docs/features.md) for the current Knowledge Estate workflow,
-content-focused Results, approval boundaries, and lifecycle controls.
+content-focused Findings, approval boundaries, and lifecycle controls. Use the
+[document readiness checklist](docs/document-readiness-checklist.md) to review
+source structure, ambiguity, consistency, provenance, retrieval suitability,
+and parsing hygiene before ingestion.
+
+## Architecture diagrams
+
+The [platform architecture](docs/architecture.md) includes:
+
+* A [system context diagram](docs/architecture.md#system-context) showing users,
+  clients, content repositories, consuming agents, and Azure AI dependencies
+* A [container diagram](docs/architecture.md#containers) separating current and
+  planned runtime responsibilities
+* A [current Azure deployment diagram](docs/architecture.md#current-azure-development-deployment)
+  grounded in the Bicep and container configuration
+* A [component diagram](docs/architecture.md#shaper-api-and-orchestrator-components)
+  for orchestration, findings, transformation, review, and token estimation
+* An [assessment evidence flow](docs/architecture.md#assessment-evidence-architecture)
+  from immutable source evidence to plain-language Findings
+* A [governed transformation flow](docs/architecture.md#governed-transformation-and-token-budget)
+  covering estimates, exact approval, bounded shaping, preview, and publication
 
 See the [wiki](wiki/Home.md) for a task-oriented guide covering what Shaper
 does, how to get started and call the API, how to deploy it, and frequently

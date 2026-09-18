@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from io import BytesIO
 from typing import Generic, Protocol, TypeVar
 from uuid import uuid4
@@ -16,7 +17,7 @@ from shaper.application.orchestration import (
     TransformationAgent,
 )
 from shaper.application.ports import DocumentParser, SourceConnector
-from shaper.application.token_estimation import TokenEstimator
+from shaper.application.token_estimation import TokenEstimateLimitError, TokenEstimator
 from shaper.domain import (
     AuthorityStatus,
     CollectionGrant,
@@ -32,6 +33,7 @@ from shaper.domain import (
     KnowledgeTransformationAnalysis,
     Principal,
     PurgeTombstone,
+    SharePointCredentialMode,
     SourceRef,
     SourceSpan,
     SourceSyncStatus,
@@ -114,16 +116,22 @@ class EstateRepository(EstateLifecycleRepository, Protocol):
         source_version: str,
         text: str,
     ) -> None:
-        """Store normalized source text for deterministic analysis."""
+        """Store extracted source text for deterministic analysis."""
 
     def load_document_content(self, document_id: str, source_version: str) -> str:
-        """Load exact-version normalized source text."""
+        """Load exact-version extracted text."""
+
+    def load_document_source(self, document_id: str, source_version: str) -> bytes:
+        """Load the exact immutable source bytes for a document version."""
+
+    def has_document_source(self, document_id: str, source_version: str) -> bool:
+        """Return whether exact source bytes are retained for a document version."""
 
     def save_inventory(
         self,
-        items: Sequence[tuple[EstateDocument, str]],
+        items: Sequence[PreparedInventoryItem],
     ) -> Sequence[VersionedRecord[EstateDocument]]:
-        """Atomically save document inventory rows and normalized text."""
+        """Atomically save inventory rows, source bytes, and extracted text."""
 
     def save_run(
         self,
@@ -209,6 +217,62 @@ class EstateRepository(EstateLifecycleRepository, Protocol):
 
     def purge_estate(self, estate_id: str, tombstone: PurgeTombstone) -> None:
         """Delete content-bearing records and retain only a tombstone."""
+
+
+class EstateAssessmentStatus(StrEnum):
+    """Current-version assessment coverage for one estate."""
+
+    NO_DOCUMENTS = "no_documents"
+    NOT_ASSESSED = "not_assessed"
+    PARTIALLY_ASSESSED = "partially_assessed"
+    ASSESSED = "assessed"
+
+
+@dataclass(frozen=True)
+class EstateAssessmentSummary:
+    """Assessment coverage for current, non-deleted estate documents."""
+
+    document_count: int
+    assessed_document_count: int
+    assessment_status: EstateAssessmentStatus
+
+
+def summarize_estate_assessment(
+    repository: EstateRepository,
+    estate_id: str,
+) -> EstateAssessmentSummary:
+    """Summarize reports that match each document's current source version."""
+    documents = tuple(
+        record.value for record in repository.list_documents(estate_id) if not record.value.deleted
+    )
+    if not documents:
+        return EstateAssessmentSummary(0, 0, EstateAssessmentStatus.NO_DOCUMENTS)
+
+    current_versions = {document.document_id: document.source_version for document in documents}
+    assessed_document_ids: set[str] = set()
+    for run_record in repository.list_runs(estate_id):
+        run = run_record.value
+        if run.kind is not WorkflowKind.DISCOVER or run.status not in {
+            WorkflowStatus.COMPLETED,
+            WorkflowStatus.PARTIAL,
+        }:
+            continue
+        for report in repository.list_reports(run.run_id):
+            if current_versions.get(report.document_id) == report.source_version:
+                assessed_document_ids.add(report.document_id)
+
+    assessed_count = len(assessed_document_ids)
+    if assessed_count == 0:
+        assessment_status = EstateAssessmentStatus.NOT_ASSESSED
+    elif assessed_count < len(documents):
+        assessment_status = EstateAssessmentStatus.PARTIALLY_ASSESSED
+    else:
+        assessment_status = EstateAssessmentStatus.ASSESSED
+    return EstateAssessmentSummary(
+        document_count=len(documents),
+        assessed_document_count=assessed_count,
+        assessment_status=assessment_status,
+    )
 
 
 class EstateService:
@@ -378,6 +442,7 @@ class EstateSourceService:
         kind: EstateSourceKind,
         display_name: str,
         locator: str,
+        credential_mode: SharePointCredentialMode = SharePointCredentialMode.DELEGATED_USER,
     ) -> VersionedRecord[EstateSource]:
         """Register a unique source without claiming it is connected."""
         estate = self._active_estate(estate_id, principal, CollectionRole.COMPILE)
@@ -394,6 +459,7 @@ class EstateSourceService:
                 kind=kind,
                 display_name=display_name,
                 locator=locator,
+                credential_mode=credential_mode,
                 status=SourceSyncStatus.PENDING,
                 created_at=now,
                 updated_at=now,
@@ -610,8 +676,17 @@ class InventoryInput:
     logical_id: str | None = None
 
 
+@dataclass(frozen=True)
+class PreparedInventoryItem:
+    """One immutable source version and its derived extracted text."""
+
+    document: EstateDocument
+    source_content: bytes
+    extracted_text: str
+
+
 class EstateInventoryService:
-    """Normalize scanned files into immutable estate document versions."""
+    """Preserve scanned files and extract text into immutable document versions."""
 
     def __init__(
         self,
@@ -683,7 +758,7 @@ class EstateInventoryService:
         estate: KnowledgeEstate,
         source: EstateSource,
         item: InventoryInput,
-    ) -> tuple[EstateDocument, str]:
+    ) -> PreparedInventoryItem:
         logical_id = item.logical_id or item.filename
         document_id = self.document_id(source.source_id, logical_id)
         modified_at = item.modified_at or self._clock()
@@ -700,7 +775,7 @@ class EstateInventoryService:
             parser=self._parser,
             observed_at=modified_at,
         )
-        normalized_text = _normalized_content(ingested.spans)
+        extracted_text = _normalized_content(ingested.spans)
         document = EstateDocument(
             document_id=document_id,
             estate_id=estate.estate_id,
@@ -710,12 +785,16 @@ class EstateInventoryService:
             title=item.filename,
             filename=item.filename,
             media_type=item.media_type,
-            content_locator=f"repository:{document_id}:{ingested.document.source_version}",
+            content_locator=f"repository-source:{document_id}:{ingested.document.source_version}",
             modified_at=modified_at,
             discovered_at=self._clock(),
             owner=item.owner,
         )
-        return document, normalized_text
+        return PreparedInventoryItem(
+            document=document,
+            source_content=item.content,
+            extracted_text=extracted_text,
+        )
 
 
 class EstateDiscoveryService:
@@ -1021,6 +1100,8 @@ class EstateRecommendationService:
         }
         completed = []
         failed = []
+        quota_failures = []
+        evidence_failures = []
         output_names: set[str] = set()
         for document_id in selected:
             try:
@@ -1076,8 +1157,9 @@ class EstateRecommendationService:
                         report_id=report.report_id,
                         proposed_changes=changes,
                         rationale=(
-                            f"Discovery scored this document {report.readiness_score}/100 "
-                            f"with {report.effort_band.value} reshaping effort."
+                            f"Discovery found {len(report.findings)} content "
+                            f"{'finding' if len(report.findings) == 1 else 'findings'} "
+                            "that may affect agent responses."
                         ),
                         risk=(
                             "Generated content must remain grounded in this exact source version "
@@ -1091,14 +1173,50 @@ class EstateRecommendationService:
                     )
                 )
                 completed.append(document_id)
+            except TokenEstimateLimitError as quota_error:
+                failed.append(document_id)
+                quota_failures.append(str(quota_error))
             except (KeyError, ValueError):
                 failed.append(document_id)
+                evidence_failures.append(document_id)
         values = running.value.model_dump()
+        if failed and not completed:
+            status = WorkflowStatus.FAILED
+            if quota_failures and not evidence_failures:
+                error = f"No improvement plans were created. {quota_failures[0]}."
+            elif evidence_failures and not quota_failures:
+                error = (
+                    "No improvement plans were created because every selected document "
+                    "was absent from the discovery evidence or changed after discovery. "
+                    "Run discovery again, then reselect the documents."
+                )
+            else:
+                error = (
+                    "No improvement plans were created. Some documents changed after "
+                    "discovery, and others exceed the transformation quota. Run discovery "
+                    "again and narrow or split oversized sources."
+                )
+        elif failed:
+            status = WorkflowStatus.PARTIAL
+            reasons = []
+            if evidence_failures:
+                reasons.append("the source changed or its discovery evidence was unavailable")
+            if quota_failures:
+                reasons.append(quota_failures[0].removesuffix("."))
+            error = (
+                f"{len(failed)} selected document"
+                f"{' was' if len(failed) == 1 else 's were'} skipped: "
+                f"{'; '.join(reasons)}."
+            )
+        else:
+            status = WorkflowStatus.COMPLETED
+            error = None
         values.update(
             {
-                "status": WorkflowStatus.PARTIAL if failed else WorkflowStatus.COMPLETED,
+                "status": status,
                 "completed_document_ids": tuple(completed),
                 "failed_document_ids": tuple(failed),
+                "error": error,
                 "lease_owner": None,
                 "lease_expires_at": None,
                 "updated_at": self._clock(),
