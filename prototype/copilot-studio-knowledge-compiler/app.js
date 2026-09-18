@@ -639,6 +639,7 @@ function classifyFindings(report = {}) {
     return report.findings.map((finding) => {
       const presentation = RESULT_PRESENTATION[finding.code] ?? {};
       return {
+        code: finding.code,
         label: finding.label,
         detail: finding.explanation,
         agentImpact:
@@ -654,7 +655,10 @@ function classifyFindings(report = {}) {
   }
   const codes = report.finding_codes ?? [];
   const classified = codes
-    .map((code) => RESULT_PRESENTATION[code])
+    .map((code) => {
+      const result = RESULT_PRESENTATION[code];
+      return result ? { ...result, code } : undefined;
+    })
     .filter((result) => result !== undefined);
   const hasUnknown = codes.some(
     (code) => !RESULT_PRESENTATION[code] && !ACCOUNTABILITY_ONLY_FINDINGS.has(code),

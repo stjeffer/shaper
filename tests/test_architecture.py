@@ -76,8 +76,10 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert ">Readiness<" not in markup
     assert "Reshaping effort" not in markup
     assert "report.effort_band" not in script
-    assert "documentFindings(report, documentValue.title)" in script
+    assert "documentFindings(report, documentValue.title, documentValue)" in script
     assert "classifyFindings(report).length" in script
+    assert "code: finding.code" in script
+    assert "return result ? { ...result, code } : undefined;" in script
     assert '"missing_owner"' in script
     assert "Add an accountable owner" not in script
     assert "Long paragraph" in script
