@@ -46,6 +46,11 @@ param azureOpenAIResourceGroupName string = resourceGroup().name
 @description('Collection identifier served by this deployment.')
 param collectionId string
 
+@description('Maximum estimated tokens allowed across one transformation workflow.')
+@minValue(100000)
+@maxValue(400000)
+param transformationTokenLimit int = 200000
+
 @description('Container image tag to deploy from the provisioned registry.')
 param imageTag string
 
@@ -332,6 +337,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (shouldDeplo
             {
               name: 'SHAPER_AZURE_OPENAI_USE_MANAGED_IDENTITY'
               value: 'true'
+            }
+            {
+              name: 'SHAPER_TRANSFORMATION_TOKEN_LIMIT'
+              value: '${transformationTokenLimit}'
             }
             {
               name: 'SHAPER_BOOTSTRAP_PRINCIPAL_ID'

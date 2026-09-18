@@ -83,7 +83,7 @@ Users can:
 
 * Create a named estate with a description and output naming convention
 * Switch between accessible **URL or SharePoint** and **File upload** tabs
-* Register URL or SharePoint sources
+* Register URL or SharePoint locations for future connector synchronization
 * Upload individual files or bounded ZIP bundles
 * Review the current document inventory
 * Remove an individual document from future assessment and improvement planning
@@ -111,6 +111,9 @@ SharePoint registrations record whether synchronization should use the signed-in
 user's delegated access or an organization-managed application connection.
 Application credentials are configured by an administrator outside the browser;
 Shaper never asks a content owner to paste a client secret into the source form.
+URL and SharePoint registration does not download, parse, assess, or inventory
+content in the current release. The source row retains an explicit registration-only
+message and directs users to upload files when content must enter the workflow now.
 
 On wider screens, source input occupies the left half of the Sources workspace
 and the registered-source list occupies the right half. The columns stack on
@@ -454,6 +457,7 @@ See [platform architecture](architecture.md), [deployment guidance](deployment.m
   uploaded again
 * Scanned PDFs without extractable text can fail ingestion before embedded-content
   checks can run
+* URL registration does not crawl or import content
 * SharePoint content synchronization is not complete without Graph integration
 * Confluence, ServiceNow, arbitrary wiki crawling, and distributed specialist
   workers remain planned work

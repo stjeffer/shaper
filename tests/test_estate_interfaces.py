@@ -510,7 +510,7 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         assert discovery_response.status_code == 200, discovery_response.text
         discovery_run_id = discovery_response.json()["run"]["value"]["run_id"]
         report = discovery_response.json()["reports"][0]
-        assert report["readiness_score"] >= 0
+        assert "readiness_score" not in report
         assert len(report["checks_completed"]) == 31
         assert all(finding["evidence"] for finding in report["findings"])
         assert all(finding["agent_impact"] for finding in report["findings"])
@@ -596,6 +596,13 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
         )
         assert preview_response.status_code == 200
         assert "<!doctype html>" in preview_response.text
+        review_response = client.get(
+            f"/v1/artifacts/{artifact_id}/review",
+            headers=headers,
+        )
+        assert review_response.status_code == 200
+        review_status = review_response.json()
+        assert review_status["artifact"]["revision"] == artifact["revision"]
         assert (
             client.get(
                 f"/v1/artifacts/{artifact_id}/content",
@@ -617,8 +624,11 @@ def test_given_uploaded_policy_when_workflow_approved_then_html_is_published(
             headers=headers,
             json={
                 "reason": "Grounding verified",
-                "expected_review_revision": 1,
-                "expected_artifact_revision": artifact["revision"],
+                "expected_review_revision": review_status["review"]["revision"],
+                "expected_artifact_revision": review_status["artifact"]["revision"],
+                "acknowledged_finding_ids": review_status[
+                    "required_acknowledged_finding_ids"
+                ],
             },
         )
         assert approval_response.status_code == 200

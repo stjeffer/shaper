@@ -674,6 +674,12 @@ then reserves the initial response, one targeted repair, and a safety margin. Th
 shaping loop accounts for provider-reported input and output tokens after every
 complete response and stops when the approved maximum is exceeded.
 
+The initial-plus-repair workflow estimate is bounded by
+`SHAPER_TRANSFORMATION_TOKEN_LIMIT`, which defaults to 200,000 and accepts validated
+values from 100,000 through 400,000. This application budget is distinct from the
+model's per-request context window and the deployment's tokens-per-minute quota.
+Operators must size all three controls together.
+
 Runtime system prompts are version-controlled Markdown resources in
 `src/shaper/prompts/`. Shaping and model-assisted evaluation use separate prompts
 and pass the selected prompt explicitly through the model gateway. The application

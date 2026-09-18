@@ -85,6 +85,7 @@ from shaper.infrastructure.uploads import (
     UploadRejectedError,
 )
 from shaper.interfaces.auth import Authenticator, RequestPrincipalResolver
+from shaper.interfaces.presenters import finding_report_payload
 
 LOGGER = logging.getLogger(__name__)
 
@@ -630,7 +631,7 @@ def create_app(services: HttpServices) -> FastAPI:
             return {
                 "run": _versioned_payload(run),
                 "reports": [
-                    jsonable_encoder(report)
+                    finding_report_payload(report)
                     for report in discovery_service.reports(
                         run.value.run_id,
                         principal=actor,
@@ -648,7 +649,7 @@ def create_app(services: HttpServices) -> FastAPI:
             if run.value.estate_id != estate_id:
                 raise KeyError("Discovery run does not belong to this estate")
             reports = discovery_service.reports(run_id, principal=actor)
-            return {"items": [jsonable_encoder(report) for report in reports]}
+            return {"items": [finding_report_payload(report) for report in reports]}
 
         @app.get("/v1/estates/{estate_id}/runs")
         def list_runs(
@@ -932,6 +933,23 @@ def create_app(services: HttpServices) -> FastAPI:
                 if (record := estate_repository.get_artifact(item.artifact_id)) is not None
             )
             return {"items": [_versioned_payload(item) for item in records]}
+
+        @app.get("/v1/artifacts/{artifact_id}/review")
+        def get_artifact_review(
+            artifact_id: str,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            review, artifact = transformation_service.review_status(
+                artifact_id,
+                principal=actor,
+            )
+            return {
+                "review": jsonable_encoder(review),
+                "artifact": _versioned_payload(artifact),
+                "required_acknowledged_finding_ids": sorted(
+                    finding.rule_id for finding in artifact.value.validation_findings
+                ),
+            }
 
         @app.post("/v1/artifacts/{artifact_id}/approve")
         def approve_artifact(

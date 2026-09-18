@@ -15,6 +15,7 @@ def test_given_local_profile_when_loaded_then_cloud_credentials_are_optional() -
     # Assert
     assert settings.model_provider is ModelProvider.FAKE
     assert settings.sqlite_journal_mode is SQLiteJournalMode.WAL
+    assert settings.transformation_token_limit == 200_000
 
 
 def test_given_azure_adapter_when_credentials_missing_then_validation_fails() -> None:

@@ -290,8 +290,8 @@ The `agent_impact` field is an additive, optional field in persisted
 relational database migration. New discovery runs populate the field. Historical
 reports use the browser's code-keyed impact fallback until they are regenerated.
 
-The transformation estimator is version `1.6`, and the shaping prompt is version
-`1.9`. The estimate includes the structured assessment-finding payload,
+The transformation estimator is version `1.7`, and the shaping prompt is version
+`2.2`. The estimate includes the structured assessment-finding payload,
 structured-output overhead, and a bounded hidden-reasoning reserve. It reserves
 an initial candidate plus one targeted repair and stores a cryptographic hash of
 the exact shaping prompt. Proposals created with an earlier estimator or shaping
@@ -352,10 +352,10 @@ After the revision becomes ready:
 14. Open the **Evaluation set** tab and confirm the estate offers up to 20
     distinct, source-grounded questions balanced across documents. Confirm a
     sparse source returns fewer questions without filler.
-15. If the estate contains a proposal created before estimator version `1.6` or
+15. If the estate contains a proposal created before estimator version `1.7` or
     shaping prompt version `2.2`, confirm transformation stops before model use
     and instructs the reviewer to create and approve a current improvement plan.
-16. Create and approve a plan using estimator `1.6` and prompt `2.2`, then select
+16. Create and approve a plan using estimator `1.7` and prompt `2.2`, then select
     **Try one automatic repair from preservation findings** and confirm progress
     reports **model attempt 1 of 2**. If preservation findings occur, confirm they
     guide one targeted repair. Confirm remaining findings stay visible on the

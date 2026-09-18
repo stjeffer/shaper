@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     bootstrap_principal_id: str | None = None
     clamd_host: str = "127.0.0.1"
     clamd_port: int = Field(default=3310, ge=1, le=65535)
+    transformation_token_limit: int = Field(default=200_000, ge=100_000, le=400_000)
     log_source_text: bool = Field(default=False, description="Unsafe outside isolated tests.")
 
     @model_validator(mode="after")

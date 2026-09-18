@@ -1557,6 +1557,9 @@ function renderSources() {
         text("h3", source.display_name),
         text("p", sourceDisplayDetail(source)),
       );
+      if (source.status_detail) {
+        copy.append(text("small", source.status_detail));
+      }
       row.append(
         copy,
         text(
@@ -2506,7 +2509,10 @@ async function addSource(event) {
     elements.sourceForm.reset();
     updateSourceCredentialOptions();
     renderSources();
-    announce("Source registered. Connection has not been claimed.");
+    announce(
+      recordValue(record).status_detail ||
+        "Source registered. Connection has not been claimed.",
+    );
   } catch (error) {
     showAlert(error.message);
   } finally {
@@ -2912,24 +2918,20 @@ async function transformApproved() {
   }
 }
 
-async function approveArtifact(artifactId, revision) {
+async function approveArtifact(artifactId) {
   clearAlert();
   const panel = document.querySelector('[data-panel="transform"]');
   setBusy(panel, true, "Publishing reviewed artifact…");
   try {
+    const reviewStatus = await api(`/v1/artifacts/${artifactId}/review`);
     await api(`/v1/artifacts/${artifactId}/approve`, {
       method: "POST",
       body: JSON.stringify({
         reason: "Grounding and output reviewed in the Shaper estate workspace.",
-        expected_review_revision: 1,
-        expected_artifact_revision: Number(revision),
-        acknowledged_finding_ids: (
-          recordValue(
-            state.artifacts.find(
-              (item) => recordValue(item).artifact_id === artifactId,
-            ),
-          ).validation_findings || []
-        ).map((finding) => finding.rule_id),
+        expected_review_revision: Number(reviewStatus.review.revision),
+        expected_artifact_revision: Number(reviewStatus.artifact.revision),
+        acknowledged_finding_ids:
+          reviewStatus.required_acknowledged_finding_ids || [],
       }),
     });
     state.artifacts = await api(
@@ -3104,10 +3106,7 @@ document.addEventListener("click", async (event) => {
   } else if (target.dataset.decision) {
     await decide(target.dataset.proposalId, target.dataset.decision);
   } else if (target.dataset.approveArtifact) {
-    await approveArtifact(
-      target.dataset.approveArtifact,
-      target.dataset.artifactRevision,
-    );
+    await approveArtifact(target.dataset.approveArtifact);
   }
 });
 

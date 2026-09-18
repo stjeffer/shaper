@@ -453,6 +453,16 @@ class EstateSourceService:
         ):
             raise ValueError("This source is already registered with the estate")
         now = self._clock()
+        status_detail = None
+        if kind is EstateSourceKind.URL:
+            status_detail = (
+                "Registration only. URL ingestion is not configured; upload files to add content."
+            )
+        elif kind is EstateSourceKind.SHAREPOINT:
+            status_detail = (
+                "Registration only. SharePoint synchronization is not configured; "
+                "upload files to add content."
+            )
         return self._repository.save_source(
             EstateSource(
                 source_id=f"source-{self._id_factory()}",
@@ -462,6 +472,7 @@ class EstateSourceService:
                 locator=locator,
                 credential_mode=credential_mode,
                 status=SourceSyncStatus.PENDING,
+                status_detail=status_detail,
                 created_at=now,
                 updated_at=now,
             )

@@ -215,7 +215,10 @@ def serve(
     recommendation_service = EstateRecommendationService(
         estate_repository,
         transformation_agent=TransformationAgent(),
-        estimator=TokenEstimator(model_deployment=settings.azure_openai_deployment),
+        estimator=TokenEstimator(
+            model_deployment=settings.azure_openai_deployment,
+            platform_maximum=settings.transformation_token_limit,
+        ),
         clock=lambda: datetime.now(UTC),
     )
     decision_service = TransformationDecisionService(

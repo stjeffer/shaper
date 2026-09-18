@@ -38,6 +38,7 @@ from shaper.domain import (
     SourceRef,
     WorkflowKind,
 )
+from shaper.interfaces.presenters import finding_report_payload
 
 READ_ONLY = ToolAnnotations(
     readOnlyHint=True,
@@ -362,7 +363,7 @@ def create_mcp_server(services: McpServices, *, auth: McpAuth | None = None) -> 
         return {
             "run": _versioned_payload(run),
             "reports": [
-                _finding_report(report)
+                finding_report_payload(report)
                 for report in discovery.reports(
                     run.value.run_id,
                     principal=services.principal(),
@@ -378,7 +379,7 @@ def create_mcp_server(services: McpServices, *, auth: McpAuth | None = None) -> 
             raise KeyError("Discovery run does not belong to this estate")
         return {
             "items": [
-                _finding_report(report)
+                finding_report_payload(report)
                 for report in discovery.reports(run_id, principal=services.principal())
             ]
         }
@@ -603,9 +604,3 @@ def _jsonable(value: object) -> dict[str, object]:
 
 def _versioned_payload(record: VersionedRecord[RecordT]) -> dict[str, object]:
     return {"value": _jsonable(record.value), "revision": record.revision}
-
-
-def _finding_report(value: object) -> dict[str, object]:
-    payload = _jsonable(value)
-    payload.pop("readiness_score", None)
-    return payload

@@ -25,7 +25,7 @@ def test_given_equivalent_inputs_when_estimated_then_range_and_identity_are_stab
     assert first == second
     assert first.input_min <= first.input_max
     assert first.output_min <= first.output_max
-    assert first.estimator_version == ESTIMATOR_VERSION == "1.6"
+    assert first.estimator_version == ESTIMATOR_VERSION == "1.7"
     assert first.prompt_hash is not None
     assert ESTIMATED_MODEL_CALLS == 2
     assert first.enforced_maximum >= ESTIMATED_MODEL_CALLS * (first.input_max + first.output_max)
@@ -65,3 +65,15 @@ def test_given_large_source_when_maximum_exceeds_quota_then_estimate_is_rejected
     # Act & Assert
     with pytest.raises(TokenEstimateLimitError, match="quota"):
         estimator.estimate("word " * 1_000, ("Canonicalize", "Generate FAQ"))
+
+
+def test_given_typical_long_policy_when_default_limit_used_then_estimate_is_allowed() -> None:
+    estimator = TokenEstimator(model_deployment="gpt-5-mini")
+
+    estimate = estimator.estimate(
+        "Employees must retain receipt evidence before reimbursement. " * 1_000,
+        ("Restructure long passages for retrieval.",),
+    )
+
+    assert estimate.enforced_maximum > 100_000
+    assert estimate.enforced_maximum <= 200_000

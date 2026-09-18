@@ -12,7 +12,7 @@ from shaper.domain import DocumentFinding, TokenEstimate
 from shaper.domain.models import canonical_hash
 from shaper.prompts import SHAPING_PROMPT
 
-ESTIMATOR_VERSION = "1.6"
+ESTIMATOR_VERSION = "1.7"
 ESTIMATED_MODEL_CALLS = 2
 _WORD = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _LEXICAL_MULTIPLIER = 1.5
@@ -40,7 +40,7 @@ class TokenEstimator:
         self,
         *,
         model_deployment: str,
-        platform_maximum: int = 100_000,
+        platform_maximum: int = 200_000,
         estimator_version: str = ESTIMATOR_VERSION,
     ) -> None:
         self._model_deployment = model_deployment

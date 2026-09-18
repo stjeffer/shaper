@@ -316,6 +316,11 @@ def test_given_mixed_sources_when_registered_then_states_are_truthful_and_indepe
             item.value.status.value == "pending"
             for item in sources.list(estate.value.estate_id, principal=caller)
         )
+        assert (
+            sharepoint.value.status_detail
+            == "Registration only. SharePoint synchronization is not configured; "
+            "upload files to add content."
+        )
         assert sharepoint.value.credential_mode is SharePointCredentialMode.APPLICATION
         for kind, locator in (
             (EstateSourceKind.URL, "https://example.com/knowledge"),

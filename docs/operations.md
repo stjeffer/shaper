@@ -36,6 +36,14 @@ One document transformation can require an initial shaping request and one
 bounded repair request. Configure the chat deployment with at least 50,000 TPM;
 100,000 TPM is recommended for concurrent or repair-heavy use.
 
+Shaper separately rejects a transformation when its conservative initial-plus-repair
+estimate exceeds `SHAPER_TRANSFORMATION_TOKEN_LIMIT`. The default is `200000`; the
+validated range is 100,000 to 400,000. This workflow ceiling is not the provider's
+per-request context window or the deployment's per-minute quota. Lower it to constrain
+worst-case spend, or raise it only after confirming the deployed model context, output
+limit, approved cost envelope, and TPM capacity. Recreate and approve the improvement
+plan after changing the ceiling because the estimate is part of the approval evidence.
+
 When a run reports `Azure OpenAI rate limit was reached`, correlate its document
 identifier with application logs and check for HTTP 429 responses. Confirm the
 deployment's token rate limit:
@@ -55,6 +63,11 @@ within the approved regional quota. Review mode avoids the optional repair call;
 it does not bypass source identity, cited evidence, candidate schema, or
 exclusion authority. Retaining intentionally excluded content remains an
 integrity failure; a missing exclusion audit note remains a review finding.
+
+When recommendation creation reports that the estimated maximum exceeds the
+configured transformation limit, split the source into smaller coherent documents
+or adjust the reviewed deployment setting. Raising Azure OpenAI TPM alone does not
+change Shaper's workflow ceiling.
 
 ## State and recovery
 

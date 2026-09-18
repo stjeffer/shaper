@@ -45,6 +45,7 @@ def test_given_postgres_deployment_when_inspected_then_compatibility_state_is_lo
     assert "value: ':memory:'" in template
     assert "name: 'SHAPER_POSTGRES_URL'" in template
     assert "secretRef: 'postgres-url'" in template
+    assert "name: 'SHAPER_TRANSFORMATION_TOKEN_LIMIT'" in template
     assert "'/concept/*'" in template
     assert "'/mcp'" in template
     assert "'/mcp/'" in template
@@ -89,6 +90,9 @@ def test_given_assessment_ui_when_inspected_then_results_are_content_focused() -
     assert "const decision = recordValue(response)" in script
     assert "report.readiness_score" not in script
     assert 'id="documentDialog"' in markup
+    assert "This release does not import" in markup
+    assert "expected_review_revision: Number(reviewStatus.review.revision)" in script
+    assert "reviewStatus.required_acknowledged_finding_ids" in script
     assert "checks run" in script
     assert 'id="documentFindingsPanel"' in markup
     assert 'id="documentFindingsDialog"' in markup

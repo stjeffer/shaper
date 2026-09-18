@@ -272,7 +272,7 @@
                     aria-selected="true"
                     tabindex="0"
                   >
-                    URL or SharePoint
+                    Register URL or SharePoint
                   </button>
                   <button
                     id="uploadSourceTab"
@@ -296,12 +296,16 @@
                     data-source-input-panel="location"
                   >
                     <form id="sourceForm" class="form-card">
-                      <h3>Add a location</h3>
+                      <h3>Register a location</h3>
+                      <p class="field-help">
+                        Registration records the location only. This release does not import
+                        URL or SharePoint content. Use File upload to add documents now.
+                      </p>
                       <label for="sourceKind">Source type</label>
                       <div class="select-field">
                         <select id="sourceKind" name="kind">
-                          <option value="sharepoint">SharePoint site or library</option>
-                          <option value="url">Wiki, Confluence, intranet, or knowledge-base URL</option>
+                          <option value="sharepoint">SharePoint site or library (registration only)</option>
+                          <option value="url">Website URL (registration only)</option>
                         </select>
                       </div>
                       <label for="sourceName">Display name</label>
@@ -322,7 +326,7 @@
                           in this form.
                         </p>
                       </div>
-                      <button class="secondary" type="submit">Add location</button>
+                      <button class="secondary" type="submit">Register location</button>
                     </form>
                   </div>
                   <div

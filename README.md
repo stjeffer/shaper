@@ -201,6 +201,7 @@ All settings use the `SHAPER_` prefix.
 | `SHAPER_BOOTSTRAP_PRINCIPAL_ID` | Object ID for the initial collection administrator |
 | `SHAPER_CLAMD_HOST` | Private ClamAV daemon host |
 | `SHAPER_CLAMD_PORT` | Private ClamAV daemon port |
+| `SHAPER_TRANSFORMATION_TOKEN_LIMIT` | Maximum estimated tokens across one initial-plus-repair transformation workflow; defaults to `200000` |
 | `SHAPER_AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint |
 | `SHAPER_AZURE_OPENAI_DEPLOYMENT` | Chat model deployment |
 | `SHAPER_AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | Embedding model deployment |
