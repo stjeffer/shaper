@@ -2464,19 +2464,35 @@ input[type="checkbox"]:disabled {
 }
 .review-document-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
 }
 .review-action {
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: transparent;
   color: var(--fg-muted);
   font: inherit;
   font-size: 12.5px;
   cursor: pointer;
   transition: color var(--ease), border-color var(--ease), background-color var(--ease);
+}
+.review-action-primary {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--fg);
+}
+.review-toolbar-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: var(--space-1);
+  background: var(--line);
 }
 .review-action:hover:not(:disabled) {
   color: var(--fg);
@@ -2498,6 +2514,109 @@ input[type="checkbox"]:disabled {
   font-size: 12.5px;
   line-height: 1.6;
   border-bottom: 1px solid var(--line);
+}
+.confidence-comparison {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+.confidence-title {
+  margin: 0;
+  font-size: 14px;
+}
+.confidence-graphic {
+  --confidence-value: 0deg;
+  display: grid;
+  place-content: center;
+  width: 84px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--surface) 0 57%, transparent 59%),
+    conic-gradient(var(--accent) var(--confidence-value), var(--line) 0);
+  text-align: center;
+}
+.confidence-value {
+  font-size: 25px;
+  line-height: 1;
+}
+.confidence-caption {
+  margin-top: 3px;
+  color: var(--fg-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.confidence-summary p {
+  margin: 0;
+}
+.confidence-direction {
+  font-weight: 600;
+}
+.confidence-disclaimer {
+  margin-top: var(--space-2) !important;
+  color: var(--fg-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.confidence-comparison[data-direction="improved"] .confidence-direction {
+  color: var(--success);
+}
+.confidence-comparison[data-direction="regressed"] .confidence-direction {
+  color: var(--danger);
+}
+.review-save-as-dialog {
+  place-items: center;
+}
+.review-save-as-dialog .dialog-surface {
+  display: grid;
+  gap: var(--space-4);
+  width: min(460px, calc(100vw - 32px));
+  padding: var(--space-6);
+}
+.review-save-as-dialog label {
+  display: grid;
+  gap: var(--space-2);
+}
+.review-save-as-dialog input {
+  width: 100%;
+}
+.review-selection-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 250px;
+  padding: var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+.review-selection-menu button {
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+}
+.review-selection-menu button:hover,
+.review-selection-menu button:focus-visible {
+  background: var(--accent-dim);
+}
+.review-selection-dialog .dialog-surface {
+  display: grid;
+  gap: var(--space-4);
+  width: min(620px, calc(100vw - 32px));
+  padding: var(--space-6);
+}
+.review-selection-dialog textarea {
+  width: 100%;
+  resize: vertical;
 }
 .review-document-body {
   min-width: 0;

@@ -769,7 +769,45 @@ function revisedReviewText(review) {
 }
 
 function reviewHasEdits(review) {
-  return review.segments.some((segment) => segment.kind === "mark" && segment.edited);
+  return review.status === "ready" && revisedReviewText(review) !== review.savedText;
+}
+
+function replaceReviewRange(review, start, end, replacement) {
+  const next = [];
+  let cursor = 0;
+  let inserted = false;
+  review.segments.forEach((segment) => {
+    const segmentStart = cursor;
+    const segmentEnd = cursor + segment.text.length;
+    cursor = segmentEnd;
+    if (segmentEnd <= start || segmentStart >= end) {
+      next.push(segment);
+      return;
+    }
+    const beforeLength = Math.max(0, start - segmentStart);
+    const afterOffset = Math.min(segment.text.length, end - segmentStart);
+    if (beforeLength > 0) {
+      const before = { ...segment, text: segment.text.slice(0, beforeLength) };
+      if (before.kind === "mark") {
+        before.original = before.text;
+        before.edited = false;
+      }
+      next.push(before);
+    }
+    if (!inserted) {
+      next.push({ kind: "text", text: replacement });
+      inserted = true;
+    }
+    if (afterOffset < segment.text.length) {
+      const after = { ...segment, text: segment.text.slice(afterOffset) };
+      if (after.kind === "mark") {
+        after.original = after.text;
+        after.edited = false;
+      }
+      next.push(after);
+    }
+  });
+  review.segments = next;
 }
 
 function documentFindings(report, documentTitle = "Document", documentValue = null) {
@@ -818,7 +856,11 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     message: "",
     segments: [],
     original: "",
+    savedText: "",
     activeFindingIndex: 0,
+    confidenceSourceVersion: documentValue?.source_version ?? "",
+    saving: false,
+    keyboardSegmentIndex: null,
   };
 
   const documentPane = document.createElement("section");
@@ -834,6 +876,29 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   );
   const documentActions = document.createElement("div");
   documentActions.className = "review-document-actions";
+  documentActions.setAttribute("role", "toolbar");
+  documentActions.setAttribute("aria-label", "Document editing actions");
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.className = "review-action review-action-primary";
+  saveButton.textContent = "Save";
+  saveButton.setAttribute("aria-label", "Save document");
+  const saveAsButton = document.createElement("button");
+  saveAsButton.type = "button";
+  saveAsButton.className = "review-action";
+  saveAsButton.textContent = "Save as";
+  saveAsButton.setAttribute("aria-label", "Save document as");
+  const toolbarSeparator = document.createElement("span");
+  toolbarSeparator.className = "review-toolbar-separator";
+  toolbarSeparator.setAttribute("role", "separator");
+  const suggestSelectedToolbarButton = document.createElement("button");
+  suggestSelectedToolbarButton.type = "button";
+  suggestSelectedToolbarButton.className = "review-action";
+  suggestSelectedToolbarButton.textContent = "Suggest selection";
+  suggestSelectedToolbarButton.setAttribute(
+    "aria-label",
+    "Suggest AI-friendly alternative for selected text",
+  );
   const copyButton = document.createElement("button");
   copyButton.type = "button";
   copyButton.dataset.appearance = "lightweight";
@@ -849,18 +914,137 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   revertButton.dataset.appearance = "lightweight";
   revertButton.className = "review-action";
   revertButton.textContent = "Revert all edits";
-  documentActions.append(copyButton, downloadButton, revertButton);
+  documentActions.append(
+    saveButton,
+    saveAsButton,
+    toolbarSeparator,
+    suggestSelectedToolbarButton,
+    copyButton,
+    downloadButton,
+    revertButton,
+  );
   documentHeader.append(documentHeaderCopy, documentActions);
   const documentStatus = document.createElement("p");
   documentStatus.className = "review-document-status";
   documentStatus.setAttribute("aria-live", "polite");
   const documentBody = document.createElement("div");
   documentBody.className = "review-document-body";
-  documentPane.append(documentHeader, documentStatus, documentBody);
+  documentBody.tabIndex = -1;
+  const confidence = document.createElement("section");
+  confidence.className = "confidence-comparison";
+  confidence.setAttribute("aria-labelledby", `confidence-title-${documentValue?.document_id ?? "document"}`);
+  const confidenceHeading = text("h5", "AI usability confidence", "confidence-title");
+  confidenceHeading.id = `confidence-title-${documentValue?.document_id ?? "document"}`;
+  const confidenceGraphic = document.createElement("div");
+  confidenceGraphic.className = "confidence-graphic";
+  confidenceGraphic.setAttribute("role", "img");
+  confidenceGraphic.setAttribute("aria-label", "AI usability confidence is loading");
+  const confidenceValue = text("strong", "\u2014", "confidence-value");
+  const confidenceCaption = text("span", "Current", "confidence-caption");
+  confidenceGraphic.append(confidenceValue, confidenceCaption);
+  const confidenceSummary = document.createElement("div");
+  confidenceSummary.className = "confidence-summary";
+  confidenceSummary.setAttribute("aria-live", "polite");
+  confidenceSummary.append(
+    text("p", "Comparing the original and working copy\u2026", "confidence-direction"),
+    text(
+      "p",
+      "This deterministic estimate indicates how consistently an AI system can retrieve and use this document. It is not a guarantee of answer accuracy.",
+      "confidence-disclaimer",
+    ),
+  );
+  confidence.append(confidenceHeading, confidenceGraphic, confidenceSummary);
+  documentPane.append(documentHeader, documentStatus, confidence, documentBody);
+
+  const saveAsDialog = document.createElement("div");
+  saveAsDialog.className = "dialog review-save-as-dialog";
+  saveAsDialog.setAttribute("role", "dialog");
+  saveAsDialog.setAttribute("aria-modal", "true");
+  saveAsDialog.setAttribute("aria-labelledby", "review-save-as-title");
+  saveAsDialog.tabIndex = -1;
+  saveAsDialog.hidden = true;
+  const saveAsForm = document.createElement("form");
+  saveAsForm.method = "dialog";
+  saveAsForm.className = "dialog-surface";
+  const saveAsTitle = text("h4", "Save document as");
+  saveAsTitle.id = "review-save-as-title";
+  const saveAsDescription = text(
+    "p",
+    "Create a separate document in this estate. The current document remains unchanged.",
+  );
+  const saveAsLabel = text("label", "Document name");
+  const saveAsInput = document.createElement("input");
+  saveAsInput.type = "text";
+  saveAsInput.required = true;
+  saveAsInput.maxLength = 500;
+  saveAsInput.value = `${documentTitle.replace(/\.[^.]+$/, "")}-revised.txt`;
+  saveAsLabel.append(saveAsInput);
+  const saveAsActions = document.createElement("div");
+  saveAsActions.className = "dialog-actions";
+  const saveAsCancel = document.createElement("button");
+  saveAsCancel.type = "button";
+  saveAsCancel.textContent = "Cancel";
+  const saveAsConfirm = document.createElement("button");
+  saveAsConfirm.type = "submit";
+  saveAsConfirm.className = "primary";
+  saveAsConfirm.textContent = "Save copy";
+  saveAsActions.append(saveAsCancel, saveAsConfirm);
+  saveAsForm.append(saveAsTitle, saveAsDescription, saveAsLabel, saveAsActions);
+  saveAsDialog.append(saveAsForm);
+  workspace.append(saveAsDialog);
+
+  const selectionMenu = document.createElement("div");
+  selectionMenu.className = "review-selection-menu";
+  selectionMenu.setAttribute("role", "menu");
+  selectionMenu.hidden = true;
+  const suggestSelectionButton = document.createElement("button");
+  suggestSelectionButton.type = "button";
+  suggestSelectionButton.setAttribute("role", "menuitem");
+  suggestSelectionButton.textContent = "Suggest AI-friendly alternative";
+  selectionMenu.append(suggestSelectionButton);
+  workspace.append(selectionMenu);
+
+  const suggestionDialog = document.createElement("div");
+  suggestionDialog.className = "dialog review-selection-dialog";
+  suggestionDialog.setAttribute("role", "dialog");
+  suggestionDialog.setAttribute("aria-modal", "true");
+  suggestionDialog.setAttribute("aria-labelledby", "selection-suggestion-title");
+  suggestionDialog.tabIndex = -1;
+  suggestionDialog.hidden = true;
+  const suggestionSurface = document.createElement("div");
+  suggestionSurface.className = "dialog-surface";
+  const suggestionTitle = text("h4", "AI-friendly alternative");
+  suggestionTitle.id = "selection-suggestion-title";
+  const suggestionText = document.createElement("textarea");
+  suggestionText.rows = 7;
+  suggestionText.setAttribute("aria-label", "Suggested replacement text");
+  const suggestionRationale = text("p", "", "finding-passage-note");
+  const suggestionActions = document.createElement("div");
+  suggestionActions.className = "dialog-actions";
+  const suggestionCancel = document.createElement("button");
+  suggestionCancel.type = "button";
+  suggestionCancel.textContent = "Cancel";
+  const suggestionApply = document.createElement("button");
+  suggestionApply.type = "button";
+  suggestionApply.className = "primary";
+  suggestionApply.textContent = "Apply replacement";
+  suggestionActions.append(suggestionCancel, suggestionApply);
+  suggestionSurface.append(
+    suggestionTitle,
+    suggestionText,
+    suggestionRationale,
+    suggestionActions,
+  );
+  suggestionDialog.append(suggestionSurface);
+  workspace.append(suggestionDialog);
+  let selectedRange = null;
 
   const updateDocumentActions = () => {
     const edited = reviewHasEdits(review);
     const ready = review.status === "ready";
+    saveButton.disabled = !ready || !edited || review.saving;
+    saveAsButton.disabled = !ready || review.saving;
+    suggestSelectedToolbarButton.disabled = !ready;
     copyButton.disabled = !ready;
     downloadButton.disabled = !ready;
     revertButton.disabled = !edited;
@@ -872,8 +1056,58 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
           : review.status === "unavailable"
             ? "Assessed text is not available for this document."
             : edited
-              ? "Working copy edited in this browser. The uploaded source stays unchanged \u2014 copy or download the revised text to keep it."
+              ? "Working copy has unsaved edits."
               : "Highlighted passages are the evidence behind each finding. Select a highlight or a finding to review it.";
+    if (ready) updateConfidence();
+  };
+
+  let confidenceTimer = 0;
+  let confidenceGeneration = 0;
+  const updateConfidence = () => {
+    if (!documentValue || review.status !== "ready") return;
+    window.clearTimeout(confidenceTimer);
+    const requestGeneration = ++confidenceGeneration;
+    confidenceTimer = window.setTimeout(async () => {
+      try {
+        const estateId = recordValue(state.estate)?.estate_id;
+        const result = await api(
+          `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+            `${encodeURIComponent(documentValue.document_id)}/confidence`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              source_version: review.confidenceSourceVersion,
+              content: revisedReviewText(review),
+            }),
+          },
+        );
+        if (requestGeneration !== confidenceGeneration) return;
+        const directionLabel =
+          result.direction === "improved"
+            ? "Improved"
+            : result.direction === "regressed"
+              ? "Regressed"
+              : "No material change";
+        const signedDelta = result.delta > 0 ? `+${result.delta}` : `${result.delta}`;
+        confidence.dataset.direction = result.direction;
+        confidenceGraphic.style.setProperty("--confidence-value", `${result.revised * 3.6}deg`);
+        confidenceValue.textContent = `${Math.round(result.revised)}`;
+        confidenceGraphic.setAttribute(
+          "aria-label",
+          `${result.label}: ${Math.round(result.revised)} out of 100. ` +
+            `Original ${Math.round(result.original)}. ${directionLabel} by ${signedDelta}.`,
+        );
+        confidenceSummary.firstElementChild.textContent =
+          `Original ${Math.round(result.original)} \u00b7 Current ${Math.round(result.revised)} ` +
+          `\u00b7 ${directionLabel} ${signedDelta}`;
+        confidenceSummary.lastElementChild.textContent = result.disclaimer;
+      } catch (error) {
+        if (requestGeneration !== confidenceGeneration) return;
+        confidenceGraphic.setAttribute("aria-label", "AI usability confidence unavailable");
+        confidenceSummary.firstElementChild.textContent =
+          `Confidence comparison unavailable: ${error.message}`;
+      }
+    }, 400);
   };
 
   const renderDocumentBody = () => {
@@ -1206,6 +1440,148 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     event.preventDefault();
     selectMark(mark);
   });
+  documentBody.addEventListener("focusin", (event) => {
+    const mark = event.target.closest?.(".review-mark");
+    if (mark) review.keyboardSegmentIndex = Number(mark.dataset.segmentIndex);
+  });
+  const captureSelectedRange = (allowFocusedMark = false) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      const segmentIndex = review.keyboardSegmentIndex;
+      const segment = review.segments[segmentIndex];
+      if (!allowFocusedMark || !segment || segment.kind !== "mark") return false;
+      const start = review.segments
+        .slice(0, segmentIndex)
+        .reduce((total, item) => total + item.text.length, 0);
+      selectedRange = {
+        start,
+        end: start + segment.text.length,
+        passage: segment.text,
+      };
+      return true;
+    }
+    const range = selection.getRangeAt(0);
+    const textBody = documentBody.querySelector(".review-document-text");
+    const rangeNode =
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement
+        : range.commonAncestorContainer;
+    if (!textBody || !rangeNode || !textBody.contains(rangeNode)) return false;
+    const passage = selection.toString();
+    if (!passage.trim()) return false;
+    if (passage.length > 4000) {
+      documentStatus.textContent =
+        "Select no more than 4,000 characters for an AI-friendly suggestion.";
+      return false;
+    }
+    const prefix = document.createRange();
+    prefix.selectNodeContents(textBody);
+    prefix.setEnd(range.startContainer, range.startOffset);
+    selectedRange = {
+      start: prefix.toString().length,
+      end: prefix.toString().length + passage.length,
+      passage,
+    };
+    return true;
+  };
+  documentBody.addEventListener("contextmenu", (event) => {
+    if (!captureSelectedRange()) return;
+    event.preventDefault();
+    selectionMenu.style.left = `${Math.max(8, event.clientX)}px`;
+    selectionMenu.style.top = `${Math.max(8, event.clientY)}px`;
+    selectionMenu.hidden = false;
+    suggestSelectionButton.focus();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!selectionMenu.hidden && !selectionMenu.contains(event.target)) {
+      selectionMenu.hidden = true;
+    }
+  });
+  selectionMenu.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    selectionMenu.hidden = true;
+    documentBody.focus();
+  });
+  const requestSelectionSuggestion = async () => {
+    if (!selectedRange || !documentValue) return;
+    const requestedRange = { ...selectedRange };
+    const requestedText = revisedReviewText(review);
+    selectionMenu.hidden = true;
+    documentStatus.textContent = "Asking Shaper for an AI-friendly alternative\u2026";
+    suggestSelectionButton.disabled = true;
+    try {
+      const estateId = recordValue(state.estate)?.estate_id;
+      const payload = await api(
+        `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+          `${encodeURIComponent(documentValue.document_id)}/passage-reshape`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            source_version: documentValue.source_version,
+            finding_code: null,
+            passage: selectedRange.passage,
+          }),
+        },
+      );
+      if (
+        requestedText !== revisedReviewText(review) ||
+        requestedText.slice(requestedRange.start, requestedRange.end) !==
+          requestedRange.passage
+      ) {
+        selectedRange = null;
+        documentStatus.textContent =
+          "The working copy changed before the suggestion returned. Select the text again.";
+        return;
+      }
+      selectedRange = requestedRange;
+      suggestionText.value = payload.replacement;
+      suggestionRationale.textContent =
+        payload.rationale || "Review the suggestion before applying it.";
+      showDialog(suggestionDialog, suggestionText);
+      suggestionText.select();
+      documentStatus.textContent = "Suggestion ready for review.";
+    } catch (error) {
+      documentStatus.textContent = `AI-friendly suggestion is unavailable: ${error.message}`;
+    } finally {
+      suggestSelectionButton.disabled = false;
+      suggestSelectedToolbarButton.disabled = false;
+    }
+  };
+  suggestSelectionButton.addEventListener("click", requestSelectionSuggestion);
+  suggestSelectedToolbarButton.addEventListener("click", async () => {
+    if (!captureSelectedRange(true)) {
+      documentStatus.textContent =
+        "Select text in the document, then choose Suggest selection.";
+      return;
+    }
+    suggestSelectedToolbarButton.disabled = true;
+    await requestSelectionSuggestion();
+  });
+  const closeSuggestionDialog = () => {
+    hideDialog(suggestionDialog);
+  };
+  suggestionCancel.addEventListener("click", closeSuggestionDialog);
+  suggestionDialog.addEventListener("dismiss", closeSuggestionDialog);
+  suggestionDialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.stopPropagation();
+    closeSuggestionDialog();
+  });
+  suggestionApply.addEventListener("click", () => {
+    if (!selectedRange || !suggestionText.value.trim()) return;
+    replaceReviewRange(
+      review,
+      selectedRange.start,
+      selectedRange.end,
+      suggestionText.value,
+    );
+    selectedRange = null;
+    closeSuggestionDialog();
+    renderDocumentBody();
+    updateDocumentActions();
+    renderDetail(review.activeFindingIndex);
+    documentStatus.textContent = "AI-friendly replacement applied. Save to keep this version.";
+  });
 
   copyButton.addEventListener("click", async () => {
     try {
@@ -1213,6 +1589,93 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
       documentStatus.textContent = "Revised text copied to the clipboard.";
     } catch {
       documentStatus.textContent = "Copying is blocked in this browser; use the download instead.";
+    }
+  });
+  saveButton.addEventListener("click", async () => {
+    if (!documentValue || !reviewHasEdits(review)) return;
+    review.saving = true;
+    let savedSuccessfully = false;
+    updateDocumentActions();
+    documentStatus.textContent = "Saving document\u2026";
+    let outcomeMessage = "";
+    try {
+      const estateId = recordValue(state.estate)?.estate_id;
+      const saved = await api(
+        `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+          `${encodeURIComponent(documentValue.document_id)}/working-copy`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            source_version: documentValue.source_version,
+            content: revisedReviewText(review),
+          }),
+        },
+      );
+      state.documents = state.documents.map((record) =>
+        recordValue(record).document_id === documentValue.document_id ? saved : record,
+      );
+      Object.assign(documentValue, recordValue(saved));
+      review.savedText = revisedReviewText(review);
+      review.segments = buildReviewSegments(review.savedText, indexedFindings);
+      renderDocumentBody();
+      renderDetail(review.activeFindingIndex);
+      outcomeMessage = "Document saved as a new version.";
+      savedSuccessfully = true;
+    } catch (error) {
+      outcomeMessage = `Document could not be saved: ${error.message}`;
+    } finally {
+      review.saving = false;
+      updateDocumentActions();
+      documentStatus.textContent = outcomeMessage;
+      if (savedSuccessfully) {
+        invalidateAssessmentEvidence();
+        announce("Document saved. Run discovery to assess the new version.");
+      }
+    }
+  });
+  saveAsButton.addEventListener("click", () => {
+    showDialog(saveAsDialog, saveAsInput);
+    saveAsInput.select();
+  });
+  const closeSaveAsDialog = () => {
+    hideDialog(saveAsDialog);
+  };
+  saveAsCancel.addEventListener("click", closeSaveAsDialog);
+  saveAsDialog.addEventListener("dismiss", closeSaveAsDialog);
+  saveAsDialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.stopPropagation();
+    closeSaveAsDialog();
+  });
+  saveAsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!documentValue || !saveAsForm.reportValidity()) return;
+    saveAsConfirm.disabled = true;
+    try {
+      const estateId = recordValue(state.estate)?.estate_id;
+      const savedCopy = await api(
+        `/v1/estates/${encodeURIComponent(estateId)}/documents/` +
+          `${encodeURIComponent(documentValue.document_id)}/working-copy`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            source_version: documentValue.source_version,
+            filename: saveAsInput.value,
+            content: revisedReviewText(review),
+          }),
+        },
+      );
+      closeSaveAsDialog();
+      state.documents.push(savedCopy);
+      invalidateAssessmentEvidence();
+      announce(
+        `Saved a separate document as ${saveAsInput.value}. Run discovery to assess it.`,
+      );
+    } catch (error) {
+      documentStatus.textContent = `Copy could not be saved: ${error.message}`;
+      closeSaveAsDialog();
+    } finally {
+      saveAsConfirm.disabled = false;
     }
   });
   downloadButton.addEventListener("click", () => {
@@ -1224,11 +1687,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     URL.revokeObjectURL(link.href);
   });
   revertButton.addEventListener("click", () => {
-    review.segments.forEach((segment) => {
-      if (segment.kind !== "mark") return;
-      segment.text = segment.original;
-      segment.edited = false;
-    });
+    review.segments = buildReviewSegments(review.savedText, indexedFindings);
     renderDocumentBody();
     updateDocumentActions();
     renderDetail(review.activeFindingIndex);
@@ -1248,6 +1707,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     )
       .then((content) => {
         review.original = content;
+        review.savedText = content;
         review.segments = buildReviewSegments(content, indexedFindings);
         review.status = "ready";
         renderDocumentBody();
@@ -3787,10 +4247,33 @@ initialize();
 
 // Plain-element dialogs: emulate the dismiss behaviour the app listens for.
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
   const open = [...document.querySelectorAll(".dialog")].filter((dialog) => !dialog.hidden);
   const dialog = open[open.length - 1];
   if (!dialog) return;
+  if (event.key === "Tab") {
+    const focusable = [
+      ...dialog.querySelectorAll(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), ' +
+          'textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter((element) => element.getClientRects().length > 0);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+    return;
+  }
+  if (event.key !== "Escape") return;
   event.preventDefault();
   dialog.dispatchEvent(new Event("dismiss"));
 });

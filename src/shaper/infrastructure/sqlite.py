@@ -6,7 +6,7 @@ import base64
 import hashlib
 import sqlite3
 import threading
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -78,6 +78,8 @@ class ConcurrencyError(RuntimeError):
 
 class SQLiteStore:
     """Local durable state with explicit transaction ownership."""
+
+    supports_postgres_locks = False
 
     def __init__(self, path: Path | str, *, journal_mode: str = "WAL") -> None:
         normalized_mode = journal_mode.upper()
@@ -441,10 +443,29 @@ class SQLiteEstateRepository(EstateRepository):
     def save_inventory(
         self,
         items: Sequence[PreparedInventoryItem],
+        *,
+        expected_revisions: Mapping[str, int | None] | None = None,
     ) -> tuple[VersionedRecord[EstateDocument], ...]:
         """Atomically save inventory rows, source bytes, and extracted text."""
         saved: list[VersionedRecord[EstateDocument]] = []
         with self._store.transaction() as connection:
+            for document_id, expected in (expected_revisions or {}).items():
+                if self._store.supports_postgres_locks:
+                    connection.execute(
+                        "SELECT pg_advisory_xact_lock(hashtext(?))",
+                        (document_id,),
+                    )
+                lock_clause = " FOR UPDATE" if self._store.supports_postgres_locks else ""
+                expected_row = connection.execute(
+                    "SELECT revision FROM records "
+                    "WHERE category = 'estate_document' AND record_id = ?" + lock_clause,
+                    (document_id,),
+                ).fetchone()
+                actual = None if expected_row is None else int(expected_row["revision"])
+                if actual != expected:
+                    raise ConcurrencyError(
+                        "Document changed since the working copy was opened"
+                    )
             for item in items:
                 document = item.document
                 text = item.extracted_text

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -131,6 +131,8 @@ class EstateRepository(EstateLifecycleRepository, Protocol):
     def save_inventory(
         self,
         items: Sequence[PreparedInventoryItem],
+        *,
+        expected_revisions: Mapping[str, int | None] | None = None,
     ) -> Sequence[VersionedRecord[EstateDocument]]:
         """Atomically save inventory rows, source bytes, and extracted text."""
 
@@ -717,6 +719,8 @@ class EstateInventoryService:
         items: Sequence[InventoryInput],
         *,
         principal: Principal,
+        require_new: bool = False,
+        expected_revisions: Mapping[str, int | None] | None = None,
     ) -> Sequence[VersionedRecord[EstateDocument]]:
         """Validate every file, then atomically save the complete inventory batch."""
         source = self._repository.get_source(source_id)
@@ -732,7 +736,13 @@ class EstateInventoryService:
         if not items:
             raise ValueError("Inventory ingestion requires at least one file")
         prepared = [self._prepare(estate.value, source.value, item) for item in items]
-        return self._repository.save_inventory(prepared)
+        revisions = dict(expected_revisions or {})
+        if require_new:
+            revisions.update({item.document.document_id: None for item in prepared})
+        return self._repository.save_inventory(
+            prepared,
+            expected_revisions=revisions or None,
+        )
 
     def withdraw(
         self,

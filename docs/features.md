@@ -1,7 +1,7 @@
 ---
 title: Shaper feature guide
 description: Wiki-style guide to Knowledge Estates, assessment Findings, governed transformations, and lifecycle controls
-ms.date: 2026-09-12
+ms.date: 2026-09-19
 ms.topic: overview
 ---
 
@@ -26,6 +26,8 @@ estate governance, but it does not affect Findings or transformation actions.
 | Document assessment | Implemented | 31 deterministic, read-only checks per document |
 | Evidence-grounded Findings | Implemented | Content-quality findings with agent impact and quoted evidence |
 | Full-document review | Implemented | Exact original-file download plus an authorized, version-pinned extracted-text viewer |
+| Collaborative document editing | Implemented | Save immutable revisions, save separate copies, and request focused AI-friendly alternatives |
+| AI usability confidence | Implemented | Deterministic original-to-working-copy comparison, not a calibrated probability |
 | Transformation recommendations | Implemented | Generated only for selected documents |
 | Human approval | Implemented | Required before transformation and publication |
 | Semantic HTML output | Implemented | Escaped, versioned, estate-owned artifacts |
@@ -167,8 +169,9 @@ Each report contains:
 * The source version and assessment time
 
 Internal deterministic metrics support compatibility and bounded processing,
-but the Assess experience does not present readiness or reshaping effort as a
-score.
+but general discovery responses do not present readiness or reshaping effort as
+a score. The collaboration workspace provides a separate, contextual comparison
+described below.
 
 Discovery uses two passes. It first collects every readable document profile,
 then assesses each document against the complete peer set. This allows
@@ -221,6 +224,34 @@ source used by the check. The request includes the report's exact source version
 Shaper rejects a stale version, a deleted or missing document, and a document
 outside the authorized estate. Content loads only after the user requests it and
 is not copied into every assessment report.
+
+The findings workspace presents the assessed text beside its evidence. Reviewers
+can edit highlighted passages, save the working copy as a new immutable version
+of the same document, or save a separately named text document. Saving never
+overwrites the retained source bytes or an earlier version.
+
+Reviewers can also select up to 4,000 characters in the document, open the
+context menu, and choose **Suggest AI-friendly alternative**. Shaper sends only
+the selected passage through the focused passage-reshape contract. The returned
+text and rationale remain a suggestion until the reviewer applies them, and the
+result remains an unsaved working-copy edit until **Save** is selected.
+Keyboard users can select text and activate the equivalent **Suggest selection**
+toolbar action.
+
+The toolbar keeps persistence and export actions distinct:
+
+* **Save** creates a new immutable version of the current document
+* **Save as** creates a separate document in the same estate
+* **Copy revised text** copies the current working copy
+* **Download revised text** exports a local text file
+* **Revert all edits** restores the last saved version
+
+The **AI usability confidence** graphic compares the source version first opened
+for review with the current working copy. It shows the original value, current
+value, signed change, and the words **Improved**, **No material change**, or
+**Regressed**. The value is a deterministic content-quality estimate of how
+consistently an AI system can retrieve and use the document. It is not a
+calibrated probability or a guarantee that an answer will be factually correct.
 
 The viewer preserves real headings for newly uploaded documents. Synthetic PDF
 page, block, table, and row labels are not inserted into transformation input.

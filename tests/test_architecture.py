@@ -333,10 +333,23 @@ def test_given_hosted_workspace_when_inspected_then_copilot_studio_patterns_are_
     assert 'source.credential_mode === "application"' in browser_app
     assert "await loadEstates(true)" in browser_app
     assert 'menu.setAttribute("role", "menu")' in browser_app
-    assert browser_app.count('setAttribute("role", "menuitem")') == 2
+    assert browser_app.count('setAttribute("role", "menuitem")') == 3
     assert "`/v1/estates/${estate.estate_id}`" in browser_app
     assert "`/v1/estates/${estate.estate_id}/purge`" in browser_app
     assert "function selectedActionEstate()" in browser_app
+    assert 'setAttribute("role", "toolbar")' in browser_app
+    assert 'setAttribute("aria-label", "Document editing actions")' in browser_app
+    assert 'saveButton.setAttribute("aria-label", "Save document")' in browser_app
+    assert 'saveAsButton.setAttribute("aria-label", "Save document as")' in browser_app
+    assert '"AI usability confidence"' in browser_app
+    assert 'confidenceSummary.setAttribute("aria-live", "polite")' in browser_app
+    assert "/confidence`" in browser_app
+    assert "/working-copy`" in browser_app
+    assert '"Suggest AI-friendly alternative"' in browser_app
+    assert 'documentBody.addEventListener("contextmenu"' in browser_app
+    assert 'selectionMenu.setAttribute("role", "menu")' in browser_app
+    assert 'suggestSelectionButton.setAttribute("role", "menuitem")' in browser_app
+    assert "replaceReviewRange(" in browser_app
 
 
 def test_given_workspace_controls_when_inspected_then_native_design_system_is_applied() -> None:
@@ -348,8 +361,8 @@ def test_given_workspace_controls_when_inspected_then_native_design_system_is_ap
     assert 'id="themePicker"' not in html
     assert "<legend>Theme</legend>" not in html
     assert 'src="fluent-theme.js' not in html
-    assert 'href="styles.css?v=20260918-combined-findings-v1"' in html
-    assert 'src="app.js?v=20260918-combined-findings-v1"' in html
+    assert 'href="styles.css?v=20260919-save-confidence-v1"' in html
+    assert 'src="app.js?v=20260919-save-confidence-v1"' in html
     assert not re.search(r"<fluent-[a-z-]+", html)
     assert 'name="color-theme"' not in html
     assert "shaper-color-theme" not in html

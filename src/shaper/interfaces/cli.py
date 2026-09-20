@@ -14,6 +14,7 @@ from shaper.application.assessment import DocumentAssessmentService, EstateAsses
 from shaper.application.compiler import CompilationService
 from shaper.application.decisions import TransformationDecisionService
 from shaper.application.demo import DemoAnalysisService
+from shaper.application.document_collaboration import DocumentCollaborationService
 from shaper.application.estates import (
     EstateDiscoveryService,
     EstateInventoryService,
@@ -239,6 +240,13 @@ def serve(
         estates=estate_service,
         model=model,
     )
+    document_collaboration_service = DocumentCollaborationService(
+        estate_repository,
+        estates=estate_service,
+        inventory=inventory_service,
+        assessments=DocumentAssessmentService(),
+        clock=lambda: datetime.now(UTC),
+    )
     evaluation_set_service = EvaluationSetService(estate_repository)
     http_services = HttpServices(
         jobs=jobs,
@@ -263,6 +271,7 @@ def serve(
         transformations=transformation_service,
         evaluation_sets=evaluation_set_service,
         passage_reshape=passage_reshape_service,
+        document_collaboration=document_collaboration_service,
         estate_repository=estate_repository,
         archive_expander=ZipArchiveExpander(scanner),
         malware_scanner=scanner,

@@ -1,6 +1,7 @@
 ---
 title: Operate Shaper
 description: Monitor, recover, retain, and upgrade a hosted Shaper deployment
+ms.date: 2026-09-19
 ms.topic: how-to
 ---
 
@@ -20,10 +21,18 @@ redacted before rendering.
 
 For document assessment, monitor discovery completion, failed document counts,
 finding counts by stable code, high-priority finding counts, and evidence
-coverage. Do not treat the internal readiness or effort heuristics as accuracy,
-confidence, or service-level metrics. A changing finding count can mean that
+coverage. The collaboration workspace labels its dedicated original-to-working-copy
+comparison as **AI usability confidence**, but operators must not interpret it
+as a calibrated probability, answer-accuracy measure, or service-level metric.
+A changing finding count or comparison value can mean that
 content changed, checks changed, or extraction quality changed; investigate the
 finding code and evidence rather than interpreting the count alone.
+
+Working-copy saves create immutable source versions. Monitor stale-version
+rejections, duplicate **Save as** names, focused passage-reshape failures, and
+confidence-comparison failures. A stale save is a concurrency safeguard, not a
+retryable storage fault: reload the current version before applying the edit
+again.
 
 New discovery reports should include `agent_impact` for every structured
 finding. A missing value on a historical report is compatible and uses a

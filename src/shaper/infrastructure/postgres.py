@@ -61,6 +61,8 @@ class _TransactionConnection:
 class PostgresRecordStore:
     """Small optimistic record store with explicit transaction ownership."""
 
+    supports_postgres_locks = True
+
     def __init__(self, connection_url: str) -> None:
         if not connection_url.startswith(("postgresql://", "postgres://")):
             raise ValueError("PostgreSQL connection URL must use postgresql://")

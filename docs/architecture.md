@@ -783,6 +783,24 @@ the configured estate store. The Assess experience renders their structured
 findings and agent-impact explanations, while recommendations remain a separate,
 selection-scoped workflow.
 
+The document collaboration service owns working-copy persistence and comparison.
+`PUT /v1/estates/{estate_id}/documents/{document_id}/working-copy` creates a new
+immutable version while preserving the stable document identity.
+`POST /v1/estates/{estate_id}/documents/{document_id}/working-copy` creates a
+separately named text document. Both operations require the current source
+version, compile authorization, an active estate, and bounded non-empty content.
+The repository keeps earlier source bytes and extracted text addressable by
+their content hash.
+
+`POST /v1/estates/{estate_id}/documents/{document_id}/confidence` compares a
+retained baseline version with the browser working copy. It reuses the
+deterministic document assessment dimensions but returns only the original
+value, revised value, delta, and direction through this dedicated collaboration
+contract. It does not create a discovery report or restore a score to general
+discovery responses. Focused context-menu suggestions reuse the version-pinned
+passage-reshape service and do not mutate content until the reviewer applies and
+saves the replacement.
+
 The approval workspace starts transformations through an authenticated NDJSON
 stream. A process-local worker performs the synchronous transformation while the
 response reports actual document and validation stages as they complete. This

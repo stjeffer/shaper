@@ -17,6 +17,7 @@ from pydantic import AnyUrl
 from shaper.application.artifacts import EstateTransformationService, HtmlArtifactRenderer
 from shaper.application.assessment import DocumentAssessmentService, EstateAssessmentService
 from shaper.application.decisions import TransformationDecisionService
+from shaper.application.document_collaboration import DocumentCollaborationService
 from shaper.application.document_findings import BASELINE_CHECK_CODES, DOCUMENT_CHECK_CODES
 from shaper.application.estates import (
     EstateDiscoveryService,
@@ -235,6 +236,17 @@ def _client(
             repository,
             estates=EstateService(repository, clock=lambda: NOW),
             model=PassageModel(),
+        ),
+        document_collaboration=DocumentCollaborationService(
+            repository,
+            estates=EstateService(repository, clock=lambda: NOW),
+            inventory=EstateInventoryService(
+                repository,
+                parser=parser,
+                clock=lambda: NOW,
+            ),
+            assessments=DocumentAssessmentService(),
+            clock=lambda: NOW,
         ),
         estate_repository=repository,
         archive_expander=ZipArchiveExpander(CleanScanner()),
@@ -964,5 +976,108 @@ def test_given_assessed_passage_when_reshape_requested_then_suggestion_is_return
             },
         )
         assert missing.status_code == 404
+    finally:
+        store.close()
+
+
+def test_given_revised_document_when_saved_then_versions_and_confidence_are_preserved(
+    tmp_path: Path,
+) -> None:
+    client, store, repository, _services = _client(tmp_path / "estate-collaboration.db")
+    headers = {"Authorization": "Bearer " + "valid"}
+    try:
+        estate_id = client.post(
+            "/v1/estates",
+            headers=headers,
+            json={
+                "collection_id": "collection-1",
+                "name": "Collaboration estate",
+                "description": "",
+                "artifact_name_template": "shaper_{source_stem}.html",
+            },
+        ).json()["value"]["estate_id"]
+        uploaded = client.post(
+            f"/v1/estates/{estate_id}/uploads",
+            headers=headers,
+            files={
+                "files": (
+                    "leave-policy.md",
+                    b"Leave stuff should perhaps be requested somehow.",
+                    "text/markdown",
+                )
+            },
+        ).json()["documents"][0]["value"]
+        document_id = uploaded["document_id"]
+        original_version = uploaded["source_version"]
+        revised = (
+            "# Annual leave requests\n\n"
+            "Employees must submit annual leave requests to their manager.\n\n"
+            "1. Open the leave request form.\n"
+            "2. Enter the requested dates.\n"
+            "3. Submit the request for manager approval."
+        )
+
+        comparison = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/confidence",
+            headers=headers,
+            json={"source_version": original_version, "content": revised},
+        )
+        assert comparison.status_code == 200, comparison.text
+        confidence = comparison.json()
+        assert confidence["label"] == "AI usability confidence"
+        assert confidence["revised"] > confidence["original"]
+        assert confidence["delta"] > 0
+        assert confidence["direction"] == "improved"
+        assert "not a guarantee" in confidence["disclaimer"]
+
+        saved = client.put(
+            f"/v1/estates/{estate_id}/documents/{document_id}/working-copy",
+            headers=headers,
+            json={"source_version": original_version, "content": revised},
+        )
+        assert saved.status_code == 200, saved.text
+        saved_document = saved.json()["value"]
+        assert saved_document["document_id"] == document_id
+        assert saved_document["source_version"] != original_version
+        assert saved_document["media_type"] == "text/markdown"
+        assert repository.load_document_content(document_id, original_version) == (
+            "Leave stuff should perhaps be requested somehow."
+        )
+        assert repository.load_document_content(
+            document_id, saved_document["source_version"]
+        ) == revised
+
+        stale = client.put(
+            f"/v1/estates/{estate_id}/documents/{document_id}/working-copy",
+            headers=headers,
+            json={"source_version": original_version, "content": "Stale overwrite."},
+        )
+        assert stale.status_code == 422
+
+        saved_as = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/working-copy",
+            headers=headers,
+            json={
+                "source_version": saved_document["source_version"],
+                "filename": "leave-policy-revised",
+                "content": revised,
+            },
+        )
+        assert saved_as.status_code == 200, saved_as.text
+        copy = saved_as.json()["value"]
+        assert copy["document_id"] != document_id
+        assert copy["filename"] == "leave-policy-revised.txt"
+        assert copy["media_type"] == "text/plain"
+
+        duplicate = client.post(
+            f"/v1/estates/{estate_id}/documents/{document_id}/working-copy",
+            headers=headers,
+            json={
+                "source_version": saved_document["source_version"],
+                "filename": "leave-policy-revised",
+                "content": revised,
+            },
+        )
+        assert duplicate.status_code == 409
     finally:
         store.close()

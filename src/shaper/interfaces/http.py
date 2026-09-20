@@ -35,6 +35,10 @@ from shaper.application.decisions import (
     TransformationDecisionService,
 )
 from shaper.application.demo import DemoAnalysisResult, DemoAnalysisService
+from shaper.application.document_collaboration import (
+    MAX_WORKING_COPY_CHARACTERS,
+    DocumentCollaborationService,
+)
 from shaper.application.document_findings import ASSESSMENT_CHECKS
 from shaper.application.estates import (
     EstateArchivedError,
@@ -193,6 +197,21 @@ class PassageReshapeRequest(BaseModel):
     passage: str = Field(min_length=1, max_length=MAX_PASSAGE_CHARACTERS)
 
 
+class WorkingCopyRequest(BaseModel):
+    """Persist or assess one revised document working copy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_version: str = Field(min_length=1, max_length=128)
+    content: str = Field(min_length=1, max_length=MAX_WORKING_COPY_CHARACTERS)
+
+
+class WorkingCopySaveAsRequest(WorkingCopyRequest):
+    """Persist one revised working copy under a new filename."""
+
+    filename: str = Field(min_length=1, max_length=500)
+
+
 class SelectionRequest(BaseModel):
     """Select identifiers for a bounded workflow run."""
 
@@ -276,6 +295,7 @@ class HttpServices:
     evaluation_sets: EvaluationSetService | None = None
     estate_repository: EstateRepository | None = None
     passage_reshape: PassageReshapeService | None = None
+    document_collaboration: DocumentCollaborationService | None = None
     archive_expander: ZipArchiveExpander | None = None
     malware_scanner: MalwareScanner | None = None
     max_upload_bytes: int = 25 * 1024 * 1024
@@ -644,6 +664,82 @@ def create_app(services: HttpServices) -> FastAPI:
                     "input_tokens": suggestion.input_tokens,
                     "output_tokens": suggestion.output_tokens,
                 },
+            }
+
+        @app.put("/v1/estates/{estate_id}/documents/{document_id}/working-copy")
+        def save_document_working_copy(
+            estate_id: str,
+            document_id: str,
+            request: WorkingCopyRequest,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            if services.document_collaboration is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Document collaboration is not configured on this deployment",
+                )
+            return _versioned_payload(
+                services.document_collaboration.save(
+                    estate_id=estate_id,
+                    document_id=document_id,
+                    source_version=request.source_version,
+                    content=request.content,
+                    principal=actor,
+                )
+            )
+
+        @app.post("/v1/estates/{estate_id}/documents/{document_id}/working-copy")
+        def save_document_working_copy_as(
+            estate_id: str,
+            document_id: str,
+            request: WorkingCopySaveAsRequest,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            if services.document_collaboration is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Document collaboration is not configured on this deployment",
+                )
+            return _versioned_payload(
+                services.document_collaboration.save_as(
+                    estate_id=estate_id,
+                    document_id=document_id,
+                    source_version=request.source_version,
+                    filename=request.filename,
+                    content=request.content,
+                    principal=actor,
+                )
+            )
+
+        @app.post("/v1/estates/{estate_id}/documents/{document_id}/confidence")
+        def compare_document_confidence(
+            estate_id: str,
+            document_id: str,
+            request: WorkingCopyRequest,
+            actor: Principal = Depends(principal),
+        ) -> dict[str, object]:
+            if services.document_collaboration is None:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Document collaboration is not configured on this deployment",
+                )
+            comparison = services.document_collaboration.compare_confidence(
+                estate_id=estate_id,
+                document_id=document_id,
+                source_version=request.source_version,
+                content=request.content,
+                principal=actor,
+            )
+            return {
+                "original": comparison.original,
+                "revised": comparison.revised,
+                "delta": comparison.delta,
+                "direction": comparison.direction,
+                "label": "AI usability confidence",
+                "disclaimer": (
+                    "Deterministic estimate of how reliably an AI system can retrieve and "
+                    "use this document. It is not a guarantee of answer accuracy."
+                ),
             }
 
         @app.get("/v1/estates/{estate_id}/documents/{document_id}/source")
