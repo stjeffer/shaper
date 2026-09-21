@@ -361,8 +361,8 @@ def test_given_workspace_controls_when_inspected_then_native_design_system_is_ap
     assert 'id="themePicker"' not in html
     assert "<legend>Theme</legend>" not in html
     assert 'src="fluent-theme.js' not in html
-    assert 'href="styles.css?v=20260919-save-confidence-v1"' in html
-    assert 'src="app.js?v=20260919-save-confidence-v1"' in html
+    assert 'href="styles.css?v=20260921-review-header-v1"' in html
+    assert 'src="app.js?v=20260921-review-header-v1"' in html
     assert not re.search(r"<fluent-[a-z-]+", html)
     assert 'name="color-theme"' not in html
     assert "shaper-color-theme" not in html
