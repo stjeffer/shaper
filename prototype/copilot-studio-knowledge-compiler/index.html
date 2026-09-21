@@ -9,14 +9,21 @@
     />
     <title>Shaper | Knowledge estates</title>
     <link rel="icon" type="image/svg+xml" href="shaper-icon.svg?v=20260914" />
-    <link rel="stylesheet" href="styles.css?v=20260921-review-header-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260921-collapsible-nav-v1" />
   </head>
   <body>
     <header class="skip-link-container">
       <a class="skip-link" href="#workspace">Skip to workspace</a>
     </header>
     <div class="app-shell">
-      <nav class="sidebar" aria-label="Primary navigation">
+      <nav id="primaryNavigation" class="sidebar" aria-label="Primary navigation">
+        <button id="sidebarToggle" class="nav-item sidebar-toggle" type="button" aria-expanded="true" aria-controls="primaryNavigation" aria-label="Collapse navigation" title="Collapse navigation">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2.5" y="3" width="15" height="14" rx="2"></rect>
+            <path d="M7 3v14"></path><path class="sidebar-toggle-chevron" d="m12.5 7-3 3 3 3"></path>
+          </svg>
+          <span class="nav-item-label">Collapse</span>
+        </button>
         <a class="brand" href="#estates" data-action="home" aria-label="Shaper home">
           <span class="brand-mark" aria-hidden="true">
             <svg class="shaper-mark" viewBox="0 0 64 64" focusable="false">
@@ -27,13 +34,13 @@
           <span class="brand-word">shaper</span>
         </a>
         <p class="sidebar-label">Workspace</p>
-        <button class="nav-item" type="button" data-action="open-create" title="New estate">
+        <button class="nav-item" type="button" data-action="open-create" aria-label="New estate" title="New estate">
           <svg class="nav-icon fluent-icon" aria-hidden="true" focusable="false">
             <use href="./vendor/fluent-system-icons.svg#add-folder-24"></use>
           </svg>
           <span class="nav-item-label">New estate</span>
         </button>
-        <button class="nav-item" type="button" data-action="assessment-checks" title="Assessment checks">
+        <button class="nav-item" type="button" data-action="assessment-checks" aria-label="Assessment checks" title="Assessment checks">
           <svg class="nav-icon fluent-icon" aria-hidden="true" focusable="false">
             <use href="./vendor/fluent-system-icons.svg#checklist-20"></use>
           </svg>
@@ -982,6 +989,6 @@
       </div>
     </template>
 
-    <script type="module" src="app.js?v=20260921-review-header-v1"></script>
+    <script type="module" src="app.js?v=20260921-collapsible-nav-v1"></script>
   </body>
 </html>

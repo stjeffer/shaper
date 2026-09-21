@@ -1,3 +1,25 @@
+// Navigation density is a device preference, never an authorization setting.
+const navigationShell = document.querySelector(".app-shell");
+const navigationToggle = document.getElementById("sidebarToggle");
+function setNavigationCollapsed(collapsed) {
+  if (!navigationShell || !navigationToggle) return;
+  navigationShell.classList.toggle("navigation-collapsed", collapsed);
+  navigationToggle.setAttribute("aria-expanded", String(!collapsed));
+  const label = collapsed ? "Expand navigation" : "Collapse navigation";
+  navigationToggle.setAttribute("aria-label", label);
+  navigationToggle.title = label;
+  const text = navigationToggle.querySelector(".nav-item-label");
+  if (text) text.textContent = collapsed ? "Expand" : "Collapse";
+}
+try {
+  setNavigationCollapsed(localStorage.getItem("shaper.navigationCollapsed") === "true");
+} catch { /* Navigation still works when browser storage is unavailable. */ }
+navigationToggle?.addEventListener("click", () => {
+  const collapsed = !navigationShell?.classList.contains("navigation-collapsed");
+  setNavigationCollapsed(collapsed);
+  try { localStorage.setItem("shaper.navigationCollapsed", String(collapsed)); } catch { /* Optional preference. */ }
+});
+
 const state = {
   session: null,
   collectionId: null,
