@@ -129,7 +129,10 @@ class PassageModel:
         self.prompts.append(prompt)
         return ModelResult(
             payload={
-                "replacement": "Employees request annual leave from their line manager.",
+                "replacement": (
+                    "Suggested replacement:\nEmployees request annual leave from their line "
+                    "manager.\n\nRationale: This must not be inserted."
+                ),
                 "rationale": "Named the decision owner and removed ambiguity.",
             },
             response_id="passage-1",
@@ -939,7 +942,8 @@ def test_given_assessed_passage_when_reshape_requested_then_suggestion_is_return
         )
         assert response.status_code == 200, response.text
         payload = response.json()
-        assert payload["replacement"].startswith("Employees request annual leave")
+        assert payload["replacement"] == "Employees request annual leave from their line manager."
+        assert "Rationale" not in payload["replacement"]
         assert payload["rationale"]
         assert payload["source_version"] == source_version
         assert payload["usage"]["output_tokens"] == 14
