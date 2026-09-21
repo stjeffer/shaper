@@ -13,6 +13,25 @@ from shaper.prompts import PASSAGE_RESHAPE_PROMPT
 MAX_PASSAGE_CHARACTERS = 4000
 MAX_CONTEXT_CHARACTERS = 6000
 
+
+def _clean_replacement(value: object) -> str:
+    """Return replacement text only when a provider adds labels or commentary."""
+    replacement = str(value or "").strip()
+    if replacement.startswith("```") and replacement.endswith("```"):
+        lines = replacement.splitlines()
+        replacement = "\n".join(lines[1:-1]).strip()
+    lowered = replacement.lower()
+    for label in ("suggested replacement:", "replacement:", "revised passage:"):
+        if lowered.startswith(label):
+            replacement = replacement[len(label) :].lstrip()
+            break
+    for marker in ("\n\nRationale:", "\nRationale:", "\n\nCommentary:", "\nCommentary:"):
+        marker_index = replacement.lower().find(marker.lower())
+        if marker_index >= 0:
+            replacement = replacement[:marker_index].rstrip()
+            break
+    return replacement
+
 PASSAGE_RESHAPE_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -115,7 +134,7 @@ class PassageReshapeService:
             schema=PASSAGE_RESHAPE_SCHEMA,
             max_output_tokens=self._max_output_tokens,
         )
-        replacement = str(result.payload.get("replacement", "")).strip()
+        replacement = _clean_replacement(result.payload.get("replacement", ""))
         rationale = str(result.payload.get("rationale", "")).strip()
         if not replacement:
             raise ValueError("The model returned no replacement text for this passage")

@@ -772,6 +772,18 @@ function reviewHasEdits(review) {
   return review.status === "ready" && revisedReviewText(review) !== review.savedText;
 }
 
+function cleanSuggestedReplacement(value) {
+  let replacement = String(value ?? "").trim();
+  if (replacement.startsWith("```") && replacement.endsWith("```")) {
+    replacement = replacement.split("\n").slice(1, -1).join("\n").trim();
+  }
+  replacement = replacement.replace(
+    /^(?:suggested replacement|replacement|revised passage):\s*/i,
+    "",
+  );
+  return replacement.split(/\n\s*(?:rationale|commentary):\s*/i, 1)[0].trim();
+}
+
 function replaceReviewRange(review, start, end, replacement) {
   const next = [];
   let cursor = 0;
@@ -888,12 +900,9 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   saveAsButton.className = "review-action";
   saveAsButton.textContent = "Save as";
   saveAsButton.setAttribute("aria-label", "Save document as");
-  const toolbarSeparator = document.createElement("span");
-  toolbarSeparator.className = "review-toolbar-separator";
-  toolbarSeparator.setAttribute("role", "separator");
   const suggestSelectedToolbarButton = document.createElement("button");
   suggestSelectedToolbarButton.type = "button";
-  suggestSelectedToolbarButton.className = "review-action";
+  suggestSelectedToolbarButton.className = "review-action review-action-suggest";
   suggestSelectedToolbarButton.textContent = "Suggest selection";
   suggestSelectedToolbarButton.setAttribute(
     "aria-label",
@@ -914,16 +923,21 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   revertButton.dataset.appearance = "lightweight";
   revertButton.className = "review-action";
   revertButton.textContent = "Revert all edits";
+  const moreActions = document.createElement("details");
+  moreActions.className = "review-more-actions";
+  const moreActionsSummary = document.createElement("summary");
+  moreActionsSummary.className = "review-action";
+  moreActionsSummary.textContent = "More";
+  moreActionsSummary.setAttribute("aria-label", "More document actions");
+  const moreActionsMenu = document.createElement("div");
+  moreActionsMenu.className = "review-more-menu";
+  moreActionsMenu.append(saveAsButton, copyButton, downloadButton, revertButton);
+  moreActions.append(moreActionsSummary, moreActionsMenu);
   documentActions.append(
     saveButton,
-    saveAsButton,
-    toolbarSeparator,
     suggestSelectedToolbarButton,
-    copyButton,
-    downloadButton,
-    revertButton,
+    moreActions,
   );
-  documentHeader.append(documentHeaderCopy, documentActions);
   const documentStatus = document.createElement("p");
   documentStatus.className = "review-document-status";
   documentStatus.setAttribute("aria-live", "polite");
@@ -954,7 +968,10 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
     ),
   );
   confidence.append(confidenceHeading, confidenceGraphic, confidenceSummary);
-  documentPane.append(documentHeader, documentStatus, confidence, documentBody);
+  confidence.title =
+    "A deterministic estimate of how reliably an AI system can retrieve and use this document. It is not a guarantee of answer accuracy.";
+  documentHeader.append(documentHeaderCopy, confidence, documentActions);
+  documentPane.append(documentStatus, documentBody);
 
   const saveAsDialog = document.createElement("div");
   saveAsDialog.className = "dialog review-save-as-dialog";
@@ -1267,8 +1284,9 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
               }),
             },
           );
-          if (payload?.replacement) {
-            field.value = payload.replacement;
+          const replacement = cleanSuggestedReplacement(payload?.replacement);
+          if (replacement) {
+            field.value = replacement;
             note.textContent = payload.rationale
               ? `Suggested: ${payload.rationale} Review it, then apply the edit.`
               : "Suggestion ready. Review it, then apply the edit.";
@@ -1534,7 +1552,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
         return;
       }
       selectedRange = requestedRange;
-      suggestionText.value = payload.replacement;
+      suggestionText.value = cleanSuggestedReplacement(payload.replacement);
       suggestionRationale.textContent =
         payload.rationale || "Review the suggestion before applying it.";
       showDialog(suggestionDialog, suggestionText);
@@ -1694,7 +1712,7 @@ function documentFindings(report, documentTitle = "Document", documentValue = nu
   });
 
   container.append(index);
-  workspace.append(documentPane, container);
+  workspace.append(documentHeader, documentPane, container);
   updateDocumentActions();
   renderDetail(0);
 
