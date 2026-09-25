@@ -165,6 +165,10 @@ The [platform architecture](docs/architecture.md) includes:
 * An estate-wide evaluation-draft flow that balances up to 20 source-grounded
   questions across approved document plans
 
+See the [wiki](wiki/Home.md) for a task-oriented guide covering what Shaper
+does, how to get started and call the API, how to deploy it, and frequently
+asked questions.
+
 ## Local development
 
 Python 3.11 and `uv` are required.
